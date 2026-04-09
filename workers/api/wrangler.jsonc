@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "ephem-chat",
+  "name": "elm-chat",
+  "account_id": "485a8b721eeb6afa98c6e4071b50fe04",
   "main": "src/index.ts",
   "compatibility_date": "2026-04-08",
   "compatibility_flags": ["nodejs_compat"],
@@ -28,4 +29,3 @@
     }
   ]
 }
-

@@ -1,5 +1,5 @@
 {
-  "name": "ephem-chat",
+  "name": "elm-chat",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -9,10 +9,9 @@
     "durable-objects/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace @ephem/web && npm run build --workspace @ephem/api",
-    "typecheck": "npm run typecheck --workspace @ephem/shared && npm run typecheck --workspace @ephem/crypto && npm run typecheck --workspace @ephem/web && npm run typecheck --workspace @ephem/api",
-    "dev:web": "npm run dev --workspace @ephem/web",
-    "dev:api": "npm run dev --workspace @ephem/api"
+    "build": "npm run build --workspace @elm-chat/web && npm run build --workspace @elm-chat/api",
+    "typecheck": "npm run typecheck --workspace @elm-chat/shared && npm run typecheck --workspace @elm-chat/crypto && npm run typecheck --workspace @elm-chat/web && npm run typecheck --workspace @elm-chat/api",
+    "dev:web": "npm run dev --workspace @elm-chat/web",
+    "dev:api": "npm run dev --workspace @elm-chat/api"
   }
 }
-

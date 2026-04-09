@@ -76,7 +76,7 @@ Server events:
 { "type": "message", "envelope": { "messageId": "uuid", "senderSessionId": "uuid", "ciphertext": "base64url", "nonce": "base64url", "sentAt": 1744150200000, "expiresAfterReadSeconds": 30 } }
 { "type": "message_state", "messageId": "uuid", "state": "read", "readAt": 1744150210000, "disappearAt": 1744150240000 }
 { "type": "room_state", "status": "destroyed", "expiresAt": 1744236400000, "reason": "destroyed" }
-{ "type": "error", "code": "room_full", "message": "Room already has two participants." }
+{ "type": "error", "code": "room_full", "message": "Room is at capacity." }
 ```
 
 ## `POST /api/rooms/:roomId/destroy`
@@ -90,4 +90,3 @@ Request body:
   "creatorToken": "creator-only-destroy-capability"
 }
 ```
-

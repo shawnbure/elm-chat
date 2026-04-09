@@ -2,7 +2,7 @@
 
 ## Overview
 
-This MVP is a capability-link, two-party ephemeral messaging system built on Cloudflare-native infrastructure:
+This MVP is a capability-link, ephemeral group messaging system built on Cloudflare-native infrastructure:
 
 - `apps/web`: React single-page app for room creation, join flow, local crypto, and chat UI.
 - `workers/api`: Cloudflare Worker serving the SPA, room APIs, and WebSocket upgrade routing.
@@ -33,12 +33,14 @@ Each room is bound to a single Durable Object instance derived with `getByName(r
 
 Responsibilities:
 
-- enforce the exact two-participant limit
+- enforce the room participant cap
 - track joins, disconnects, and presence
 - relay encrypted envelopes over WebSockets
 - persist minimal ciphertext buffers and message state
 - expire messages after read
 - expire or destroy rooms and close connected sockets
+
+Current group-chat cap: 16 concurrent participants per room.
 
 ## Storage Strategy
 
@@ -66,4 +68,3 @@ The code includes clear insertion points for:
 - add log redaction and structured logging sinks
 - add a cryptographic sender-auth layer if multi-device or stronger impersonation resistance is required
 - add key version negotiation and ratcheting for forward secrecy beyond static room-key encryption
-

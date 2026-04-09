@@ -2,19 +2,22 @@ export const ROOM_SECRET_BYTES = 32;
 export const ROOM_ID_BYTES = 16;
 export const AES_GCM_NONCE_BYTES = 12;
 export const KEY_VERSION = "v1";
-export const HKDF_INFO = `ephem-chat:${KEY_VERSION}:room-key`;
-export const DEFAULT_INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
+export const HKDF_INFO = `elm-chat:${KEY_VERSION}:room-key`;
+export const DEFAULT_INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
 export const DEFAULT_MAX_ROOM_AGE_MS = 24 * 60 * 60 * 1000;
 export const DISCONNECT_GRACE_MS = 2 * 60 * 1000;
-export const DEFAULT_DISAPPEAR_AFTER_READ_SECONDS = 30;
+export const DEFAULT_DISAPPEAR_AFTER_READ_SECONDS = 7 * 60;
 export const MAX_MESSAGE_BYTES = 4 * 1024;
 export const MAX_MESSAGES_BUFFERED = 200;
-export const MAX_CONNECTIONS_PER_ROOM = 2;
+export const MAX_CONNECTIONS_PER_ROOM = 16;
 
 export type RoomStatus = "open" | "expired" | "destroyed";
 export type MessageState = "sent" | "delivered" | "read" | "expired" | "deleted";
 
 export interface CreateRoomRequest {
+  disappearAfterReadSeconds?: number | null;
+  inactivityTimeoutMs?: number | null;
+  maxAgeMs?: number | null;
   turnstileToken?: string;
 }
 
@@ -23,20 +26,20 @@ export interface CreateRoomResponse {
   roomUrl: string;
   websocketPath: string;
   createdAt: number;
-  expiresAt: number;
-  inactivityTimeoutMs: number;
-  maxAgeMs: number;
-  disappearAfterReadSeconds: number;
+  expiresAt: number | null;
+  inactivityTimeoutMs: number | null;
+  maxAgeMs: number | null;
+  disappearAfterReadSeconds: number | null;
   creatorToken: string;
 }
 
 export interface RoomMetadata {
   roomId: string;
   createdAt: number;
-  expiresAt: number;
-  inactivityTimeoutMs: number;
-  maxAgeMs: number;
-  disappearAfterReadSeconds: number;
+  expiresAt: number | null;
+  inactivityTimeoutMs: number | null;
+  maxAgeMs: number | null;
+  disappearAfterReadSeconds: number | null;
   status: RoomStatus;
   participantCount: number;
   creatorJoined: boolean;
@@ -50,7 +53,7 @@ export interface EncryptedMessageEnvelope {
   ciphertext: string;
   nonce: string;
   sentAt: number;
-  expiresAfterReadSeconds: number;
+  expiresAfterReadSeconds: number | null;
 }
 
 export interface StoredMessage {
@@ -125,7 +128,7 @@ export interface MessageStateEvent {
 export interface RoomStateEvent {
   type: "room_state";
   status: RoomStatus;
-  expiresAt: number;
+  expiresAt: number | null;
   reason?: string;
 }
 
@@ -146,4 +149,3 @@ export type ServerEvent =
 export function assertNever(value: never): never {
   throw new Error(`Unhandled value: ${String(value)}`);
 }
-

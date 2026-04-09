@@ -1,11 +1,10 @@
 import {
   DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
   DEFAULT_INACTIVITY_TIMEOUT_MS,
-  DEFAULT_MAX_ROOM_AGE_MS,
   ROOM_ID_BYTES,
   type CreateRoomRequest,
   type CreateRoomResponse
-} from "@ephem/shared";
+} from "@elm-chat/shared";
 import { RoomDurableObject } from "../../../durable-objects/room/src/room";
 
 export { RoomDurableObject };
@@ -40,6 +39,10 @@ function withSecurityHeaders(response: Response): Response {
   });
 }
 
+function isWebSocketUpgrade(request: Request): boolean {
+  return request.headers.get("Upgrade")?.toLowerCase() === "websocket";
+}
+
 function base64Url(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes))
     .replace(/\+/g, "-")
@@ -67,22 +70,29 @@ function buildRoomUrl(request: Request, roomId: string): string {
 }
 
 async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
-  const _body = await safeJson<CreateRoomRequest>(request).catch(() => ({} as CreateRoomRequest));
+  const body = await safeJson<CreateRoomRequest>(request).catch(() => ({} as CreateRoomRequest));
 
   // Abuse-prevention hook: verify Turnstile token here.
   const now = Date.now();
   const roomId = randomRoomId();
   const creatorToken = randomToken();
-  const expiresAt = now + DEFAULT_MAX_ROOM_AGE_MS;
+  const disappearAfterReadSeconds =
+    body.disappearAfterReadSeconds === undefined
+      ? DEFAULT_DISAPPEAR_AFTER_READ_SECONDS
+      : body.disappearAfterReadSeconds;
+  const inactivityTimeoutMs =
+    body.inactivityTimeoutMs === undefined ? DEFAULT_INACTIVITY_TIMEOUT_MS : body.inactivityTimeoutMs;
+  const maxAgeMs = body.maxAgeMs === undefined ? null : body.maxAgeMs;
+  const expiresAt = typeof maxAgeMs === "number" ? now + maxAgeMs : null;
   const response: CreateRoomResponse = {
     roomId,
     roomUrl: buildRoomUrl(request, roomId),
     websocketPath: `/api/rooms/${roomId}/ws`,
     createdAt: now,
     expiresAt,
-    inactivityTimeoutMs: DEFAULT_INACTIVITY_TIMEOUT_MS,
-    maxAgeMs: DEFAULT_MAX_ROOM_AGE_MS,
-    disappearAfterReadSeconds: DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
+    inactivityTimeoutMs,
+    maxAgeMs,
+    disappearAfterReadSeconds,
     creatorToken
   };
 
@@ -150,7 +160,8 @@ export default {
 
     if (url.pathname.startsWith("/api/")) {
       try {
-        return withSecurityHeaders(await routeApi(request, env));
+        const response = await routeApi(request, env);
+        return isWebSocketUpgrade(request) ? response : withSecurityHeaders(response);
       } catch {
         return withSecurityHeaders(json({ error: "Internal error." }, 500));
       }
