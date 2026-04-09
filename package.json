@@ -1,0 +1,18 @@
+{
+  "name": "ephem-chat",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "workers/*",
+    "packages/*",
+    "durable-objects/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @ephem/web && npm run build --workspace @ephem/api",
+    "typecheck": "npm run typecheck --workspace @ephem/shared && npm run typecheck --workspace @ephem/crypto && npm run typecheck --workspace @ephem/web && npm run typecheck --workspace @ephem/api",
+    "dev:web": "npm run dev --workspace @ephem/web",
+    "dev:api": "npm run dev --workspace @ephem/api"
+  }
+}
+

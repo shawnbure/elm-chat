@@ -1,0 +1,19 @@
+{
+  "name": "@ephem/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@ephem/room-do": "*",
+    "@ephem/shared": "*"
+  },
+  "devDependencies": {
+    "wrangler": "^4.10.0"
+  },
+  "scripts": {
+    "build": "wrangler deploy --dry-run",
+    "dev": "wrangler dev",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}
+

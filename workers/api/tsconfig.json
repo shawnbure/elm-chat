@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["./worker-configuration.d.ts"]
+  },
+  "include": ["src", "../../durable-objects/room/src"]
+}
+
