@@ -1,20 +1,20 @@
 :root {
   color-scheme: light;
-  --bg: #f4efe7;
-  --bg-strong: #e9dece;
-  --panel: rgba(255, 252, 247, 0.78);
-  --panel-strong: #fffaf3;
-  --ink: #1f1a17;
-  --muted: #6c645d;
-  --accent: #0d6b61;
-  --accent-strong: #094f48;
-  --warning: #b2472a;
-  --line: rgba(31, 26, 23, 0.08);
-  --shadow: 0 24px 80px rgba(71, 53, 30, 0.14);
+  --bg: #f6f4ef;
+  --panel: rgba(255, 255, 255, 0.72);
+  --panel-strong: rgba(255, 255, 255, 0.92);
+  --ink: #171717;
+  --muted: #6d6a63;
+  --accent: #10695e;
+  --accent-strong: #0d4f47;
+  --warning: #af4d33;
+  --line: rgba(23, 23, 23, 0.08);
+  --shadow: 0 12px 40px rgba(50, 43, 33, 0.08);
   font-family: "Instrument Sans", "Helvetica Neue", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(13, 107, 97, 0.08), transparent 28%),
-    linear-gradient(180deg, #f8f3eb, #f1e8db 42%, #efe4d5 100%);
+    radial-gradient(circle at top left, rgba(16, 105, 94, 0.07), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(45, 92, 135, 0.05), transparent 28%),
+    linear-gradient(180deg, #f7f5f1, #f0ece5 48%, #ece8df 100%);
   color: var(--ink);
 }
 
@@ -29,14 +29,16 @@ body {
 }
 
 button,
-textarea {
+textarea,
+input,
+select {
   font: inherit;
 }
 
 .landing-shell,
 .room-shell {
   min-height: 100vh;
-  padding: 24px;
+  padding: 18px;
 }
 
 .hero,
@@ -48,9 +50,9 @@ textarea {
 .hero {
   display: grid;
   grid-template-columns: 1.1fr 0.9fr;
-  gap: 28px;
+  gap: 18px;
   align-items: stretch;
-  min-height: calc(100vh - 48px);
+  min-height: calc(100vh - 36px);
 }
 
 .hero-copy,
@@ -68,11 +70,11 @@ textarea {
 
 .hero-copy,
 .hero-panel {
-  border-radius: 32px;
+  border-radius: 28px;
 }
 
 .hero-copy {
-  padding: 56px;
+  padding: 42px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -90,33 +92,44 @@ textarea {
 .room-header h1 {
   margin: 0;
   font-family: "Fraunces", Georgia, serif;
-  font-size: clamp(3rem, 6vw, 5.8rem);
-  line-height: 0.96;
-  max-width: 10ch;
+  font-size: clamp(2.6rem, 5vw, 4.8rem);
+  line-height: 0.98;
+  max-width: 11ch;
 }
 
 .room-header h1 {
-  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
+  font-family: "Instrument Sans", "Helvetica Neue", sans-serif;
+  font-weight: 600;
 }
 
 .lede {
-  max-width: 28rem;
-  font-size: 1.12rem;
-  line-height: 1.6;
+  max-width: 31rem;
+  font-size: 1rem;
+  line-height: 1.5;
   color: var(--muted);
 }
 
 .hero-actions {
-  margin-top: 28px;
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .primary-button,
 .secondary-button {
   border: 0;
   border-radius: 999px;
-  padding: 14px 22px;
+  padding: 11px 16px;
   cursor: pointer;
-  transition: transform 180ms ease, background 180ms ease, opacity 180ms ease;
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    opacity 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
 }
 
 .primary-button {
@@ -127,6 +140,13 @@ textarea {
 .primary-button:hover,
 .secondary-button:hover {
   transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(31, 26, 23, 0.08);
+}
+
+.primary-button:active,
+.secondary-button:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .primary-button:disabled,
@@ -139,6 +159,11 @@ textarea {
   background: var(--panel-strong);
   color: var(--ink);
   border: 1px solid var(--line);
+}
+
+.button-success {
+  border-color: rgba(13, 107, 97, 0.28);
+  background: rgba(13, 107, 97, 0.12);
 }
 
 .helper-text,
@@ -157,7 +182,7 @@ textarea {
 .hero-panel {
   position: relative;
   overflow: hidden;
-  padding: 36px;
+  padding: 28px;
   display: flex;
   align-items: flex-end;
 }
@@ -176,7 +201,7 @@ textarea {
   position: relative;
   width: 100%;
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .hero-metrics div {
@@ -195,21 +220,22 @@ textarea {
 .hero-metrics strong {
   display: block;
   margin-top: 6px;
-  font-size: 1.3rem;
+  font-size: 1.15rem;
   font-weight: 600;
 }
 
 .room-shell {
   display: grid;
-  gap: 18px;
+  gap: 10px;
+  max-width: 920px;
 }
 
 .room-header,
 .room-banner,
 .composer,
 .room-actions {
-  border-radius: 24px;
-  padding: 18px 22px;
+  border-radius: 18px;
+  padding: 12px 14px;
 }
 
 .room-header,
@@ -217,12 +243,17 @@ textarea {
 .room-actions {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px;
   align-items: center;
 }
 
 .room-banner {
-  background: rgba(13, 107, 97, 0.08);
+  background: rgba(16, 105, 94, 0.06);
+}
+
+.participant-banner {
+  align-items: flex-start;
+  flex-direction: column;
 }
 
 .banner-stats,
@@ -234,49 +265,120 @@ textarea {
 
 .room-actions {
   justify-content: flex-start;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.room-notice {
+  margin: 0;
+  padding: 16px 18px;
+  border-radius: 20px;
+  background: rgba(178, 71, 42, 0.08);
+  border: 1px solid rgba(178, 71, 42, 0.18);
+  color: var(--warning);
+}
+
+.participant-strip {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.participant-empty {
+  color: var(--muted);
+}
+
+.participant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--participant-color), white 70%);
+  background: color-mix(in srgb, var(--participant-color), white 88%);
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+.participant-chip-self {
+  font-weight: 600;
+}
+
+.participant-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--participant-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--participant-color), white 82%);
 }
 
 .chat-log {
-  border-radius: 28px;
-  min-height: 40vh;
-  padding: 22px;
+  border-radius: 20px;
+  min-height: 52vh;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.56);
 }
 
 .bubble {
-  max-width: min(75ch, 82%);
-  padding: 14px 16px;
-  border-radius: 22px;
+  max-width: min(72ch, 78%);
+  padding: 10px 12px;
+  border-radius: 18px;
   animation: rise 220ms ease;
+  background: var(--bubble-surface, var(--panel-strong));
+  color: var(--bubble-text, var(--ink));
+  border: 1px solid var(--bubble-surface-border, transparent);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  position: relative;
+}
+
+.bubble::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--bubble-accent, var(--accent));
 }
 
 .bubble p {
-  margin: 0;
-  line-height: 1.55;
+  margin: 0 0 0 8px;
+  line-height: 1.45;
+}
+
+.bubble-author {
+  display: inline-block;
+  margin: 0 0 6px 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: inherit;
+  opacity: 0.72;
 }
 
 .bubble footer {
-  margin-top: 10px;
+  margin-top: 8px;
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-size: 0.82rem;
+  font-size: 0.75rem;
+  margin-left: 8px;
 }
 
 .bubble-mine {
   margin-left: auto;
-  background: var(--accent);
-  color: white;
 }
 
 .bubble-mine footer {
   color: rgba(255, 255, 255, 0.78);
-}
-
-.bubble-theirs {
-  background: var(--panel-strong);
 }
 
 .bubble-expired {
@@ -286,19 +388,87 @@ textarea {
 .composer {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 14px;
+  gap: 10px;
   align-items: end;
+  background: rgba(255, 255, 255, 0.88);
+  position: sticky;
+  bottom: 12px;
 }
 
 .composer textarea {
   width: 100%;
-  resize: vertical;
-  min-height: 96px;
-  border-radius: 18px;
+  resize: none;
+  min-height: 54px;
+  max-height: 180px;
+  border-radius: 14px;
   border: 1px solid var(--line);
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.8);
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.96);
   color: var(--ink);
+}
+
+.creation-panel {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.48);
+  border: 1px solid var(--line);
+}
+
+.setting-label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.setting-note {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.setting-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.setting-input,
+.setting-select {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.setting-input {
+  width: 88px;
+}
+
+.toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink);
+}
+
+.toggle-pill input {
+  margin: 0;
 }
 
 .room-error,
@@ -324,7 +494,7 @@ textarea {
   }
 
   .hero-copy {
-    padding: 32px 24px;
+    padding: 28px 22px;
   }
 
   .room-header,
@@ -343,10 +513,14 @@ textarea {
 
   .composer {
     display: flex;
+    position: static;
   }
 
   .bubble {
     max-width: 100%;
   }
-}
 
+  .setting-row {
+    grid-template-columns: 1fr;
+  }
+}

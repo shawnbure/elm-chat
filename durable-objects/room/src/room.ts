@@ -1,8 +1,6 @@
 import {
   DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
   DEFAULT_INACTIVITY_TIMEOUT_MS,
-  DEFAULT_MAX_ROOM_AGE_MS,
-  DISCONNECT_GRACE_MS,
   MAX_CONNECTIONS_PER_ROOM,
   MAX_MESSAGES_BUFFERED,
   MAX_MESSAGE_BYTES,
@@ -21,7 +19,7 @@ import {
   type SendPayload,
   type ServerEvent,
   type StoredMessage
-} from "@ephem/shared";
+} from "@elm-chat/shared";
 import { DurableObject } from "cloudflare:workers";
 
 type RoomStorage = RoomMetadata & {
@@ -165,17 +163,24 @@ export class RoomDurableObject extends DurableObject<Env> {
     const noSockets = this.connectedSessionIds().length === 0;
     const idleFor = now - this.roomMeta.lastActivityAt;
 
-    if (now >= this.roomMeta.expiresAt) {
+    if (typeof this.roomMeta.expiresAt === "number" && now >= this.roomMeta.expiresAt) {
       await this.transitionRoom("expired", "max-age");
       return;
     }
 
-    if (noSockets && idleFor >= DISCONNECT_GRACE_MS) {
-      await this.transitionRoom("expired", "grace-timeout");
+    if (
+      typeof this.roomMeta.inactivityTimeoutMs === "number" &&
+      this.sessions.size === 0 &&
+      idleFor >= this.roomMeta.inactivityTimeoutMs
+    ) {
+      await this.transitionRoom("expired", "join-timeout");
       return;
     }
 
-    if (idleFor >= this.roomMeta.inactivityTimeoutMs) {
+    if (
+      typeof this.roomMeta.inactivityTimeoutMs === "number" &&
+      idleFor >= this.roomMeta.inactivityTimeoutMs
+    ) {
       await this.transitionRoom("expired", "inactive");
       return;
     }
@@ -246,9 +251,8 @@ export class RoomDurableObject extends DurableObject<Env> {
       createdAt: bootstrap.createdAt,
       expiresAt: bootstrap.expiresAt,
       inactivityTimeoutMs: bootstrap.inactivityTimeoutMs ?? DEFAULT_INACTIVITY_TIMEOUT_MS,
-      maxAgeMs: bootstrap.maxAgeMs ?? DEFAULT_MAX_ROOM_AGE_MS,
-      disappearAfterReadSeconds:
-        bootstrap.disappearAfterReadSeconds ?? DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
+      maxAgeMs: bootstrap.maxAgeMs ?? null,
+      disappearAfterReadSeconds: bootstrap.disappearAfterReadSeconds ?? DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
       status: "open",
       participantCount: 0,
       creatorJoined: false,
@@ -286,7 +290,7 @@ export class RoomDurableObject extends DurableObject<Env> {
 
     const joinedIds = new Set(this.connectedSessionIds());
     if (joinedIds.size >= MAX_CONNECTIONS_PER_ROOM && !joinedIds.has(payload.sessionId)) {
-      ws.send(JSON.stringify(errorEvent("room_full", "Room already has two participants.")));
+      ws.send(JSON.stringify(errorEvent("room_full", "Room is at capacity.")));
       ws.close(4409, "room full");
       return;
     }
@@ -362,7 +366,11 @@ export class RoomDurableObject extends DurableObject<Env> {
 
     const stored: StoredMessage = {
       envelope,
-      state: "sent"
+      state: "sent",
+      disappearAt:
+        typeof envelope.expiresAfterReadSeconds === "number"
+          ? envelope.sentAt + envelope.expiresAfterReadSeconds * 1000
+          : undefined
     };
 
     await this.ctx.storage.put(`${MESSAGE_PREFIX}${envelope.messageId}`, stored);
@@ -390,13 +398,14 @@ export class RoomDurableObject extends DurableObject<Env> {
       return;
     }
 
-    const readAt = Date.now();
-    const disappearAt = readAt + stored.envelope.expiresAfterReadSeconds * 1000;
+    if (stored.state === "read") {
+      return;
+    }
+
     await this.updateMessageState(messageId, "read", {
-      readAt,
-      disappearAt
+      readAt: Date.now(),
+      disappearAt: stored.disappearAt
     });
-    await this.scheduleNextAlarm();
   }
 
   private async updateMessageState(
@@ -449,7 +458,8 @@ export class RoomDurableObject extends DurableObject<Env> {
         this.broadcast({
           type: "message_state",
           messageId: stored.envelope.messageId,
-          state: "expired"
+          state: "expired",
+          disappearAt: stored.disappearAt
         } satisfies MessageStateEvent);
       }
     }
@@ -514,12 +524,16 @@ export class RoomDurableObject extends DurableObject<Env> {
 
     const candidates = [
       this.roomMeta.expiresAt,
-      this.roomMeta.lastActivityAt + this.roomMeta.inactivityTimeoutMs,
-      this.connectedSessionIds().length === 0
-        ? this.roomMeta.lastActivityAt + DISCONNECT_GRACE_MS
+      typeof this.roomMeta.inactivityTimeoutMs === "number"
+        ? this.roomMeta.lastActivityAt + this.roomMeta.inactivityTimeoutMs
         : undefined,
       nextMessageExpiry
     ].filter((value): value is number => typeof value === "number");
+
+    if (candidates.length === 0) {
+      await this.ctx.storage.deleteAlarm();
+      return;
+    }
 
     const nextAlarmAt = Math.min(...candidates);
     await this.ctx.storage.setAlarm(nextAlarmAt);

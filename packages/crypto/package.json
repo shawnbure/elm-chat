@@ -1,5 +1,5 @@
 {
-  "name": "@ephem/crypto",
+  "name": "@elm-chat/crypto",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,10 +7,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@ephem/shared": "*"
+    "@elm-chat/shared": "*"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
-

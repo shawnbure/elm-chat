@@ -1,4 +1,4 @@
-import { AES_GCM_NONCE_BYTES, HKDF_INFO, KEY_VERSION, ROOM_SECRET_BYTES } from "@ephem/shared";
+import { AES_GCM_NONCE_BYTES, HKDF_INFO, KEY_VERSION, ROOM_SECRET_BYTES } from "@elm-chat/shared";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();

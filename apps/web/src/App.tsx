@@ -5,17 +5,19 @@ import {
   generateMessageId,
   generateRoomSecret,
   generateSessionId
-} from "@ephem/crypto";
+} from "@elm-chat/crypto";
 import {
   DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
+  type CreateRoomRequest,
   type CreateRoomResponse,
   type EncryptedMessageEnvelope,
   type MessageState,
+  type PresenceSnapshot,
   type RoomMetadata,
   type ServerEvent,
   type StoredMessage
-} from "@ephem/shared";
-import { startTransition, useEffect, useRef, useState } from "react";
+} from "@elm-chat/shared";
+import { startTransition, useEffect, useRef, useState, type CSSProperties } from "react";
 
 type View = "landing" | "room";
 
@@ -28,6 +30,14 @@ type UiMessage = {
   deliveredAt?: number;
   readAt?: number;
   disappearAt?: number;
+};
+
+type ActionFeedback = "idle" | "success";
+type DurationUnit = "minutes" | "hours" | "days";
+type DurationDraft = {
+  amount: string;
+  unit: DurationUnit;
+  indefinite: boolean;
 };
 
 function roomPathname(): { view: View; roomId?: string } {
@@ -56,20 +66,73 @@ function formatClock(timestamp: number): string {
 }
 
 function creatorTokenKey(roomId: string): string {
-  return `ephem:creator:${roomId}`;
+  return `elm-chat:creator:${roomId}`;
 }
 
 function sessionKey(roomId: string): string {
-  return `ephem:session:${roomId}`;
+  return `elm-chat:session:${roomId}`;
 }
 
-async function createRoom(): Promise<CreateRoomResponse> {
+function durationUnitLabel(unit: DurationUnit): string {
+  switch (unit) {
+    case "minutes":
+      return "minutes";
+    case "hours":
+      return "hours";
+    case "days":
+      return "days";
+  }
+}
+
+function durationToMs(amount: number, unit: DurationUnit): number {
+  switch (unit) {
+    case "minutes":
+      return amount * 60 * 1000;
+    case "hours":
+      return amount * 60 * 60 * 1000;
+    case "days":
+      return amount * 24 * 60 * 60 * 1000;
+  }
+}
+
+function durationToSeconds(amount: number, unit: DurationUnit): number {
+  return Math.floor(durationToMs(amount, unit) / 1000);
+}
+
+function formatSelectedDuration(amount: string, unit: DurationUnit, indefinite: boolean): string {
+  if (indefinite) {
+    return "Indefinite";
+  }
+  const value = Number(amount) || 0;
+  const label = durationUnitLabel(unit);
+  return `${value} ${label}`;
+}
+
+function parseDurationDraft(
+  draft: DurationDraft,
+  fallbackValue: number,
+  fallbackUnit: DurationUnit,
+  kind: "seconds" | "milliseconds"
+): number | null {
+  if (draft.indefinite) {
+    return null;
+  }
+
+  const parsed = Number(draft.amount);
+  const safeAmount = Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackValue;
+  const unit = draft.unit || fallbackUnit;
+  return kind === "seconds"
+    ? durationToSeconds(safeAmount, unit)
+    : durationToMs(safeAmount, unit);
+}
+
+async function createRoom(body: CreateRoomRequest): Promise<CreateRoomResponse> {
   const response = await fetch("/api/rooms", {
     method: "POST",
     headers: {
       "content-type": "application/json"
     },
-    body: JSON.stringify({})
+    body: JSON.stringify(body)
   });
   if (!response.ok) {
     throw new Error("Failed to create room.");
@@ -111,7 +174,13 @@ function messageStatus(message: UiMessage): string {
     return "Disappeared";
   }
   if (message.state === "read" && message.disappearAt) {
-    return `Read • disappears in ${formatRelativeDuration(message.disappearAt)}`;
+    return `Read • vanishes in ${formatRelativeDuration(message.disappearAt)}`;
+  }
+  if (message.state === "read") {
+    return "Read";
+  }
+  if (message.disappearAt) {
+    return `Vanishes in ${formatRelativeDuration(message.disappearAt)}`;
   }
   if (message.state === "delivered") {
     return "Delivered";
@@ -136,6 +205,44 @@ function upsertMessage(messages: UiMessage[], next: UiMessage): UiMessage[] {
   return copy;
 }
 
+function colorFromSessionId(sessionId: string): string {
+  let hash = 0;
+  for (let index = 0; index < sessionId.length; index += 1) {
+    hash = (hash * 31 + sessionId.charCodeAt(index)) >>> 0;
+  }
+  const hue = hash % 360;
+  const saturation = 62 + (hash % 12);
+  const lightness = 48 + (hash % 10);
+  return `hsl(${hue} ${saturation}% ${lightness}%)`;
+}
+
+function bubbleStyle(sessionId: string, mine: boolean): CSSProperties {
+  const color = colorFromSessionId(sessionId);
+  return {
+    "--bubble-accent": color,
+    "--bubble-surface": mine ? color : `color-mix(in srgb, ${color}, white 88%)`,
+    "--bubble-surface-border": `color-mix(in srgb, ${color}, white 58%)`,
+    "--bubble-text": mine ? "#fffaf3" : "var(--ink)"
+  } as CSSProperties;
+}
+
+function roomStateMessage(status: RoomMetadata["status"], reason?: string): string {
+  if (status === "destroyed") {
+    return "This room was destroyed and everyone was disconnected.";
+  }
+
+  switch (reason) {
+    case "join-timeout":
+      return "This room self-destructed because nobody joined before the room timeout.";
+    case "inactive":
+      return "This room self-destructed after the configured idle timeout.";
+    case "max-age":
+      return "This room reached its maximum lifetime and self-destructed.";
+    default:
+      return "This room is no longer available.";
+  }
+}
+
 export function App() {
   const route = roomPathname();
   return route.view === "room" && route.roomId ? (
@@ -148,13 +255,32 @@ export function App() {
 function LandingPage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [messageDuration, setMessageDuration] = useState<DurationDraft>({
+    amount: "7",
+    unit: "minutes",
+    indefinite: false
+  });
+  const [roomDuration, setRoomDuration] = useState<DurationDraft>({
+    amount: "10",
+    unit: "minutes",
+    indefinite: false
+  });
 
   async function handleCreate() {
     try {
       setCreating(true);
       setError(null);
       const secret = generateRoomSecret();
-      const room = await createRoom();
+      const room = await createRoom({
+        disappearAfterReadSeconds: parseDurationDraft(
+          messageDuration,
+          7,
+          "minutes",
+          "seconds"
+        ),
+        inactivityTimeoutMs: parseDurationDraft(roomDuration, 10, "minutes", "milliseconds"),
+        maxAgeMs: null
+      });
       localStorage.setItem(creatorTokenKey(room.roomId), room.creatorToken);
       window.location.assign(`${room.roomUrl}#${secret}`);
     } catch (cause) {
@@ -167,16 +293,124 @@ function LandingPage() {
     <main className="landing-shell">
       <section className="hero">
         <div className="hero-copy">
-          <p className="eyebrow">Private by capability</p>
-          <h1>Open a conversation with a link. Leave no inbox behind.</h1>
+          <p className="eyebrow">elm chat</p>
+          <h1>Private chat that feels current, fast, and disposable.</h1>
           <p className="lede">
-            Two people. Browser-only encryption. Ciphertext relay. Messages that vanish after they are read.
+            Encrypted link-based chat with color identity, no usernames, and room rules you set before anyone joins.
           </p>
+          <div className="creation-panel">
+            <div className="setting-row">
+              <div>
+                <span className="setting-label">Message vanish</span>
+                <p className="setting-note">
+                  {formatSelectedDuration(
+                    messageDuration.amount,
+                    messageDuration.unit,
+                    messageDuration.indefinite
+                  )}
+                </p>
+              </div>
+              <div className="setting-controls">
+                <input
+                  className="setting-input"
+                  disabled={messageDuration.indefinite}
+                  inputMode="numeric"
+                  min="1"
+                  onChange={(event) =>
+                    setMessageDuration((current) => ({ ...current, amount: event.target.value }))
+                  }
+                  type="number"
+                  value={messageDuration.amount}
+                />
+                <select
+                  className="setting-select"
+                  disabled={messageDuration.indefinite}
+                  onChange={(event) =>
+                    setMessageDuration((current) => ({
+                      ...current,
+                      unit: event.target.value as DurationUnit
+                    }))
+                  }
+                  value={messageDuration.unit}
+                >
+                  <option value="minutes">Minutes</option>
+                  <option value="hours">Hours</option>
+                  <option value="days">Days</option>
+                </select>
+                <label className="toggle-pill">
+                  <input
+                    checked={messageDuration.indefinite}
+                    onChange={(event) =>
+                      setMessageDuration((current) => ({
+                        ...current,
+                        indefinite: event.target.checked
+                      }))
+                    }
+                    type="checkbox"
+                  />
+                  <span>Indefinite</span>
+                </label>
+              </div>
+            </div>
+            <div className="setting-row">
+              <div>
+                <span className="setting-label">Room self-destruct</span>
+                <p className="setting-note">
+                  {roomDuration.indefinite
+                    ? "Only manual destroy"
+                    : `${formatSelectedDuration(roomDuration.amount, roomDuration.unit, false)} idle`}
+                </p>
+              </div>
+              <div className="setting-controls">
+                <input
+                  className="setting-input"
+                  disabled={roomDuration.indefinite}
+                  inputMode="numeric"
+                  min="1"
+                  onChange={(event) =>
+                    setRoomDuration((current) => ({ ...current, amount: event.target.value }))
+                  }
+                  type="number"
+                  value={roomDuration.amount}
+                />
+                <select
+                  className="setting-select"
+                  disabled={roomDuration.indefinite}
+                  onChange={(event) =>
+                    setRoomDuration((current) => ({
+                      ...current,
+                      unit: event.target.value as DurationUnit
+                    }))
+                  }
+                  value={roomDuration.unit}
+                >
+                  <option value="minutes">Minutes</option>
+                  <option value="hours">Hours</option>
+                  <option value="days">Days</option>
+                </select>
+                <label className="toggle-pill">
+                  <input
+                    checked={roomDuration.indefinite}
+                    onChange={(event) =>
+                      setRoomDuration((current) => ({
+                        ...current,
+                        indefinite: event.target.checked
+                      }))
+                    }
+                    type="checkbox"
+                  />
+                  <span>Indefinite</span>
+                </label>
+              </div>
+            </div>
+          </div>
           <div className="hero-actions">
             <button className="primary-button" disabled={creating} onClick={handleCreate}>
               {creating ? "Creating room..." : "Create private conversation"}
             </button>
-            <p className="helper-text">Room secret stays in the URL fragment and never reaches the server.</p>
+            <p className="helper-text">
+              Room secret stays in the URL fragment and never reaches the server.
+            </p>
           </div>
           {error ? <p className="error-text">{error}</p> : null}
         </div>
@@ -188,12 +422,16 @@ function LandingPage() {
               <strong>Secret link only</strong>
             </div>
             <div>
-              <span>Retention</span>
-              <strong>Read, then disappear</strong>
+              <span>Message policy</span>
+              <strong>
+                {messageDuration.indefinite
+                  ? "Manual cleanup"
+                  : formatSelectedDuration(messageDuration.amount, messageDuration.unit, false)}
+              </strong>
             </div>
             <div>
-              <span>Transport</span>
-              <strong>Workers + Durable Object</strong>
+              <span>Room policy</span>
+              <strong>{roomDuration.indefinite ? "No idle timeout" : "Idle self-destruct"}</strong>
             </div>
           </div>
         </div>
@@ -210,8 +448,12 @@ function RoomPage({ roomId }: { roomId: string }) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connection, setConnection] = useState("Connecting");
-  const [presence, setPresence] = useState(0);
+  const [presence, setPresence] = useState<PresenceSnapshot>({ count: 0, connectedSessionIds: [] });
   const [now, setNow] = useState(Date.now());
+  const [roomNotice, setRoomNotice] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<ActionFeedback>("idle");
+  const [destroyFeedback, setDestroyFeedback] = useState<ActionFeedback>("idle");
+  const [destroying, setDestroying] = useState(false);
   const [sessionId] = useState(() => {
     const stored = sessionStorage.getItem(sessionKey(roomId));
     if (stored) {
@@ -242,6 +484,12 @@ function RoomPage({ roomId }: { roomId: string }) {
         }
         roomKeyRef.current = key;
         setRoom(metadata);
+        if (metadata.status !== "open") {
+          setReady(true);
+          setConnection("Closed");
+          setRoomNotice(roomStateMessage(metadata.status));
+          return;
+        }
 
         const socket = new WebSocket(wsUrl(`/api/rooms/${roomId}/ws`));
         socketRef.current = socket;
@@ -258,7 +506,7 @@ function RoomPage({ roomId }: { roomId: string }) {
         });
 
         socket.addEventListener("close", () => {
-          setConnection("Disconnected");
+          setConnection((current) => (room?.status === "open" ? "Disconnected" : "Closed"));
         });
 
         socket.addEventListener("error", () => {
@@ -270,7 +518,7 @@ function RoomPage({ roomId }: { roomId: string }) {
           if (payload.type === "joined") {
             startTransition(() => {
               setRoom(payload.room);
-              setPresence(payload.presence.count);
+              setPresence(payload.presence);
               setReady(true);
             });
 
@@ -281,7 +529,7 @@ function RoomPage({ roomId }: { roomId: string }) {
           }
 
           if (payload.type === "presence") {
-            startTransition(() => setPresence(payload.presence.count));
+            startTransition(() => setPresence(payload.presence));
             return;
           }
 
@@ -320,6 +568,10 @@ function RoomPage({ roomId }: { roomId: string }) {
                     }
                   : current
               );
+              setRoomNotice(roomStateMessage(payload.status, payload.reason));
+              setDestroying(false);
+              setDestroyFeedback(payload.status === "destroyed" ? "success" : "idle");
+              setConnection("Closed");
             });
             return;
           }
@@ -383,6 +635,22 @@ function RoomPage({ roomId }: { roomId: string }) {
     };
   }, [creatorToken, roomId, roomSecret, sessionId]);
 
+  useEffect(() => {
+    if (copyFeedback !== "success") {
+      return;
+    }
+    const timeout = window.setTimeout(() => setCopyFeedback("idle"), 1600);
+    return () => window.clearTimeout(timeout);
+  }, [copyFeedback]);
+
+  useEffect(() => {
+    if (destroyFeedback !== "success") {
+      return;
+    }
+    const timeout = window.setTimeout(() => setDestroyFeedback("idle"), 2200);
+    return () => window.clearTimeout(timeout);
+  }, [destroyFeedback]);
+
   async function handleSend(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = draft.trim();
@@ -397,8 +665,7 @@ function RoomPage({ roomId }: { roomId: string }) {
       ciphertext: encrypted.ciphertext,
       nonce: encrypted.nonce,
       sentAt: Date.now(),
-      expiresAfterReadSeconds:
-        room.disappearAfterReadSeconds ?? DEFAULT_DISAPPEAR_AFTER_READ_SECONDS
+      expiresAfterReadSeconds: room.disappearAfterReadSeconds ?? DEFAULT_DISAPPEAR_AFTER_READ_SECONDS
     };
 
     socketRef.current?.send(JSON.stringify({ type: "send", envelope }));
@@ -418,6 +685,7 @@ function RoomPage({ roomId }: { roomId: string }) {
 
   async function handleCopyLink() {
     await navigator.clipboard.writeText(window.location.href);
+    setCopyFeedback("success");
   }
 
   async function handleDestroy() {
@@ -425,51 +693,94 @@ function RoomPage({ roomId }: { roomId: string }) {
       return;
     }
     try {
+      setDestroying(true);
+      setDestroyFeedback("idle");
       const next = await destroyRoom(roomId, creatorToken);
       setRoom(next);
+      setRoomNotice("Destroying room for everyone...");
     } catch (cause) {
+      setDestroying(false);
       setError(cause instanceof Error ? cause.message : "Failed to destroy room.");
     }
   }
 
-  const roomExpiresAt = room?.expiresAt ?? now;
+  const presentCount = presence.count;
+  const sortedPresenceIds = [...presence.connectedSessionIds].sort((left, right) =>
+    left === sessionId ? -1 : right === sessionId ? 1 : left.localeCompare(right)
+  );
+  const messagePolicyLabel =
+    typeof room?.disappearAfterReadSeconds === "number"
+      ? `Messages vanish after ${formatRelativeDuration(now + room.disappearAfterReadSeconds * 1000)}.`
+      : "Messages stay until someone destroys the room.";
+  const roomPolicyLabel =
+    typeof room?.inactivityTimeoutMs === "number"
+      ? `Room self-destructs after ${formatRelativeDuration(now + room.inactivityTimeoutMs)} of inactivity.`
+      : "Room stays open until someone destroys it.";
 
   return (
     <main className="room-shell">
       <header className="room-header">
         <div>
-          <p className="eyebrow">ephem room</p>
-          <h1>Encrypted room {roomId.slice(0, 8)}</h1>
+          <p className="eyebrow">elm chat room</p>
+          <h1>Room {roomId.slice(0, 8)}</h1>
         </div>
         <div className="room-meta">
           <span>{connection}</span>
-          <span>{presence}/2 present</span>
+          <span>{presentCount} present</span>
         </div>
       </header>
 
       <section className="room-banner">
-        <p>Messages are encrypted in this browser, relayed as ciphertext, and set to vanish after read.</p>
+        <p>{messagePolicyLabel}</p>
         <div className="banner-stats">
-          <span>Room expires in {formatRelativeDuration(roomExpiresAt)}</span>
+          <span>{roomPolicyLabel}</span>
           <span>Status: {room?.status ?? "loading"}</span>
         </div>
       </section>
 
+      <section className="room-banner participant-banner">
+        <p>Each chatter gets a color. No usernames, just a consistent hue across their messages.</p>
+        <div className="participant-strip" aria-label="Participants">
+          {sortedPresenceIds.length === 0 ? (
+            <span className="participant-empty">Waiting for someone to join.</span>
+          ) : (
+            sortedPresenceIds.map((id) => (
+              <span
+                className={`participant-chip ${id === sessionId ? "participant-chip-self" : ""}`}
+                key={id}
+                style={{ "--participant-color": colorFromSessionId(id) } as CSSProperties}
+              >
+                <span className="participant-dot" />
+                {id === sessionId ? "You" : "Guest"}
+              </span>
+            ))
+          )}
+        </div>
+      </section>
+
       <section className="room-actions">
-        <button className="secondary-button" onClick={handleCopyLink}>
-          Copy link
+        <button
+          className={`secondary-button ${copyFeedback === "success" ? "button-success" : ""}`}
+          onClick={handleCopyLink}
+        >
+          {copyFeedback === "success" ? "Link copied" : "Copy link"}
         </button>
-        <button className="secondary-button" disabled={!creatorToken} onClick={handleDestroy}>
-          Destroy room
+        <button
+          className={`secondary-button ${destroyFeedback === "success" ? "button-success" : ""}`}
+          disabled={!creatorToken || destroying || room?.status !== "open"}
+          onClick={handleDestroy}
+        >
+          {destroying ? "Destroying..." : destroyFeedback === "success" ? "Room destroyed" : "Destroy room"}
         </button>
       </section>
 
+      {roomNotice ? <p className="room-notice">{roomNotice}</p> : null}
       {error ? <p className="error-text room-error">{error}</p> : null}
 
       <section className="chat-log">
         {!ready ? <p className="system-line">Deriving key and joining room...</p> : null}
         {messages.length === 0 && ready ? (
-          <p className="system-line">No messages yet. Anything sent here disappears after it is read.</p>
+          <p className="system-line">{messagePolicyLabel}</p>
         ) : null}
         {messages.map((message) => {
           const mine = message.senderSessionId === sessionId;
@@ -477,7 +788,9 @@ function RoomPage({ roomId }: { roomId: string }) {
             <article
               className={`bubble ${mine ? "bubble-mine" : "bubble-theirs"} ${message.state === "expired" ? "bubble-expired" : ""}`}
               key={message.id}
+              style={bubbleStyle(message.senderSessionId, mine)}
             >
+              <span className="bubble-author">{mine ? "You" : "Guest"}</span>
               <p>{message.state === "expired" ? "Message disappeared." : message.plaintext}</p>
               <footer>
                 <span>{formatClock(message.sentAt)}</span>
@@ -492,7 +805,7 @@ function RoomPage({ roomId }: { roomId: string }) {
         <textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder={room?.status === "open" ? "Write a message" : "Room is closed"}
+          placeholder={room?.status === "open" ? "Write a message" : roomNotice ?? "Room is closed"}
           disabled={room?.status !== "open"}
           rows={3}
         />
@@ -503,4 +816,3 @@ function RoomPage({ roomId }: { roomId: string }) {
     </main>
   );
 }
-

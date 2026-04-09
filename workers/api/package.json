@@ -1,11 +1,11 @@
 {
-  "name": "@ephem/api",
+  "name": "@elm-chat/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@ephem/room-do": "*",
-    "@ephem/shared": "*"
+    "@elm-chat/room-do": "*",
+    "@elm-chat/shared": "*"
   },
   "devDependencies": {
     "wrangler": "^4.10.0"
@@ -16,4 +16,3 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
-

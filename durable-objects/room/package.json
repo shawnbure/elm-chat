@@ -1,10 +1,9 @@
 {
-  "name": "@ephem/room-do",
+  "name": "@elm-chat/room-do",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@ephem/shared": "*"
+    "@elm-chat/shared": "*"
   }
 }
-
