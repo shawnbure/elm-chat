@@ -4,6 +4,8 @@
 
 This repository is for builders, reviewers, security researchers, and contributors who want to help push the project toward a genuinely minimal-footprint private communication model.
 
+![elm.chat landing page](docs/images/landing-page.jpg)
+
 ## What People See
 
 The product is intentionally small and direct.
@@ -29,6 +31,8 @@ Inside a room, people see:
 - a room that is meant to disappear instead of becoming a permanent archive
 
 The interface is meant to feel immediate, readable, and disposable. It should communicate privacy without turning the user experience into a configuration maze.
+
+![elm.chat room interface](docs/images/chat-room-a.jpg)
 
 ## Intent
 
