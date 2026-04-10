@@ -43,7 +43,7 @@ Not every conversation should be indexed, backed up, synced forever, and made re
 `elm.chat` is for moments where people want something lighter, faster, and safer:
 
 - a room you can open instantly
-- a secret link you can share directly
+- a one-time invite you can issue for one person
 - no usernames
 - no social graph
 - no inbox full of old exposure
@@ -96,6 +96,16 @@ That matters for:
 
 The less valuable the retained record is, the less damage a later breach can do.
 
+## Why Single-Use Invites Matter
+
+A private room becomes weaker the moment one broad reusable link is copied around casually.
+
+That is why single-use invites matter.
+
+A creator can issue an invite for one person, let it expire quickly, revoke it if needed, and remove a participant later if access should end. That does not make the room invulnerable, but it narrows the window in which a leaked link is useful.
+
+For real-world safety, that is a material improvement.
+
 ## Why No Usernames Matters
 
 A lot of systems force identity too early.
@@ -123,6 +133,15 @@ The room secret stays in the URL fragment instead of being sent to the server in
 
 It is not magic. It is just a better trust boundary.
 
+Now that the access model is moving toward single-use invites, the trust boundary is a little tighter:
+
+- the creator controls who receives an invite
+- the invite can be consumed once
+- the invite can expire quickly
+- the creator can revoke or remove access
+
+That is still not the same thing as perfect secrecy. It is simply a better operating model than an endlessly reusable room link.
+
 ## Safety Is Also About Practicality
 
 A private tool that is hard to use is still a bad tool.
@@ -138,6 +157,20 @@ That is why `elm.chat` has to be:
 - clear about what disappears and when
 
 Privacy software only works if people will actually use it when they need it.
+
+## What Risks Still Remain
+
+Even with disappearing messages, self-destructing rooms, and single-use invites, some risks do not disappear:
+
+- an intercepted invite can still be redeemed by the wrong person before the intended user gets there
+- a compromised device can still expose plaintext, screenshots, and copied messages
+- a participant can always leak what they can see
+- timing and transport metadata can still reveal activity patterns
+- any private system can be weakened by unsafe behavior at the edges
+
+That is why best practices still matter.
+
+Use short invite windows. Keep rooms short-lived. Revoke unused invites. Remove participants when the conversation is over. Destroy the room when the job is done.
 
 ## The Goal
 
