@@ -60,4 +60,6 @@ Not every conversation should become a permanent database record.
 
 If you want a room that starts fast, stays private, and disappears on purpose, `elm.chat` is trying to be that tool.
 
+![elm.chat room interface](images/chat-room-a.jpg)
+![elm.chat room example](images/chat-room-b.jpg)
 ![elm.chat active room](images/chat-room-c.jpg)

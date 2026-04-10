@@ -52,8 +52,6 @@ Not every conversation should be indexed, backed up, synced forever, and made re
 
 The point is not novelty. The point is reducing what can be collected, retained, stolen, or used against people later.
 
-![elm.chat room with multiple participants](images/chat-room-a.jpg)
-
 ## The Human Use Cases
 
 This kind of tool is useful for ordinary privacy-minded people.
@@ -141,8 +139,6 @@ That is why `elm.chat` has to be:
 
 Privacy software only works if people will actually use it when they need it.
 
-![elm.chat room example](images/chat-room-b.jpg)
-
 ## The Goal
 
 The goal is not to convince people that no digital communication can ever be risky.
@@ -170,4 +166,6 @@ It also needs people who understand the social reality behind the technical work
 
 If you want to help people communicate with less fear, less retention, and less exposure, contribute to `elm.chat`.
 
+![elm.chat room with multiple participants](images/chat-room-a.jpg)
+![elm.chat room example](images/chat-room-b.jpg)
 ![elm.chat conversation view](images/chat-room-c.jpg)
