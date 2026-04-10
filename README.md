@@ -32,8 +32,6 @@ Inside a room, people see:
 
 The interface is meant to feel immediate, readable, and disposable. It should communicate privacy without turning the user experience into a configuration maze.
 
-![elm.chat room interface](docs/images/chat-room-a.jpg)
-
 ## Intent
 
 The intent of this application is straightforward:
@@ -219,3 +217,7 @@ Recommended reading in this repository:
 ## Disclaimer
 
 Do not market or rely on this project as a completed high-assurance safety tool until its protocol, implementation, and operational guarantees have been independently reviewed and tested under realistic threat conditions.
+
+![elm.chat room interface](docs/images/chat-room-a.jpg)
+![elm.chat room interface alternate](docs/images/chat-room-b.jpg)
+![elm.chat room conversation view](docs/images/chat-room-c.jpg)
