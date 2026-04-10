@@ -26,7 +26,9 @@ Inside a room, people see:
 - live presence count
 - color identity chips instead of usernames
 - encrypted message bubbles keyed by participant color
-- `Copy link` and `Destroy` controls
+- creator-only `Share invite` and `Destroy` controls
+- single-use invite links instead of a permanent reusable room invite
+- creator ability to revoke invites and remove participants
 - a single composer for fast message entry
 - a room that is meant to disappear instead of becoming a permanent archive
 
@@ -61,6 +63,7 @@ The project is currently centered around:
 - a Cloudflare Durable Object per room
 - encrypted room secrets kept in the URL fragment so they do not reach the server in normal requests
 - encrypted message payloads handled in the browser
+- creator-issued single-use invite links for room entry
 - a disposable room lifecycle instead of permanent conversation storage
 
 The long-term direction is stronger than the current implementation. The architectural target is:
@@ -163,6 +166,21 @@ The intended room behavior is:
 
 In practical terms, a room should act more like a volatile coordination envelope than a permanent database row.
 
+## Access Model
+
+Room access is no longer meant to rely on a broad reusable room link.
+
+The current direction is:
+
+- the creator opens the room
+- the creator issues a one-time invite
+- one invite is intended for one participant
+- invites expire
+- invites can be revoked
+- the creator can remove connected participants from the room
+
+This is a better model than a permanent share link because a forwarded or stale invite should stop being useful quickly.
+
 ## Security Posture
 
 This project should be judged against real adversarial conditions, not casual product marketing language.
@@ -178,6 +196,28 @@ Contributors should think in terms of:
 - low-friction mobile use under pressure
 
 If a feature improves convenience but expands retention, logging, observability, or recoverable history, it should be challenged hard.
+
+## What Still Matters After Single-Use Invites
+
+Single-use invites are a meaningful improvement, but they do not solve every problem.
+
+Risks that still remain:
+
+- if an invite is intercepted before the intended recipient redeems it, the first redeemer can still get in
+- if a device is compromised, screenshots, clipboard history, browser history, or malware can still expose the conversation
+- if a participant forwards plaintext, screenshots, or the room secret after joining, the protocol cannot stop human leakage
+- metadata still exists at the transport and endpoint level even when message content is encrypted
+- if the creator leaves a room open too long, exposure time grows even if invites are single-use
+
+Best practices after this change:
+
+- issue invites only when the recipient is ready to use them
+- keep invite lifetime short
+- revoke unused invites quickly
+- remove participants when they no longer need access
+- keep message expiry and room self-destruct aggressive
+- destroy the room as soon as the conversation is done
+- treat every endpoint as a possible weak point
 
 ## What We Need Help With
 
