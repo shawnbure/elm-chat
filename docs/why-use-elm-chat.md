@@ -2,6 +2,8 @@
 
 `elm.chat` is for conversations that should be easy to start, hard to collect, and easy to leave behind.
 
+![elm.chat landing page](images/landing-page.jpg)
+
 It is useful when you want:
 
 - a private room without creating an account
@@ -57,3 +59,5 @@ The point is simple:
 Not every conversation should become a permanent database record.
 
 If you want a room that starts fast, stays private, and disappears on purpose, `elm.chat` is trying to be that tool.
+
+![elm.chat active room](images/chat-room-c.jpg)
