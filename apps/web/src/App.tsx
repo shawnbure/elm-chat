@@ -1,21 +1,26 @@
 import {
+  createIdentityKeyPair,
   decryptText,
   deriveRoomKey,
   encryptText,
+  exportIdentityPublicKey,
   generateMessageId,
   generateRoomSecret,
   generateSessionId
 } from "@elm-chat/crypto";
 import {
+  DEFAULT_STUN_ICE_SERVERS,
   DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
+  MAX_TRANSCRIPT_SYNC_MESSAGES,
   type CreateRoomRequest,
   type CreateRoomResponse,
   type EncryptedMessageEnvelope,
-  type MessageState,
+  type PeerDataEvent,
+  type PeerDescriptor,
+  type PeerSignal,
   type PresenceSnapshot,
   type RoomMetadata,
   type ServerEvent,
-  type StoredMessage
 } from "@elm-chat/shared";
 import { startTransition, useEffect, useRef, useState, type CSSProperties } from "react";
 
@@ -26,10 +31,12 @@ type UiMessage = {
   senderSessionId: string;
   plaintext: string;
   sentAt: number;
-  state: MessageState;
-  deliveredAt?: number;
-  readAt?: number;
-  disappearAt?: number;
+  expiresAt?: number;
+};
+
+type PeerLink = {
+  peer: PeerDescriptor;
+  pc: RTCPeerConnection;
 };
 
 type ActionFeedback = "idle" | "success";
@@ -39,6 +46,8 @@ type DurationDraft = {
   unit: DurationUnit;
   indefinite: boolean;
 };
+
+type DurationKind = "message" | "room";
 
 function roomPathname(): { view: View; roomId?: string } {
   const match = window.location.pathname.match(/^\/c\/([^/]+)$/);
@@ -63,6 +72,33 @@ function formatClock(timestamp: number): string {
     hour: "numeric",
     minute: "2-digit"
   }).format(timestamp);
+}
+
+function formatStaticDuration(totalSeconds: number): string {
+  if (totalSeconds <= 0) {
+    return "0s";
+  }
+
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const parts: string[] = [];
+
+  if (days > 0) {
+    parts.push(`${days}d`);
+  }
+  if (hours > 0) {
+    parts.push(`${hours}h`);
+  }
+  if (minutes > 0) {
+    parts.push(`${minutes}m`);
+  }
+  if (seconds > 0 || parts.length === 0) {
+    parts.push(`${seconds}s`);
+  }
+
+  return parts.join(" ");
 }
 
 function creatorTokenKey(roomId: string): string {
@@ -126,6 +162,26 @@ function parseDurationDraft(
     : durationToMs(safeAmount, unit);
 }
 
+function toggleIndefiniteDuration(
+  current: DurationDraft,
+  checked: boolean,
+  fallbackAmount: string
+): DurationDraft {
+  if (checked) {
+    return {
+      ...current,
+      indefinite: true,
+      amount: ""
+    };
+  }
+
+  return {
+    ...current,
+    indefinite: false,
+    amount: current.amount || fallbackAmount
+  };
+}
+
 async function createRoom(body: CreateRoomRequest): Promise<CreateRoomResponse> {
   const response = await fetch("/api/rooms", {
     method: "POST",
@@ -170,25 +226,10 @@ function wsUrl(path: string): string {
 }
 
 function messageStatus(message: UiMessage): string {
-  if (message.state === "expired") {
-    return "Disappeared";
+  if (message.expiresAt) {
+    return `Vanishes in ${formatRelativeDuration(message.expiresAt)}`;
   }
-  if (message.state === "read" && message.disappearAt) {
-    return `Read • vanishes in ${formatRelativeDuration(message.disappearAt)}`;
-  }
-  if (message.state === "read") {
-    return "Read";
-  }
-  if (message.disappearAt) {
-    return `Vanishes in ${formatRelativeDuration(message.disappearAt)}`;
-  }
-  if (message.state === "delivered") {
-    return "Delivered";
-  }
-  if (message.state === "deleted") {
-    return "Deleted";
-  }
-  return "Sent";
+  return "Peer-to-peer";
 }
 
 function upsertMessage(messages: UiMessage[], next: UiMessage): UiMessage[] {
@@ -255,6 +296,10 @@ export function App() {
 function LandingPage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const whyUseUrl =
+    "https://github.com/shawnbure/elm-chat/blob/main/docs/why-use-elm-chat.md";
+  const articleUrl =
+    "https://github.com/shawnbure/elm-chat/blob/main/docs/truly-private-messaging.md";
   const [messageDuration, setMessageDuration] = useState<DurationDraft>({
     amount: "7",
     unit: "minutes",
@@ -265,6 +310,14 @@ function LandingPage() {
     unit: "minutes",
     indefinite: false
   });
+
+  function updateDurationIndefinite(kind: DurationKind, checked: boolean) {
+    if (kind === "message") {
+      setMessageDuration((current) => toggleIndefiniteDuration(current, checked, "7"));
+      return;
+    }
+    setRoomDuration((current) => toggleIndefiniteDuration(current, checked, "10"));
+  }
 
   async function handleCreate() {
     try {
@@ -294,7 +347,7 @@ function LandingPage() {
       <section className="hero">
         <div className="hero-copy">
           <p className="eyebrow">elm chat</p>
-          <h1>Private chat that feels current, fast, and disposable.</h1>
+          <h1>Instant chat. Private, secure, fast and disposable.</h1>
           <p className="lede">
             Encrypted link-based chat with color identity, no usernames, and room rules you set before anyone joins.
           </p>
@@ -310,7 +363,9 @@ function LandingPage() {
                   )}
                 </p>
               </div>
-              <div className="setting-controls">
+              <div
+                className={`setting-controls ${messageDuration.indefinite ? "setting-controls-disabled" : ""}`}
+              >
                 <input
                   className="setting-input"
                   disabled={messageDuration.indefinite}
@@ -320,7 +375,7 @@ function LandingPage() {
                     setMessageDuration((current) => ({ ...current, amount: event.target.value }))
                   }
                   type="number"
-                  value={messageDuration.amount}
+                  value={messageDuration.indefinite ? "" : messageDuration.amount}
                 />
                 <select
                   className="setting-select"
@@ -341,10 +396,7 @@ function LandingPage() {
                   <input
                     checked={messageDuration.indefinite}
                     onChange={(event) =>
-                      setMessageDuration((current) => ({
-                        ...current,
-                        indefinite: event.target.checked
-                      }))
+                      updateDurationIndefinite("message", event.target.checked)
                     }
                     type="checkbox"
                   />
@@ -361,7 +413,9 @@ function LandingPage() {
                     : `${formatSelectedDuration(roomDuration.amount, roomDuration.unit, false)} idle`}
                 </p>
               </div>
-              <div className="setting-controls">
+              <div
+                className={`setting-controls ${roomDuration.indefinite ? "setting-controls-disabled" : ""}`}
+              >
                 <input
                   className="setting-input"
                   disabled={roomDuration.indefinite}
@@ -371,7 +425,7 @@ function LandingPage() {
                     setRoomDuration((current) => ({ ...current, amount: event.target.value }))
                   }
                   type="number"
-                  value={roomDuration.amount}
+                  value={roomDuration.indefinite ? "" : roomDuration.amount}
                 />
                 <select
                   className="setting-select"
@@ -392,10 +446,7 @@ function LandingPage() {
                   <input
                     checked={roomDuration.indefinite}
                     onChange={(event) =>
-                      setRoomDuration((current) => ({
-                        ...current,
-                        indefinite: event.target.checked
-                      }))
+                      updateDurationIndefinite("room", event.target.checked)
                     }
                     type="checkbox"
                   />
@@ -416,6 +467,14 @@ function LandingPage() {
         </div>
         <div className="hero-panel">
           <div className="signal-grid" />
+          <div className="hero-links" aria-label="Learn about elm chat">
+            <a className="hero-link" href={whyUseUrl} rel="noreferrer" target="_blank">
+              Why use this?
+            </a>
+            <a className="hero-link" href={articleUrl} rel="noreferrer" target="_blank">
+              Read the article
+            </a>
+          </div>
           <div className="hero-metrics">
             <div>
               <span>Access</span>
@@ -466,6 +525,21 @@ function RoomPage({ roomId }: { roomId: string }) {
   const creatorToken = localStorage.getItem(creatorTokenKey(roomId)) ?? "";
   const socketRef = useRef<WebSocket | null>(null);
   const roomKeyRef = useRef<CryptoKey | null>(null);
+  const identityKeyRef = useRef<string>("");
+  const joinedRef = useRef(false);
+  const chatLogRef = useRef<HTMLElement | null>(null);
+  const peersRef = useRef(new Map<string, PeerLink>());
+  const messageRef = useRef(new Map<string, EncryptedMessageEnvelope>());
+  const shouldRequestSyncRef = useRef(false);
+
+  function sendPeerData(payload: PeerDataEvent) {
+    const socket = socketRef.current;
+    if (socket?.readyState === WebSocket.OPEN && joinedRef.current) {
+      socket.send(JSON.stringify({ type: "peer_data", data: payload }));
+      return true;
+    }
+    return false;
+  }
 
   useEffect(() => {
     if (!roomSecret) {
@@ -478,11 +552,16 @@ function RoomPage({ roomId }: { roomId: string }) {
 
     async function bootstrap() {
       try {
-        const [metadata, key] = await Promise.all([loadRoom(roomId), deriveRoomKey(roomSecret)]);
+        const [metadata, key, identityKeys] = await Promise.all([
+          loadRoom(roomId),
+          deriveRoomKey(roomSecret),
+          createIdentityKeyPair()
+        ]);
         if (!active) {
           return;
         }
         roomKeyRef.current = key;
+        identityKeyRef.current = await exportIdentityPublicKey(identityKeys.publicKey);
         setRoom(metadata);
         if (metadata.status !== "open") {
           setReady(true);
@@ -496,17 +575,21 @@ function RoomPage({ roomId }: { roomId: string }) {
 
         socket.addEventListener("open", () => {
           setConnection("Connected");
+          joinedRef.current = false;
           socket.send(
             JSON.stringify({
               type: "join",
               sessionId,
+              identityKey: identityKeyRef.current,
               creatorToken: creatorToken || undefined
             })
           );
         });
 
         socket.addEventListener("close", () => {
+          joinedRef.current = false;
           setConnection((current) => (room?.status === "open" ? "Disconnected" : "Closed"));
+          closeAllPeerLinks();
         });
 
         socket.addEventListener("error", () => {
@@ -516,14 +599,18 @@ function RoomPage({ roomId }: { roomId: string }) {
         socket.addEventListener("message", async (event) => {
           const payload = JSON.parse(String(event.data)) as ServerEvent;
           if (payload.type === "joined") {
+            joinedRef.current = true;
             startTransition(() => {
               setRoom(payload.room);
               setPresence(payload.presence);
               setReady(true);
             });
-
-            for (const pending of payload.pending) {
-              await decryptAndAddMessage(pending);
+            shouldRequestSyncRef.current = payload.peers.length > 0;
+            for (const peer of payload.peers) {
+              ensurePeer(peer, sessionId < peer.sessionId);
+            }
+            if (payload.peers.length > 0) {
+              socket.send(JSON.stringify({ type: "peer_data", data: { type: "sync_request" } }));
             }
             return;
           }
@@ -533,28 +620,41 @@ function RoomPage({ roomId }: { roomId: string }) {
             return;
           }
 
-          if (payload.type === "message") {
-            await decryptAndAddMessage({ envelope: payload.envelope, state: "delivered" });
+          if (payload.type === "peer_joined") {
+            ensurePeer(payload.peer, sessionId < payload.peer.sessionId);
+            if (messageRef.current.size > 0) {
+              socket.send(
+                JSON.stringify({
+                  type: "peer_data",
+                  toSessionId: payload.peer.sessionId,
+                  data: {
+                    type: "sync_response",
+                    messages: [...messageRef.current.values()]
+                      .sort((left, right) => left.sentAt - right.sentAt)
+                      .slice(-MAX_TRANSCRIPT_SYNC_MESSAGES)
+                  }
+                })
+              );
+            }
             return;
           }
 
-          if (payload.type === "message_state") {
-            startTransition(() => {
-              setMessages((current) =>
-                current.map((message) =>
-                  message.id === payload.messageId
-                    ? {
-                        ...message,
-                        state: payload.state,
-                        deliveredAt: payload.deliveredAt ?? message.deliveredAt,
-                        readAt: payload.readAt ?? message.readAt,
-                        disappearAt: payload.disappearAt ?? message.disappearAt,
-                        plaintext: payload.state === "expired" ? "" : message.plaintext
-                      }
-                    : message
-                )
-              );
-            });
+          if (payload.type === "peer_left") {
+            const link = peersRef.current.get(payload.sessionId);
+            if (link) {
+              link.pc.close();
+              peersRef.current.delete(payload.sessionId);
+            }
+            return;
+          }
+
+          if (payload.type === "signal") {
+            await handleIncomingSignal(payload.fromSessionId, payload.signal);
+            return;
+          }
+
+          if (payload.type === "peer_data") {
+            await handlePeerData(payload.fromSessionId, JSON.stringify(payload.data));
             return;
           }
 
@@ -573,6 +673,8 @@ function RoomPage({ roomId }: { roomId: string }) {
               setDestroyFeedback(payload.status === "destroyed" ? "success" : "idle");
               setConnection("Closed");
             });
+            sendPeerData({ type: "peer_destroy" });
+            closeAllPeerLinks();
             return;
           }
 
@@ -585,44 +687,183 @@ function RoomPage({ roomId }: { roomId: string }) {
       }
     }
 
-    async function decryptAndAddMessage(stored: StoredMessage) {
+    function closeAllPeerLinks() {
+      for (const link of peersRef.current.values()) {
+        link.pc.close();
+      }
+      peersRef.current.clear();
+    }
+
+    function ensurePeer(peer: PeerDescriptor, initiator: boolean): PeerLink {
+      const existing = peersRef.current.get(peer.sessionId);
+      if (existing) {
+        return existing;
+      }
+
+      const pc = new RTCPeerConnection({ iceServers: DEFAULT_STUN_ICE_SERVERS });
+      const link: PeerLink = {
+        pc,
+        peer
+      };
+      peersRef.current.set(peer.sessionId, link);
+
+      pc.onicecandidate = (event) => {
+        if (!event.candidate) {
+          return;
+        }
+        socketRef.current?.send(
+          JSON.stringify({
+            type: "signal",
+            toSessionId: peer.sessionId,
+            signal: {
+              type: "ice",
+              candidate: event.candidate.candidate,
+              sdpMid: event.candidate.sdpMid,
+              sdpMLineIndex: event.candidate.sdpMLineIndex
+            }
+          })
+        );
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (["failed", "closed", "disconnected"].includes(pc.connectionState)) {
+          const stale = peersRef.current.get(peer.sessionId);
+          if (stale?.pc === pc) {
+            peersRef.current.delete(peer.sessionId);
+          }
+        }
+      };
+
+      if (initiator) {
+        void (async () => {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          socketRef.current?.send(
+            JSON.stringify({
+              type: "signal",
+              toSessionId: peer.sessionId,
+              signal: {
+                type: "offer",
+                sdp: offer.sdp ?? ""
+              }
+            })
+          );
+        })();
+      }
+
+      return link;
+    }
+
+    async function handleIncomingSignal(fromSessionId: string, signal: PeerSignal) {
+      const knownPeer =
+        peersRef.current.get(fromSessionId)?.peer ??
+        ({
+          sessionId: fromSessionId,
+          creator: false,
+          connectedAt: Date.now(),
+          identityKey: ""
+        } satisfies PeerDescriptor);
+      const link = ensurePeer(knownPeer, false);
+
+      if (signal.type === "offer") {
+        await link.pc.setRemoteDescription({ type: "offer", sdp: signal.sdp });
+        const answer = await link.pc.createAnswer();
+        await link.pc.setLocalDescription(answer);
+        socketRef.current?.send(
+          JSON.stringify({
+            type: "signal",
+            toSessionId: fromSessionId,
+            signal: {
+              type: "answer",
+              sdp: answer.sdp ?? ""
+            }
+          })
+        );
+        return;
+      }
+
+      if (signal.type === "answer") {
+        await link.pc.setRemoteDescription({ type: "answer", sdp: signal.sdp });
+        return;
+      }
+
+      await link.pc.addIceCandidate({
+        candidate: signal.candidate,
+        sdpMid: signal.sdpMid ?? null,
+        sdpMLineIndex: signal.sdpMLineIndex ?? null
+      });
+    }
+
+    async function addEnvelope(envelope: EncryptedMessageEnvelope) {
+      if (messageRef.current.has(envelope.messageId)) {
+        return;
+      }
+
+      const expiresAt =
+        typeof envelope.expiresAfterReadSeconds === "number"
+          ? envelope.sentAt + envelope.expiresAfterReadSeconds * 1000
+          : undefined;
+      if (typeof expiresAt === "number" && expiresAt <= Date.now()) {
+        return;
+      }
+
+      messageRef.current.set(envelope.messageId, envelope);
       if (!roomKeyRef.current) {
         return;
       }
 
       try {
-        const plaintext = await decryptText(
-          roomKeyRef.current,
-          stored.envelope.ciphertext,
-          stored.envelope.nonce
-        );
+        const plaintext = await decryptText(roomKeyRef.current, envelope.ciphertext, envelope.nonce);
 
         startTransition(() => {
           setMessages((current) =>
             upsertMessage(current, {
-              id: stored.envelope.messageId,
-              senderSessionId: stored.envelope.senderSessionId,
+              id: envelope.messageId,
+              senderSessionId: envelope.senderSessionId,
               plaintext,
-              sentAt: stored.envelope.sentAt,
-              state: stored.state,
-              deliveredAt: stored.deliveredAt,
-              readAt: stored.readAt,
-              disappearAt: stored.disappearAt
+              sentAt: envelope.sentAt,
+              expiresAt
             })
           );
         });
-
-        if (stored.envelope.senderSessionId !== sessionId && stored.state !== "read") {
-          socketRef.current?.send(
-            JSON.stringify({
-              type: "read",
-              messageId: stored.envelope.messageId,
-              readerSessionId: sessionId
-            })
-          );
-        }
       } catch {
         setError("Could not decrypt a message. Check that you opened the full capability link.");
+      }
+    }
+
+    async function handlePeerData(peerId: string, raw: string) {
+      const payload = JSON.parse(raw) as PeerDataEvent;
+      if (payload.type === "chat_message") {
+        await addEnvelope(payload.envelope);
+        return;
+      }
+
+      if (payload.type === "sync_request") {
+        const transcript = [...messageRef.current.values()]
+          .sort((left, right) => left.sentAt - right.sentAt)
+          .slice(-MAX_TRANSCRIPT_SYNC_MESSAGES);
+        socketRef.current?.send(
+          JSON.stringify({
+            type: "peer_data",
+            toSessionId: peerId,
+            data: { type: "sync_response", messages: transcript }
+          })
+        );
+        return;
+      }
+
+      if (payload.type === "sync_response") {
+        shouldRequestSyncRef.current = false;
+        for (const envelope of payload.messages) {
+          await addEnvelope(envelope);
+        }
+        return;
+      }
+
+      if (payload.type === "peer_destroy") {
+        setRoomNotice("A connected peer destroyed this room.");
+        setConnection("Closed");
+        closeAllPeerLinks();
       }
     }
 
@@ -631,6 +872,7 @@ function RoomPage({ roomId }: { roomId: string }) {
     return () => {
       active = false;
       window.clearInterval(tick);
+      closeAllPeerLinks();
       socketRef.current?.close();
     };
   }, [creatorToken, roomId, roomSecret, sessionId]);
@@ -651,6 +893,41 @@ function RoomPage({ roomId }: { roomId: string }) {
     return () => window.clearTimeout(timeout);
   }, [destroyFeedback]);
 
+  useEffect(() => {
+    const chatLog = chatLogRef.current;
+    if (!chatLog) {
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      chatLog.scrollTop = chatLog.scrollHeight;
+    });
+  }, [ready, messages.length, roomNotice]);
+
+  useEffect(() => {
+    if (!ready || room?.status !== "open") {
+      return;
+    }
+    const interval = window.setInterval(() => {
+      socketRef.current?.send(JSON.stringify({ type: "ping" }));
+    }, 15000);
+    return () => window.clearInterval(interval);
+  }, [ready, room?.status]);
+
+  useEffect(() => {
+    startTransition(() => {
+      setMessages((current) => current.filter((message) => !message.expiresAt || message.expiresAt > now));
+    });
+    for (const [messageId, envelope] of messageRef.current.entries()) {
+      const expiresAt =
+        typeof envelope.expiresAfterReadSeconds === "number"
+          ? envelope.sentAt + envelope.expiresAfterReadSeconds * 1000
+          : undefined;
+      if (typeof expiresAt === "number" && expiresAt <= now) {
+        messageRef.current.delete(messageId);
+      }
+    }
+  }, [now]);
+
   async function handleSend(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = draft.trim();
@@ -659,28 +936,61 @@ function RoomPage({ roomId }: { roomId: string }) {
     }
 
     const encrypted = await encryptText(roomKeyRef.current, trimmed);
+    const sentAt = Date.now();
+    const expiresAt =
+      typeof room.disappearAfterReadSeconds === "number"
+        ? sentAt + room.disappearAfterReadSeconds * 1000
+        : undefined;
     const envelope: EncryptedMessageEnvelope = {
       messageId: generateMessageId(),
       senderSessionId: sessionId,
       ciphertext: encrypted.ciphertext,
       nonce: encrypted.nonce,
-      sentAt: Date.now(),
+      sentAt,
       expiresAfterReadSeconds: room.disappearAfterReadSeconds ?? DEFAULT_DISAPPEAR_AFTER_READ_SECONDS
     };
 
-    socketRef.current?.send(JSON.stringify({ type: "send", envelope }));
+    messageRef.current.set(envelope.messageId, envelope);
     setDraft("");
+    setError(null);
     startTransition(() => {
       setMessages((current) =>
         upsertMessage(current, {
           id: envelope.messageId,
           senderSessionId: sessionId,
           plaintext: trimmed,
-          sentAt: envelope.sentAt,
-          state: "sent"
+          sentAt,
+          expiresAt
         })
       );
     });
+
+    if (!joinedRef.current || socketRef.current?.readyState !== WebSocket.OPEN) {
+      setError("Message saved locally, but room transport is not ready yet.");
+      return;
+    }
+
+    if (!sendPeerData({ type: "chat_message", envelope })) {
+      setError("Message saved locally, but delivery to other participants failed.");
+    }
+  }
+
+  function handleComposerKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    if (event.ctrlKey || event.metaKey) {
+      return;
+    }
+
+    event.preventDefault();
+    const form = event.currentTarget.form;
+    if (!form) {
+      return;
+    }
+
+    form.requestSubmit();
   }
 
   async function handleCopyLink() {
@@ -696,6 +1006,7 @@ function RoomPage({ roomId }: { roomId: string }) {
       setDestroying(true);
       setDestroyFeedback("idle");
       const next = await destroyRoom(roomId, creatorToken);
+      sendPeerData({ type: "peer_destroy" });
       setRoom(next);
       setRoomNotice("Destroying room for everyone...");
     } catch (cause) {
@@ -710,36 +1021,47 @@ function RoomPage({ roomId }: { roomId: string }) {
   );
   const messagePolicyLabel =
     typeof room?.disappearAfterReadSeconds === "number"
-      ? `Messages vanish after ${formatRelativeDuration(now + room.disappearAfterReadSeconds * 1000)}.`
+      ? `Messages vanish after ${formatStaticDuration(room.disappearAfterReadSeconds)}.`
       : "Messages stay until someone destroys the room.";
   const roomPolicyLabel =
     typeof room?.inactivityTimeoutMs === "number"
-      ? `Room self-destructs after ${formatRelativeDuration(now + room.inactivityTimeoutMs)} of inactivity.`
+      ? `Room self-destructs after ${formatStaticDuration(Math.floor(room.inactivityTimeoutMs / 1000))} of inactivity.`
       : "Room stays open until someone destroys it.";
 
   return (
     <main className="room-shell">
       <header className="room-header">
-        <div>
-          <p className="eyebrow">elm chat room</p>
-          <h1>Room {roomId.slice(0, 8)}</h1>
+        <div className="room-title">
+          <p className="eyebrow">elm chat</p>
+          <h1>{roomId.slice(0, 8)}</h1>
+          <p className="room-subtitle">
+            {messagePolicyLabel} {roomPolicyLabel}
+          </p>
         </div>
-        <div className="room-meta">
-          <span>{connection}</span>
-          <span>{presentCount} present</span>
+        <div className="room-toolbar">
+          <div className="room-meta">
+            <span>{connection}</span>
+            <span>{presentCount} present</span>
+          </div>
+          <div className="room-actions">
+            <button
+              className={`secondary-button ${copyFeedback === "success" ? "button-success" : ""}`}
+              onClick={handleCopyLink}
+            >
+              {copyFeedback === "success" ? "Copied" : "Copy link"}
+            </button>
+            <button
+              className={`secondary-button ${destroyFeedback === "success" ? "button-success" : ""}`}
+              disabled={!creatorToken || destroying || room?.status !== "open"}
+              onClick={handleDestroy}
+            >
+              {destroying ? "Destroying..." : destroyFeedback === "success" ? "Destroyed" : "Destroy"}
+            </button>
+          </div>
         </div>
       </header>
 
-      <section className="room-banner">
-        <p>{messagePolicyLabel}</p>
-        <div className="banner-stats">
-          <span>{roomPolicyLabel}</span>
-          <span>Status: {room?.status ?? "loading"}</span>
-        </div>
-      </section>
-
-      <section className="room-banner participant-banner">
-        <p>Each chatter gets a color. No usernames, just a consistent hue across their messages.</p>
+      <section className="room-strip">
         <div className="participant-strip" aria-label="Participants">
           {sortedPresenceIds.length === 0 ? (
             <span className="participant-empty">Waiting for someone to join.</span>
@@ -756,60 +1078,52 @@ function RoomPage({ roomId }: { roomId: string }) {
             ))
           )}
         </div>
-      </section>
-
-      <section className="room-actions">
-        <button
-          className={`secondary-button ${copyFeedback === "success" ? "button-success" : ""}`}
-          onClick={handleCopyLink}
-        >
-          {copyFeedback === "success" ? "Link copied" : "Copy link"}
-        </button>
-        <button
-          className={`secondary-button ${destroyFeedback === "success" ? "button-success" : ""}`}
-          disabled={!creatorToken || destroying || room?.status !== "open"}
-          onClick={handleDestroy}
-        >
-          {destroying ? "Destroying..." : destroyFeedback === "success" ? "Room destroyed" : "Destroy room"}
-        </button>
+        <div className="banner-stats">
+          <span>{room?.status ?? "loading"}</span>
+        </div>
       </section>
 
       {roomNotice ? <p className="room-notice">{roomNotice}</p> : null}
       {error ? <p className="error-text room-error">{error}</p> : null}
 
-      <section className="chat-log">
-        {!ready ? <p className="system-line">Deriving key and joining room...</p> : null}
-        {messages.length === 0 && ready ? (
-          <p className="system-line">{messagePolicyLabel}</p>
-        ) : null}
-        {messages.map((message) => {
-          const mine = message.senderSessionId === sessionId;
-          return (
-            <article
-              className={`bubble ${mine ? "bubble-mine" : "bubble-theirs"} ${message.state === "expired" ? "bubble-expired" : ""}`}
-              key={message.id}
-              style={bubbleStyle(message.senderSessionId, mine)}
-            >
-              <span className="bubble-author">{mine ? "You" : "Guest"}</span>
-              <p>{message.state === "expired" ? "Message disappeared." : message.plaintext}</p>
-              <footer>
-                <span>{formatClock(message.sentAt)}</span>
-                <span>{messageStatus(message)}</span>
-              </footer>
-            </article>
-          );
-        })}
+      <section className="chat-stage">
+        <section className="chat-log" ref={chatLogRef}>
+        <div className="chat-thread">
+          {!ready ? <p className="system-line">Deriving key and joining room...</p> : null}
+          {messages.length === 0 && ready ? (
+            <p className="system-line">{messagePolicyLabel}</p>
+          ) : null}
+          {messages.map((message) => {
+            const mine = message.senderSessionId === sessionId;
+            return (
+              <article
+                className={`bubble ${mine ? "bubble-mine" : "bubble-theirs"}`}
+                key={message.id}
+                style={bubbleStyle(message.senderSessionId, mine)}
+              >
+                <span className="bubble-author">{mine ? "You" : "Guest"}</span>
+                <p>{message.plaintext}</p>
+                <footer>
+                  <span>{formatClock(message.sentAt)}</span>
+                  <span>{messageStatus(message)}</span>
+                </footer>
+              </article>
+            );
+          })}
+        </div>
+        </section>
       </section>
 
       <form className="composer" onSubmit={handleSend}>
         <textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={handleComposerKeyDown}
           placeholder={room?.status === "open" ? "Write a message" : roomNotice ?? "Room is closed"}
           disabled={room?.status !== "open"}
           rows={3}
         />
-        <button className="primary-button" disabled={!draft.trim() || room?.status !== "open"}>
+        <button className="primary-button" type="submit" disabled={!draft.trim() || room?.status !== "open"}>
           Send encrypted
         </button>
       </form>

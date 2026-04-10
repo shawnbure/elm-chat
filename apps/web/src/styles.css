@@ -1,20 +1,27 @@
 :root {
   color-scheme: light;
-  --bg: #f6f4ef;
-  --panel: rgba(255, 255, 255, 0.72);
-  --panel-strong: rgba(255, 255, 255, 0.92);
-  --ink: #171717;
-  --muted: #6d6a63;
-  --accent: #10695e;
-  --accent-strong: #0d4f47;
-  --warning: #af4d33;
-  --line: rgba(23, 23, 23, 0.08);
-  --shadow: 0 12px 40px rgba(50, 43, 33, 0.08);
-  font-family: "Instrument Sans", "Helvetica Neue", sans-serif;
+  --bg: #f5f5f7;
+  --panel: rgba(255, 255, 255, 0.8);
+  --panel-strong: #ffffff;
+  --ink: #1c1c1e;
+  --muted: #6e6e73;
+  --accent: #007aff;
+  --accent-strong: #0066d6;
+  --warning: #ff3b30;
+  --line: rgba(60, 60, 67, 0.14);
+  --shadow: 0 18px 60px rgba(28, 28, 30, 0.08);
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    "SF Pro Display",
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(16, 105, 94, 0.07), transparent 24%),
-    radial-gradient(circle at bottom right, rgba(45, 92, 135, 0.05), transparent 28%),
-    linear-gradient(180deg, #f7f5f1, #f0ece5 48%, #ece8df 100%);
+    radial-gradient(circle at top left, rgba(0, 122, 255, 0.06), transparent 22%),
+    linear-gradient(180deg, #f8f8fa, #f2f2f7 48%, #ececf1 100%);
   color: var(--ink);
 }
 
@@ -28,6 +35,10 @@ body {
   background: transparent;
 }
 
+#root {
+  min-height: 100svh;
+}
+
 button,
 textarea,
 input,
@@ -37,7 +48,7 @@ select {
 
 .landing-shell,
 .room-shell {
-  min-height: 100vh;
+  min-height: 100svh;
   padding: 18px;
 }
 
@@ -58,12 +69,11 @@ select {
 .hero-copy,
 .hero-panel,
 .room-header,
-.room-banner,
 .chat-log,
 .composer,
-.room-actions {
+.room-strip {
   background: var(--panel);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(22px);
   border: 1px solid var(--line);
   box-shadow: var(--shadow);
 }
@@ -83,24 +93,41 @@ select {
 .eyebrow {
   margin: 0 0 12px;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
-  font-size: 12px;
+  letter-spacing: 0.18em;
+  font-size: 11px;
   color: var(--muted);
 }
 
 .hero h1,
 .room-header h1 {
   margin: 0;
-  font-family: "Fraunces", Georgia, serif;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Display",
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    sans-serif;
   font-size: clamp(2.6rem, 5vw, 4.8rem);
-  line-height: 0.98;
+  line-height: 0.94;
   max-width: 11ch;
+  letter-spacing: -0.04em;
+  font-weight: 700;
 }
 
 .room-header h1 {
   font-size: clamp(1.2rem, 2vw, 1.55rem);
-  font-family: "Instrument Sans", "Helvetica Neue", sans-serif;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
+    sans-serif;
   font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .lede {
@@ -122,7 +149,8 @@ select {
 .secondary-button {
   border: 0;
   border-radius: 999px;
-  padding: 11px 16px;
+  padding: 10px 15px;
+  font-size: 0.95rem;
   cursor: pointer;
   transition:
     transform 180ms ease,
@@ -133,7 +161,7 @@ select {
 }
 
 .primary-button {
-  background: var(--accent);
+  background: linear-gradient(180deg, #3d94ff 0%, #007aff 100%);
   color: white;
 }
 
@@ -156,7 +184,7 @@ select {
 }
 
 .secondary-button {
-  background: var(--panel-strong);
+  background: rgba(255, 255, 255, 0.88);
   color: var(--ink);
   border: 1px solid var(--line);
 }
@@ -171,7 +199,8 @@ select {
 .system-line,
 .banner-stats,
 .room-meta,
-.bubble footer {
+.bubble footer,
+.room-subtitle {
   color: var(--muted);
 }
 
@@ -185,6 +214,47 @@ select {
   padding: 28px;
   display: flex;
   align-items: flex-end;
+}
+
+.hero-links {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  z-index: 1;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.hero-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.92rem;
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.hero-link:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 24px rgba(31, 26, 23, 0.08);
+}
+
+.hero-link:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .signal-grid {
@@ -225,61 +295,80 @@ select {
 }
 
 .room-shell {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
-  max-width: 920px;
+  max-width: 980px;
+  height: calc(100svh - 36px);
+  overflow: hidden;
+  min-height: 0;
 }
 
 .room-header,
-.room-banner,
 .composer,
-.room-actions {
-  border-radius: 18px;
+.room-strip {
+  border-radius: 24px;
   padding: 12px 14px;
 }
 
-.room-header,
-.room-banner,
-.room-actions {
+.room-header {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
-  align-items: center;
-}
-
-.room-banner {
-  background: rgba(16, 105, 94, 0.06);
-}
-
-.participant-banner {
+  gap: 14px;
   align-items: flex-start;
-  flex-direction: column;
+}
+
+.room-title {
+  display: grid;
+  gap: 4px;
+}
+
+.room-subtitle {
+  margin: 0;
+  max-width: 44rem;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.room-toolbar {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
 }
 
 .banner-stats,
 .room-meta {
   display: flex;
-  gap: 14px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
+.room-meta {
+  font-size: 0.9rem;
+}
+
 .room-actions {
-  justify-content: flex-start;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  backdrop-filter: none;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.room-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
 }
 
 .room-notice {
   margin: 0;
-  padding: 16px 18px;
-  border-radius: 20px;
-  background: rgba(178, 71, 42, 0.08);
-  border: 1px solid rgba(178, 71, 42, 0.18);
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 59, 48, 0.08);
+  border: 1px solid rgba(255, 59, 48, 0.14);
   color: var(--warning);
+  font-size: 0.92rem;
 }
 
 .participant-strip {
@@ -297,11 +386,11 @@ select {
   align-items: center;
   gap: 8px;
   border-radius: 999px;
-  padding: 8px 12px;
+  padding: 7px 11px;
   border: 1px solid color-mix(in srgb, var(--participant-color), white 70%);
   background: color-mix(in srgb, var(--participant-color), white 88%);
   color: var(--ink);
-  font-size: 0.92rem;
+  font-size: 0.84rem;
 }
 
 .participant-chip-self {
@@ -317,68 +406,84 @@ select {
 }
 
 .chat-log {
-  border-radius: 20px;
-  min-height: 52vh;
-  padding: 14px;
+  height: 100%;
+  border-radius: 28px;
+  min-height: 0;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.68);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.chat-stage {
+  min-height: 0;
+  flex: 1 1 auto;
+  height: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.56);
+}
+
+.room-notice,
+.room-error,
+.room-strip,
+.room-header,
+.composer {
+  flex: 0 0 auto;
+}
+
+.chat-thread {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .bubble {
-  max-width: min(72ch, 78%);
-  padding: 10px 12px;
-  border-radius: 18px;
+  max-width: min(66ch, 72%);
+  padding: 8px 12px;
+  border-radius: 22px;
   animation: rise 220ms ease;
   background: var(--bubble-surface, var(--panel-strong));
   color: var(--bubble-text, var(--ink));
-  border: 1px solid var(--bubble-surface-border, transparent);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  position: relative;
-}
-
-.bubble::before {
-  content: "";
-  position: absolute;
-  left: 8px;
-  top: 8px;
-  bottom: 8px;
-  width: 3px;
-  border-radius: 999px;
-  background: var(--bubble-accent, var(--accent));
+  border: 0;
+  box-shadow: 0 6px 18px rgba(28, 28, 30, 0.06);
 }
 
 .bubble p {
-  margin: 0 0 0 8px;
-  line-height: 1.45;
+  margin: 0;
+  line-height: 1.38;
 }
 
 .bubble-author {
   display: inline-block;
-  margin: 0 0 6px 8px;
-  font-size: 0.72rem;
+  margin: 0 0 4px;
+  font-size: 0.68rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: inherit;
-  opacity: 0.72;
+  opacity: 0.6;
 }
 
 .bubble footer {
-  margin-top: 8px;
+  margin-top: 6px;
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  font-size: 0.75rem;
-  margin-left: 8px;
+  gap: 10px;
+  font-size: 0.72rem;
 }
 
 .bubble-mine {
   margin-left: auto;
+  border-bottom-right-radius: 8px;
 }
 
 .bubble-mine footer {
   color: rgba(255, 255, 255, 0.78);
+}
+
+.bubble-theirs {
+  border-bottom-left-radius: 8px;
 }
 
 .bubble-expired {
@@ -388,23 +493,26 @@ select {
 .composer {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 10px;
+  gap: 8px;
   align-items: end;
-  background: rgba(255, 255, 255, 0.88);
-  position: sticky;
-  bottom: 12px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 0;
 }
 
 .composer textarea {
   width: 100%;
   resize: none;
-  min-height: 54px;
-  max-height: 180px;
-  border-radius: 14px;
+  min-height: 48px;
+  max-height: 132px;
+  border-radius: 20px;
   border: 1px solid var(--line);
-  padding: 14px;
+  padding: 14px 16px;
   background: rgba(255, 255, 255, 0.96);
   color: var(--ink);
+  box-shadow: var(--shadow);
 }
 
 .creation-panel {
@@ -441,6 +549,11 @@ select {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.setting-controls-disabled .setting-input,
+.setting-controls-disabled .setting-select {
+  opacity: 0.44;
 }
 
 .setting-input,
@@ -497,18 +610,28 @@ select {
     padding: 28px 22px;
   }
 
+  .hero-links {
+    top: 16px;
+    right: 16px;
+    left: 16px;
+  }
+
   .room-header,
-  .room-banner,
   .composer {
     grid-template-columns: 1fr;
   }
 
   .room-header,
-  .room-banner,
   .composer,
   .room-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .room-shell {
+    height: auto;
+    min-height: calc(100svh - 36px);
+    overflow: visible;
   }
 
   .composer {
@@ -522,5 +645,11 @@ select {
 
   .setting-row {
     grid-template-columns: 1fr;
+  }
+
+  .room-strip,
+  .room-toolbar {
+    align-items: stretch;
+    justify-items: stretch;
   }
 }
