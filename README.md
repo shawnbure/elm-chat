@@ -209,6 +209,7 @@ Recommended reading in this repository:
 - [docs/threat-model.md](docs/threat-model.md)
 - [docs/api-spec.md](docs/api-spec.md)
 - [docs/room-lifecycle.md](docs/room-lifecycle.md)
+- [docs/why-use-elm-chat.md](docs/why-use-elm-chat.md)
 - [docs/truly-private-messaging.md](docs/truly-private-messaging.md)
 
 ## Disclaimer
