@@ -4,6 +4,32 @@
 
 This repository is for builders, reviewers, security researchers, and contributors who want to help push the project toward a genuinely minimal-footprint private communication model.
 
+## What People See
+
+The product is intentionally small and direct.
+
+On the landing screen, a visitor sees:
+
+- the core message: `Instant chat. Private, secure, fast and disposable.`
+- a message vanish control with minutes, hours, days, or indefinite
+- a room self-destruct control with minutes, hours, days, or indefinite
+- a `Create private conversation` action
+- a note that the room secret stays in the URL fragment and does not normally reach the server
+- a quick summary panel for access, message policy, and room policy
+
+Inside a room, people see:
+
+- a short room code
+- the configured vanish and self-destruct rules
+- live presence count
+- color identity chips instead of usernames
+- encrypted message bubbles keyed by participant color
+- `Copy link` and `Destroy` controls
+- a single composer for fast message entry
+- a room that is meant to disappear instead of becoming a permanent archive
+
+The interface is meant to feel immediate, readable, and disposable. It should communicate privacy without turning the user experience into a configuration maze.
+
 ## Intent
 
 The intent of this application is straightforward:
@@ -44,6 +70,21 @@ The long-term direction is stronger than the current implementation. The archite
 5. direct encrypted file exchange where practical
 
 If you are contributing, treat the phrases "footprint-less", "log-less", and "no-server" as the product standard we are aiming toward, not as a slogan.
+
+## What This Is For
+
+`elm.chat` exists for people who want a conversation without turning that conversation into a permanent asset for a platform, an attacker, a data broker, or a hostile authority.
+
+That includes:
+
+- privacy-minded people who simply do not want everything archived forever
+- people discussing personal, legal, medical, financial, or sensitive life matters
+- workers reporting abuse or misconduct
+- journalists and sources
+- organizers and activists
+- people living under surveillance, suppression, or coercion
+
+The point is not just to encrypt messages. The point is to reduce what can be retained, reconstructed, or stolen later.
 
 ## Why Cloudflare
 

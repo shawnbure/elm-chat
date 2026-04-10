@@ -1,183 +1,165 @@
-# Why Truly Private Messaging Still Matters
+# Why People Need A Truly Private Messaging App
 
-Most messaging products say some version of the same thing: secure, private, encrypted, safe.
+Most people do not start by asking for cryptography.
 
-Those words are easy to print on a landing page. The hard part is building a system where those claims still hold when:
+They start with a much simpler need:
 
-- the infrastructure operator is pressured
-- logs are requested
-- metadata becomes the real target
-- users are operating in dangerous places
-- devices connect intermittently
-- participants need something that disappears on purpose
+They need to say something sensitive without creating a permanent record.
 
-That is the real problem space.
+That might be a private family matter. It might be legal exposure. It might be a workplace issue, a political conversation, a whistleblower exchange, a source protecting a source, or a message between people who know that the wrong screenshot, database dump, subpoena, breach, or compromised admin could change their lives.
 
-## Privacy Is Not A Binary Feature
+That is the real reason a private messaging app matters.
 
-A messaging app is not either "private" or "not private". It has layers:
+## The Problem Is Bigger Than Message Encryption
 
-- who can read the content
-- who can infer who talked to whom
-- who can recover history later
-- who controls transcript authority
-- who can silently retain copies
-- who can force long-lived identifiers onto people
+Many apps promise privacy because the content is encrypted. That is a good start, but it is not the whole problem.
 
-Plenty of systems encrypt content but still centralize enough metadata and retained history to create a meaningful surveillance surface.
+People are also exposed by:
 
-That is why "end-to-end encryption" alone is not the full conversation.
-
-## The Problem With Permanent Memory
-
-Most modern communication systems are biased toward retention:
-
+- permanent account identity
+- central message archives
 - searchable history
-- synced devices
-- server-side archives
-- account identity
-- durable attachments
-- analytics and observability
+- server logs
+- analytics trails
+- attachment retention
+- metadata that reveals who talked, when they talked, and how often
 
-Those features are convenient. They are also dangerous when the wrong person gets access to them.
+In the real world, bad actors do not always need the plain text of a conversation to cause harm. They may only need access to a server, a partner account, a leaked backup, a hostile insider, a compelled platform, or a timeline of who connected to whom.
 
-A message that never existed on a server in recoverable form is different from a message that was encrypted, retained, indexed, backed up, logged, mirrored, and made available for later legal or extralegal extraction.
+For people under pressure, that can be enough.
 
-Retention is power.
+## Why Someone Would Choose elm.chat
 
-If a system keeps everything, someone eventually benefits from that. Often it is not the user.
+`elm.chat` is built around a simple idea:
 
-## Disposable Rooms Are A Different Philosophy
+Some conversations should leave almost nothing behind.
 
-`elm.chat` is motivated by a different assumption: not every conversation should become a durable object in the social or legal sense.
+Not every message needs an account.
+Not every room needs a permanent home.
+Not every conversation should be indexed, backed up, synced forever, and made retrievable by anyone who later gains access.
 
-Some conversations should behave more like:
+`elm.chat` is for moments where people want something lighter, faster, and safer:
 
-- a temporary room
-- a short-lived capability
-- an encrypted exchange
-- a channel that collapses when it is no longer needed
+- a room you can open instantly
+- a secret link you can share directly
+- no usernames
+- no social graph
+- no inbox full of old exposure
+- messages that vanish
+- rooms that self-destruct
 
-This changes the engineering priorities.
+The point is not novelty. The point is reducing what can be collected, retained, stolen, or used against people later.
 
-Instead of asking "how do we preserve everything safely forever?", the better question becomes:
+## The Human Use Cases
 
-"How do we keep communication reliable while leaving behind as little as possible?"
+This kind of tool is useful for ordinary privacy-minded people.
 
-That leads naturally to:
+It is also useful for people in more serious conditions:
 
-- shorter room lifetimes
-- minimal server authority
-- client-side transcript control
-- aggressive self-destruction
-- temporary links instead of heavy identity systems
+- people living under censorship or repression
+- activists and organizers
+- journalists and sources
+- people documenting abuse
+- workers reporting wrongdoing
+- communities under political or social pressure
+- anyone who does not want a platform to own the permanent memory of a conversation
 
-## Why "No Server Transcript Authority" Matters
+In those situations, privacy is not branding. It is risk management.
 
-There is a major difference between:
+The question becomes:
 
-1. a server that helps move encrypted packets
-2. a server that can reconstruct the actual conversation archive
+"If this device is inspected, if this service is pressured, if this server is breached, if this account is compromised, how much is left behind?"
 
-The first can be acceptable in a practical system.
+That is the question `elm.chat` is trying to answer better.
 
-The second is a central point of failure.
+## Disposable By Design
 
-If a server becomes the source of truth for message history, then the server becomes the place that must be trusted, defended, audited, and possibly compelled. That is exactly the kind of concentration private systems should try to avoid.
+Most messaging products are designed to remember.
 
-The stronger design is:
+`elm.chat` is designed to forget.
 
-- let the coordination layer help participants find each other
-- let the transport layer move encrypted payloads
-- let clients reconstruct and hold the transcript
-- let rooms die quickly
+That changes everything.
 
-That does not make the system magically invulnerable. It does make the infrastructure less valuable as a target.
+A disappearing message is not only a UX detail. A self-destructing room is not only a gimmick. Those choices define what the system becomes over time.
 
-## Metadata Is Often The Real Attack Surface
+If a room exists for a short window, if messages vanish on purpose, and if the service avoids becoming the archive of record, then the infrastructure is worth less to anyone trying to mine it for data.
 
-Even when message bodies are safe, metadata can still reveal:
+That matters for:
 
-- who joined
-- when they joined
-- how long they stayed
-- whether a room was active
-- how often someone communicates
-- whether files moved
+- malicious attackers
+- abusive insiders
+- commercial data extraction
+- coercive legal or political pressure
+- broad compromise of central systems
 
-For many users, especially in repressive environments, that can be enough to create serious harm.
+The less valuable the retained record is, the less damage a later breach can do.
 
-That is why a private messaging system has to care about more than message body encryption.
+## Why No Usernames Matters
 
-Real privacy work includes:
+A lot of systems force identity too early.
 
-- minimizing logs
-- minimizing identifiers
-- minimizing retention
-- minimizing room lifetime
-- minimizing central transcript ownership
+They want an email, a phone number, a profile, a directory, a graph, a contact list, a stable handle. That can be useful for growth, but it also creates a durable map of human relationships.
 
-## Mobile Matters More Than Desktop
+`elm.chat` takes a different direction.
 
-If a private tool only works well on a laptop with time, patience, and ideal network conditions, it is not enough.
+Participants appear by color identity inside a room, not by permanent public identity. That makes the conversation usable without requiring the product to build a long-lived social layer around the people using it.
 
-High-pressure communication usually happens on phones.
+That is a better fit for private exchanges where the room matters more than the profile.
 
-That means the product has to be:
+## Why “Secret Link Only” Matters
 
-- fast to open
-- readable on a small screen
-- easy to use one-handed
-- resilient to weak networks
-- obvious about room state
-- obvious about destruction and expiry
+The app is intentionally simple:
 
-Good mobile design is not cosmetics here. It is part of operational usability.
+- create a room
+- choose message vanish timing
+- choose room self-destruct timing
+- share the secret link
+- talk
+- let it disappear
 
-## Open Source Matters Here
+The room secret stays in the URL fragment instead of being sent to the server in a normal request. That design choice keeps the coordination layer away from the full capability needed to read message content.
 
-Private communication software should invite scrutiny.
+It is not magic. It is just a better trust boundary.
 
-People should be able to:
+## Safety Is Also About Practicality
 
-- inspect the protocol
-- challenge the assumptions
-- review the cryptography choices
-- test the lifecycle rules
-- harden the implementation
-- propose better trust boundaries
+A private tool that is hard to use is still a bad tool.
 
-That is part of why this project should stay legible and technically honest. A vague promise of privacy is not enough. The implementation has to be inspectable by people who know how to look for failure.
+If people have to fight the interface, if the product is confusing on mobile, if the room state is unclear, if destruction is ambiguous, or if setup is too heavy, people fall back to easier systems that retain more and expose more.
+
+That is why `elm.chat` has to be:
+
+- immediate
+- understandable
+- mobile-friendly
+- low-friction
+- clear about what disappears and when
+
+Privacy software only works if people will actually use it when they need it.
 
 ## The Goal
 
-The goal is not just to ship "another chat app".
+The goal is not to convince people that no digital communication can ever be risky.
 
-The goal is to build a communication tool that pushes toward:
+The goal is to build something better than the default.
 
-- less infrastructure trust
+Something with:
+
 - less retained history
-- less recoverable content
-- less accidental exposure
+- less central trust
+- less metadata appetite
+- less durable exposure
 - more intentional ephemerality
-- more technical honesty
+- more dignity for the people using it
 
-That is a meaningful direction, and it is worth building carefully.
+That is what makes this worth building.
 
-## Contribute
+## Why Contribute
 
-If this problem matters to you, contribute.
+If you care about privacy, civil liberty, open systems, or safer communication infrastructure, this project needs you.
 
-The best contributions will come from people who can improve:
+It needs engineers, designers, reviewers, security researchers, cryptographers, and critics who are willing to make the product stronger.
 
-- protocol design
-- message sync logic
-- peer-assisted history reconstruction
-- mobile interaction quality
-- security review
-- metadata reduction
-- deletion semantics
-- direct encrypted file transfer
-- documentation clarity
+It also needs people who understand the social reality behind the technical work: people use private tools because the stakes are real.
 
-Private communication deserves serious engineering effort. This project is an invitation to do that work in public.
+If you want to help people communicate with less fear, less retention, and less exposure, contribute to `elm.chat`.
