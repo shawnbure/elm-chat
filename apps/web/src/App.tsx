@@ -19,6 +19,7 @@ import {
   type PeerDescriptor,
   type PeerSignal,
   type PresenceSnapshot,
+  type RoomInvite,
   type RoomMetadata,
   type ServerEvent,
 } from "@elm-chat/shared";
@@ -107,6 +108,24 @@ function creatorTokenKey(roomId: string): string {
 
 function sessionKey(roomId: string): string {
   return `elm-chat:session:${roomId}`;
+}
+
+function safeStorageGet(storage: "local" | "session", key: string): string | null {
+  try {
+    const target = storage === "local" ? window.localStorage : window.sessionStorage;
+    return target.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeStorageSet(storage: "local" | "session", key: string, value: string): void {
+  try {
+    const target = storage === "local" ? window.localStorage : window.sessionStorage;
+    target.setItem(key, value);
+  } catch {
+    // Private browsing and restrictive browser contexts can block storage access.
+  }
 }
 
 function durationUnitLabel(unit: DurationUnit): string {
@@ -218,6 +237,49 @@ async function destroyRoom(roomId: string, creatorToken: string): Promise<RoomMe
   return response.json();
 }
 
+async function createInvite(roomId: string, creatorToken: string, ttlMs = 10 * 60 * 1000): Promise<RoomInvite> {
+  const response = await fetch(`/api/rooms/${roomId}/invites`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ creatorToken, ttlMs })
+  });
+  if (!response.ok) {
+    throw new Error("Failed to create invite.");
+  }
+  return response.json();
+}
+
+async function listInvites(roomId: string, creatorToken: string): Promise<RoomInvite[]> {
+  const response = await fetch(`/api/rooms/${roomId}/invites?creatorToken=${encodeURIComponent(creatorToken)}`);
+  if (!response.ok) {
+    throw new Error("Failed to load invites.");
+  }
+  return response.json();
+}
+
+async function revokeInvite(roomId: string, creatorToken: string, token: string): Promise<void> {
+  const response = await fetch(`/api/rooms/${roomId}/invites/revoke`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ creatorToken, token })
+  });
+  if (!response.ok) {
+    throw new Error("Failed to revoke invite.");
+  }
+}
+
+async function copyText(value: string): Promise<boolean> {
+  if (!navigator.clipboard?.writeText) {
+    return false;
+  }
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function wsUrl(path: string): string {
   const url = new URL(window.location.origin);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
@@ -257,6 +319,10 @@ function colorFromSessionId(sessionId: string): string {
   return `hsl(${hue} ${saturation}% ${lightness}%)`;
 }
 
+function inviteColor(invite: RoomInvite): string {
+  return colorFromSessionId(invite.consumedBySessionId ?? invite.token);
+}
+
 function bubbleStyle(sessionId: string, mine: boolean): CSSProperties {
   const color = colorFromSessionId(sessionId);
   return {
@@ -265,6 +331,19 @@ function bubbleStyle(sessionId: string, mine: boolean): CSSProperties {
     "--bubble-surface-border": `color-mix(in srgb, ${color}, white 58%)`,
     "--bubble-text": mine ? "#fffaf3" : "var(--ink)"
   } as CSSProperties;
+}
+
+function inviteAccentStyle(invite: RoomInvite): CSSProperties | undefined {
+  const color = inviteColor(invite);
+  return {
+    "--invite-accent": color,
+    "--invite-surface": `color-mix(in srgb, ${color}, white 84%)`,
+    "--invite-border": `color-mix(in srgb, ${color}, white 56%)`
+  } as CSSProperties;
+}
+
+function buildInviteUrl(roomId: string, inviteToken: string, roomSecret: string): string {
+  return `${window.location.origin}/c/${roomId}?invite=${encodeURIComponent(inviteToken)}#${roomSecret}`;
 }
 
 function roomStateMessage(status: RoomMetadata["status"], reason?: string): string {
@@ -282,6 +361,35 @@ function roomStateMessage(status: RoomMetadata["status"], reason?: string): stri
     default:
       return "This room is no longer available.";
   }
+}
+
+function InvalidInviteScreen() {
+  return (
+    <main className="room-shell room-shell-centered">
+      <section className="access-screen" aria-live="polite">
+        <p className="eyebrow">elm chat</p>
+        <h1 className="access-title">Link no longer valid</h1>
+        <p className="access-copy">
+          This one-time invite has already been used, expired, or is no longer available.
+        </p>
+        <a className="secondary-button access-home-link" href="/">
+          Back to home
+        </a>
+      </section>
+    </main>
+  );
+}
+
+function InviteCheckingScreen() {
+  return (
+    <main className="room-shell room-shell-centered">
+      <section className="access-screen" aria-live="polite">
+        <p className="eyebrow">elm chat</p>
+        <h1 className="access-title">Checking invite</h1>
+        <p className="access-copy">Verifying this one-time invite and joining the room.</p>
+      </section>
+    </main>
+  );
 }
 
 export function App() {
@@ -334,7 +442,7 @@ function LandingPage() {
         inactivityTimeoutMs: parseDurationDraft(roomDuration, 10, "minutes", "milliseconds"),
         maxAgeMs: null
       });
-      localStorage.setItem(creatorTokenKey(room.roomId), room.creatorToken);
+      safeStorageSet("local", creatorTokenKey(room.roomId), room.creatorToken);
       window.location.assign(`${room.roomUrl}#${secret}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to create room.");
@@ -501,8 +609,12 @@ function LandingPage() {
 
 function RoomPage({ roomId }: { roomId: string }) {
   const roomSecret = window.location.hash.replace(/^#/, "");
+  const inviteToken = new URLSearchParams(window.location.search).get("invite") ?? "";
+  const storedCreatorToken = safeStorageGet("local", creatorTokenKey(roomId)) ?? "";
+  const isInviteGuest = Boolean(inviteToken && !storedCreatorToken);
   const [room, setRoom] = useState<RoomMetadata | null>(null);
   const [messages, setMessages] = useState<UiMessage[]>([]);
+  const [invites, setInvites] = useState<RoomInvite[]>([]);
   const [draft, setDraft] = useState("");
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -512,17 +624,21 @@ function RoomPage({ roomId }: { roomId: string }) {
   const [roomNotice, setRoomNotice] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState<ActionFeedback>("idle");
   const [destroyFeedback, setDestroyFeedback] = useState<ActionFeedback>("idle");
+  const [inviteFeedback, setInviteFeedback] = useState<ActionFeedback>("idle");
   const [destroying, setDestroying] = useState(false);
+  const [inviteAccess, setInviteAccess] = useState<"checking" | "granted" | "invalid">(
+    isInviteGuest ? "checking" : "granted"
+  );
   const [sessionId] = useState(() => {
-    const stored = sessionStorage.getItem(sessionKey(roomId));
+    const stored = safeStorageGet("session", sessionKey(roomId));
     if (stored) {
       return stored;
     }
     const next = generateSessionId();
-    sessionStorage.setItem(sessionKey(roomId), next);
+    safeStorageSet("session", sessionKey(roomId), next);
     return next;
   });
-  const creatorToken = localStorage.getItem(creatorTokenKey(roomId)) ?? "";
+  const creatorToken = storedCreatorToken;
   const socketRef = useRef<WebSocket | null>(null);
   const roomKeyRef = useRef<CryptoKey | null>(null);
   const identityKeyRef = useRef<string>("");
@@ -531,6 +647,7 @@ function RoomPage({ roomId }: { roomId: string }) {
   const peersRef = useRef(new Map<string, PeerLink>());
   const messageRef = useRef(new Map<string, EncryptedMessageEnvelope>());
   const shouldRequestSyncRef = useRef(false);
+  const peerTransportEnabled = false;
 
   function sendPeerData(payload: PeerDataEvent) {
     const socket = socketRef.current;
@@ -539,6 +656,18 @@ function RoomPage({ roomId }: { roomId: string }) {
       return true;
     }
     return false;
+  }
+
+  async function refreshInvites() {
+    if (!creatorToken) {
+      return;
+    }
+    try {
+      const nextInvites = await listInvites(roomId, creatorToken);
+      setInvites(nextInvites);
+    } catch {
+      // Keep the last known invite state if the refresh fails.
+    }
   }
 
   useEffect(() => {
@@ -581,13 +710,22 @@ function RoomPage({ roomId }: { roomId: string }) {
               type: "join",
               sessionId,
               identityKey: identityKeyRef.current,
-              creatorToken: creatorToken || undefined
+              creatorToken: creatorToken || undefined,
+              inviteToken: inviteToken || undefined
             })
           );
         });
 
-        socket.addEventListener("close", () => {
+        socket.addEventListener("close", (closeEvent) => {
           joinedRef.current = false;
+          if (isInviteGuest && inviteAccess !== "granted" && closeEvent.code === 4403) {
+            setInviteAccess("invalid");
+            setError(null);
+            setRoom(null);
+            setRoomNotice(null);
+            setReady(true);
+            return;
+          }
           setConnection((current) => (room?.status === "open" ? "Disconnected" : "Closed"));
           closeAllPeerLinks();
         });
@@ -601,14 +739,15 @@ function RoomPage({ roomId }: { roomId: string }) {
           if (payload.type === "joined") {
             joinedRef.current = true;
             startTransition(() => {
+              setInviteAccess("granted");
               setRoom(payload.room);
               setPresence(payload.presence);
               setReady(true);
             });
-            shouldRequestSyncRef.current = payload.peers.length > 0;
-            for (const peer of payload.peers) {
-              ensurePeer(peer, sessionId < peer.sessionId);
+            if (creatorToken) {
+              void refreshInvites();
             }
+            shouldRequestSyncRef.current = payload.peers.length > 0;
             if (payload.peers.length > 0) {
               socket.send(JSON.stringify({ type: "peer_data", data: { type: "sync_request" } }));
             }
@@ -617,11 +756,26 @@ function RoomPage({ roomId }: { roomId: string }) {
 
           if (payload.type === "presence") {
             startTransition(() => setPresence(payload.presence));
+            if (creatorToken) {
+              void refreshInvites();
+            }
             return;
           }
 
           if (payload.type === "peer_joined") {
-            ensurePeer(payload.peer, sessionId < payload.peer.sessionId);
+            startTransition(() =>
+              setPresence((current) => ({
+                count: current.connectedSessionIds.includes(payload.peer.sessionId)
+                  ? current.count
+                  : current.count + 1,
+                connectedSessionIds: current.connectedSessionIds.includes(payload.peer.sessionId)
+                  ? current.connectedSessionIds
+                  : [...current.connectedSessionIds, payload.peer.sessionId]
+              }))
+            );
+            if (creatorToken) {
+              void refreshInvites();
+            }
             if (messageRef.current.size > 0) {
               socket.send(
                 JSON.stringify({
@@ -640,6 +794,18 @@ function RoomPage({ roomId }: { roomId: string }) {
           }
 
           if (payload.type === "peer_left") {
+            startTransition(() =>
+              setPresence((current) => {
+                const nextIds = current.connectedSessionIds.filter((id) => id !== payload.sessionId);
+                return {
+                  count: nextIds.length,
+                  connectedSessionIds: nextIds
+                };
+              })
+            );
+            if (creatorToken) {
+              void refreshInvites();
+            }
             const link = peersRef.current.get(payload.sessionId);
             if (link) {
               link.pc.close();
@@ -649,7 +815,9 @@ function RoomPage({ roomId }: { roomId: string }) {
           }
 
           if (payload.type === "signal") {
-            await handleIncomingSignal(payload.fromSessionId, payload.signal);
+            if (peerTransportEnabled) {
+              await handleIncomingSignal(payload.fromSessionId, payload.signal);
+            }
             return;
           }
 
@@ -678,7 +846,32 @@ function RoomPage({ roomId }: { roomId: string }) {
             return;
           }
 
+          if (payload.type === "participant_kicked") {
+            if (payload.sessionId === sessionId) {
+              setRoomNotice("You were removed from this room by the creator.");
+              setConnection("Closed");
+              joinedRef.current = false;
+              socket.close();
+            }
+            if (creatorToken) {
+              void refreshInvites();
+            }
+            return;
+          }
+
           if (payload.type === "error") {
+            if (payload.message === "A valid one-time invite is required.") {
+              setInviteAccess("invalid");
+              setError(null);
+              setRoom(null);
+              setRoomNotice(null);
+              setReady(true);
+              socket.close(4403, "invalid-invite");
+              return;
+            }
+            if (payload.code === "peer_missing") {
+              return;
+            }
             setError(payload.message);
           }
         });
@@ -875,7 +1068,15 @@ function RoomPage({ roomId }: { roomId: string }) {
       closeAllPeerLinks();
       socketRef.current?.close();
     };
-  }, [creatorToken, roomId, roomSecret, sessionId]);
+  }, [creatorToken, inviteToken, roomId, roomSecret, sessionId]);
+
+  if (inviteAccess === "invalid") {
+    return <InvalidInviteScreen />;
+  }
+
+  if (isInviteGuest && (inviteAccess !== "granted" || !room || !ready)) {
+    return <InviteCheckingScreen />;
+  }
 
   useEffect(() => {
     if (copyFeedback !== "success") {
@@ -884,6 +1085,14 @@ function RoomPage({ roomId }: { roomId: string }) {
     const timeout = window.setTimeout(() => setCopyFeedback("idle"), 1600);
     return () => window.clearTimeout(timeout);
   }, [copyFeedback]);
+
+  useEffect(() => {
+    if (inviteFeedback !== "success") {
+      return;
+    }
+    const timeout = window.setTimeout(() => setInviteFeedback("idle"), 1600);
+    return () => window.clearTimeout(timeout);
+  }, [inviteFeedback]);
 
   useEffect(() => {
     if (destroyFeedback !== "success") {
@@ -927,6 +1136,10 @@ function RoomPage({ roomId }: { roomId: string }) {
       }
     }
   }, [now]);
+
+  useEffect(() => {
+    void refreshInvites();
+  }, [creatorToken, roomId]);
 
   async function handleSend(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -994,8 +1207,70 @@ function RoomPage({ roomId }: { roomId: string }) {
   }
 
   async function handleCopyLink() {
-    await navigator.clipboard.writeText(window.location.href);
-    setCopyFeedback("success");
+    if (await copyText(window.location.href)) {
+      setCopyFeedback("success");
+      setError(null);
+      return;
+    }
+    setError("Clipboard access is blocked in this browser context. Copy the link manually from the address bar.");
+  }
+
+  async function handleShareInvite() {
+    if (!creatorToken) {
+      return;
+    }
+    try {
+      const invite = await createInvite(roomId, creatorToken);
+      setInvites((current) => [invite, ...current]);
+      const inviteUrl = buildInviteUrl(roomId, invite.token, roomSecret);
+      if (await copyText(inviteUrl)) {
+        setInviteFeedback("success");
+        setError(null);
+        return;
+      }
+      setInviteFeedback("idle");
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Failed to create invite.");
+    }
+  }
+
+  async function handleCopyInvite(token: string) {
+    if (await copyText(buildInviteUrl(roomId, token, roomSecret))) {
+      setInviteFeedback("success");
+      setError(null);
+      return;
+    }
+    setError("Clipboard access is blocked in this browser context. Copy the invite URL manually.");
+  }
+
+  async function handleRevokeInvite(token: string) {
+    if (!creatorToken) {
+      return;
+    }
+    try {
+      await revokeInvite(roomId, creatorToken, token);
+      setInvites((current) =>
+        current.map((invite) =>
+          invite.token === token ? { ...invite, revokedAt: Date.now() } : invite
+        )
+      );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Failed to revoke invite.");
+    }
+  }
+
+  function handleKickParticipant(targetSessionId: string) {
+    if (!creatorToken || targetSessionId === sessionId) {
+      return;
+    }
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "kick_participant",
+        creatorToken,
+        targetSessionId
+      })
+    );
   }
 
   async function handleDestroy() {
@@ -1027,6 +1302,7 @@ function RoomPage({ roomId }: { roomId: string }) {
     typeof room?.inactivityTimeoutMs === "number"
       ? `Room self-destructs after ${formatStaticDuration(Math.floor(room.inactivityTimeoutMs / 1000))} of inactivity.`
       : "Room stays open until someone destroys it.";
+  const isCreator = Boolean(creatorToken);
 
   return (
     <main className="room-shell">
@@ -1044,12 +1320,21 @@ function RoomPage({ roomId }: { roomId: string }) {
             <span>{presentCount} present</span>
           </div>
           <div className="room-actions">
-            <button
-              className={`secondary-button ${copyFeedback === "success" ? "button-success" : ""}`}
-              onClick={handleCopyLink}
-            >
-              {copyFeedback === "success" ? "Copied" : "Copy link"}
-            </button>
+            {isCreator ? (
+              <button
+                className={`secondary-button ${inviteFeedback === "success" ? "button-success" : ""}`}
+                onClick={handleShareInvite}
+              >
+                {inviteFeedback === "success" ? "Invite copied" : "Share invite"}
+              </button>
+            ) : (
+              <button
+                className={`secondary-button ${copyFeedback === "success" ? "button-success" : ""}`}
+                onClick={handleCopyLink}
+              >
+                {copyFeedback === "success" ? "Copied" : "Copy my link"}
+              </button>
+            )}
             <button
               className={`secondary-button ${destroyFeedback === "success" ? "button-success" : ""}`}
               disabled={!creatorToken || destroying || room?.status !== "open"}
@@ -1074,6 +1359,15 @@ function RoomPage({ roomId }: { roomId: string }) {
               >
                 <span className="participant-dot" />
                 {id === sessionId ? "You" : "Guest"}
+                {isCreator && id !== sessionId ? (
+                  <button
+                    className="participant-kick"
+                    onClick={() => handleKickParticipant(id)}
+                    type="button"
+                  >
+                    Remove
+                  </button>
+                ) : null}
               </span>
             ))
           )}
@@ -1085,6 +1379,34 @@ function RoomPage({ roomId }: { roomId: string }) {
 
       {roomNotice ? <p className="room-notice">{roomNotice}</p> : null}
       {error ? <p className="error-text room-error">{error}</p> : null}
+      {isCreator && invites.length > 0 ? (
+        <section className="invite-panel">
+          <span className="eyebrow">invites</span>
+          {invites.slice(0, 4).map((invite) => (
+            <div className="invite-row" key={invite.token} style={inviteAccentStyle(invite)}>
+              <span>
+                {invite.revokedAt
+                  ? "revoked"
+                  : invite.consumedAt
+                    ? "used"
+                    : `expires in ${formatRelativeDuration(invite.expiresAt)}`}
+              </span>
+              <div className="invite-actions">
+                {!invite.revokedAt && !invite.consumedAt ? (
+                  <button className="secondary-button invite-copy" onClick={() => handleCopyInvite(invite.token)} type="button">
+                    Copy
+                  </button>
+                ) : null}
+                {!invite.revokedAt ? (
+                  <button className="secondary-button invite-revoke" onClick={() => handleRevokeInvite(invite.token)} type="button">
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </section>
+      ) : null}
 
       <section className="chat-stage">
         <section className="chat-log" ref={chatLogRef}>

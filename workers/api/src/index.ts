@@ -1,9 +1,11 @@
 import {
+  DEFAULT_STUN_ICE_SERVERS,
   DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
   DEFAULT_INACTIVITY_TIMEOUT_MS,
   ROOM_ID_BYTES,
   type CreateRoomRequest,
-  type CreateRoomResponse
+  type CreateRoomResponse,
+  type TurnCredentialsResponse
 } from "@elm-chat/shared";
 import { RoomDurableObject } from "../../../durable-objects/room/src/room";
 
@@ -12,6 +14,8 @@ export { RoomDurableObject };
 type Env = {
   ASSETS: Fetcher;
   ROOM_OBJECT: DurableObjectNamespace<RoomDurableObject>;
+  TURN_SECRET?: string;
+  TURN_URLS?: string;
 };
 
 function json(payload: unknown, status = 200): Response {
@@ -58,6 +62,28 @@ function randomRoomId(): string {
 
 function randomToken(): string {
   return base64Url(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+function parseTurnUrls(value?: string): string[] {
+  if (!value) {
+    return [];
+  }
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+async function hmacSha1Base64(secret: string, message: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-1" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  return btoa(String.fromCharCode(...new Uint8Array(signature)));
 }
 
 async function safeJson<T>(request: Request): Promise<T> {
@@ -124,6 +150,51 @@ async function handleRoomWebSocket(request: Request, roomId: string, env: Env): 
   return stub.fetch("https://room/ws", request);
 }
 
+async function handleCreateInvite(request: Request, roomId: string, env: Env): Promise<Response> {
+  const payload = await safeJson<{ creatorToken: string; ttlMs?: number }>(request);
+  const stub = env.ROOM_OBJECT.getByName(roomId);
+  return stub.fetch("https://room/internal/invites/create", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+async function handleListInvites(request: Request, roomId: string, env: Env): Promise<Response> {
+  const creatorToken = new URL(request.url).searchParams.get("creatorToken") ?? "";
+  const stub = env.ROOM_OBJECT.getByName(roomId);
+  return stub.fetch(`https://room/internal/invites?creatorToken=${encodeURIComponent(creatorToken)}`);
+}
+
+async function handleRevokeInvite(request: Request, roomId: string, env: Env): Promise<Response> {
+  const payload = await safeJson<{ creatorToken: string; token: string }>(request);
+  const stub = env.ROOM_OBJECT.getByName(roomId);
+  return stub.fetch("https://room/internal/invites/revoke", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+async function handleTurnCredentials(env: Env): Promise<Response> {
+  const ttlSeconds = 600;
+  const iceServers = [...DEFAULT_STUN_ICE_SERVERS];
+  const turnUrls = parseTurnUrls(env.TURN_URLS);
+
+  if (env.TURN_SECRET && turnUrls.length > 0) {
+    const username = `${Math.floor(Date.now() / 1000) + ttlSeconds}:${crypto.randomUUID()}`;
+    const credential = await hmacSha1Base64(env.TURN_SECRET, username);
+    iceServers.push({
+      urls: turnUrls,
+      username,
+      credential
+    });
+  }
+
+  return json({
+    iceServers,
+    ttlSeconds
+  } satisfies TurnCredentialsResponse);
+}
+
 function routeApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
 
@@ -131,7 +202,16 @@ function routeApi(request: Request, env: Env): Promise<Response> {
     return handleCreateRoom(request, env);
   }
 
-  const match = url.pathname.match(/^\/api\/rooms\/([^/]+)(?:\/(destroy|ws))?$/);
+  if (request.method === "GET" && url.pathname === "/api/turn-credentials") {
+    return handleTurnCredentials(env);
+  }
+
+  const revokeMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)\/invites\/revoke$/);
+  if (revokeMatch && request.method === "POST") {
+    return handleRevokeInvite(request, revokeMatch[1], env);
+  }
+
+  const match = url.pathname.match(/^\/api\/rooms\/([^/]+)(?:\/(destroy|ws|invites))?$/);
   if (!match) {
     return Promise.resolve(json({ error: "Not found." }, 404));
   }
@@ -147,6 +227,13 @@ function routeApi(request: Request, env: Env): Promise<Response> {
     return handleDestroyRoom(request, roomId, env);
   }
 
+  if (action === "invites" && request.method === "POST") {
+    return handleCreateInvite(request, roomId, env);
+  }
+
+  if (action === "invites" && request.method === "GET") {
+    return handleListInvites(request, roomId, env);
+  }
   if (request.method === "GET" && action === "ws") {
     return handleRoomWebSocket(request, roomId, env);
   }

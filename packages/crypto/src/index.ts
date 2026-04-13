@@ -37,6 +37,14 @@ export function generateMessageId(): string {
   return crypto.randomUUID();
 }
 
+export function bytesToBase64Url(bytes: Uint8Array): string {
+  return toBase64Url(bytes);
+}
+
+export function base64UrlToBytes(value: string): Uint8Array {
+  return fromBase64Url(value);
+}
+
 export async function deriveRoomKey(secret: string): Promise<CryptoKey> {
   const secretBytes = fromBase64Url(secret);
   if (secretBytes.byteLength < ROOM_SECRET_BYTES) {
@@ -67,6 +75,13 @@ export async function encryptText(
   key: CryptoKey,
   plaintext: string
 ): Promise<{ ciphertext: string; nonce: string; keyVersion: string }> {
+  return encryptBytes(key, encoder.encode(plaintext));
+}
+
+export async function encryptBytes(
+  key: CryptoKey,
+  plaintext: Uint8Array
+): Promise<{ ciphertext: string; nonce: string; keyVersion: string }> {
   const nonce = randomBytes(AES_GCM_NONCE_BYTES);
   const ciphertext = await crypto.subtle.encrypt(
     {
@@ -74,7 +89,7 @@ export async function encryptText(
       iv: toArrayBuffer(nonce)
     },
     key,
-    encoder.encode(plaintext)
+    toArrayBuffer(plaintext)
   );
 
   return {
@@ -89,6 +104,15 @@ export async function decryptText(
   ciphertext: string,
   nonce: string
 ): Promise<string> {
+  const plaintext = await decryptBytes(key, ciphertext, nonce);
+  return decoder.decode(plaintext);
+}
+
+export async function decryptBytes(
+  key: CryptoKey,
+  ciphertext: string,
+  nonce: string
+): Promise<Uint8Array> {
   const plaintext = await crypto.subtle.decrypt(
     {
       name: "AES-GCM",
@@ -98,5 +122,62 @@ export async function decryptText(
     toArrayBuffer(fromBase64Url(ciphertext))
   );
 
-  return decoder.decode(plaintext);
+  return new Uint8Array(plaintext);
+}
+
+export async function createIdentityKeyPair(): Promise<CryptoKeyPair> {
+  return crypto.subtle.generateKey(
+    {
+      name: "ECDSA",
+      namedCurve: "P-256"
+    },
+    true,
+    ["sign", "verify"]
+  );
+}
+
+export async function exportIdentityPublicKey(key: CryptoKey): Promise<string> {
+  const exported = await crypto.subtle.exportKey("raw", key);
+  return toBase64Url(new Uint8Array(exported));
+}
+
+export async function importIdentityPublicKey(encoded: string): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "raw",
+    toArrayBuffer(fromBase64Url(encoded)),
+    {
+      name: "ECDSA",
+      namedCurve: "P-256"
+    },
+    false,
+    ["verify"]
+  );
+}
+
+export async function signPayload(key: CryptoKey, payload: Uint8Array): Promise<string> {
+  const signature = await crypto.subtle.sign(
+    {
+      name: "ECDSA",
+      hash: "SHA-256"
+    },
+    key,
+    toArrayBuffer(payload)
+  );
+  return toBase64Url(new Uint8Array(signature));
+}
+
+export async function verifyPayload(
+  key: CryptoKey,
+  payload: Uint8Array,
+  signature: string
+): Promise<boolean> {
+  return crypto.subtle.verify(
+    {
+      name: "ECDSA",
+      hash: "SHA-256"
+    },
+    key,
+    toArrayBuffer(fromBase64Url(signature)),
+    toArrayBuffer(payload)
+  );
 }

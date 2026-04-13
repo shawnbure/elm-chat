@@ -5,66 +5,102 @@
 - room capability URL
 - room secret in the fragment
 - derived room encryption key
-- ciphertext message envelopes
+- peer session IDs
+- encrypted transcript held by connected peers
 - creator destroy capability
+
+## Security Goal
+
+Minimize server-side visibility and persistence so the application can be used with lower central trust than a store-and-forward chat service.
 
 ## Trust Assumptions
 
-- clients run over HTTPS/WSS only
-- the browser Web Crypto API is trustworthy
-- Cloudflare infrastructure is honest-but-curious for the MVP
-- users protect the capability link out of band
+- browsers provide correct Web Crypto and WebRTC implementations
+- users verify and protect capability links out of band
+- connected peers are not automatically trusted with plaintext once they decrypt
+- the signaling Worker / Durable Object is honest-but-curious, not trusted with content
 
 ## Primary Threats
 
 ### Link leakage
 
-If the full capability URL is copied into insecure channels, anyone with the link can decrypt room traffic. Mitigations:
+Anyone with the full capability URL can derive the room key and impersonate a participant.
+
+Current mitigations:
 
 - room secret stays in the fragment
 - strict `Referrer-Policy: no-referrer`
-- no analytics or third-party scripts on room pages
+- no third-party analytics on room pages
 
 ### Server compromise or insider access
 
-The Worker and Durable Object may be able to inspect metadata and ciphertext, but not plaintext. Mitigations:
+The signaling layer can see peer metadata but should not see transcript content.
 
-- client-side HKDF + AES-GCM only
-- no plaintext persistence
-- server stores only ciphertext envelopes and lifecycle metadata
+Current mitigations:
 
-### Room ID guessing
+- server only handles room lifecycle and peer signaling
+- no server-side transcript persistence
+- peers exchange encrypted envelopes directly
 
-An attacker who guesses a live room ID can join transport but still cannot decrypt without the fragment secret. Mitigations:
+Residual risk:
 
-- room IDs are random and non-sequential
-- room secrets are independently generated at 256 bits
-- rooms are short-lived
+- signaling metadata still reveals room activity and participant timing
 
-### Replay / stale ciphertext
+### Peer compromise
 
-Replayed ciphertext could confuse clients. Current mitigations:
+Any connected peer can exfiltrate plaintext after local decryption.
 
-- unique message IDs
-- message state tracking in the Durable Object
+Not solved by this design:
 
-Future hardening:
+- screenshots
+- copy / paste
+- malicious local extensions
+- infected devices
 
-- explicit duplicate rejection
-- monotonic counters or ratchets
+### Connectivity coercion and relay visibility
 
-### Creator token theft
+Peer-to-peer systems may need TURN relays when direct connectivity fails. Relay operators can still observe metadata such as byte volume and timing even if they cannot decrypt payloads.
 
-The creator token allows room destruction. Mitigations:
+Operational requirement:
 
-- random token generated server-side
-- stored hashed in the Durable Object
-- never embedded in the shared capability URL
+- use short-lived TURN credentials
+- separate TURN operations from transcript storage
+- assume relay metadata is observable
 
-## Not Fully Solved In MVP
+### Transcript loss
 
-- authenticated sender identity beyond possession of a session connection
-- malicious recipients taking screenshots or copying plaintext after decryption
-- stronger metadata protection such as IP obfuscation or traffic-shape padding
-- multi-device state continuity
+Because the server does not persist messages, transcript continuity depends on connected peers retaining encrypted history in memory.
 
+Consequence:
+
+- if no connected peer still has a message, it cannot be recovered
+
+This is intentional for ephemerality, but it is a usability and reliability tradeoff.
+
+### Traffic analysis
+
+An adversary observing network patterns may infer room activity, peer presence, or message bursts without decrypting content.
+
+Not solved in the current implementation:
+
+- timing obfuscation
+- packet padding
+- cover traffic
+
+## Non-Goals In Current Build
+
+- strong anonymous routing
+- deniable messaging
+- authenticated human identity
+- forward secrecy beyond a shared static room key
+- verified peer device trust
+
+## High-Risk Use Warning
+
+This architecture is safer than the previous ciphertext-buffering relay, but it is not yet sufficient to claim strong protection for people under severe repression. A production-safe deployment still needs:
+
+- audited TURN strategy
+- stronger peer authentication or device continuity model
+- replay / duplicate protections beyond message ID de-duplication
+- mobile network failure testing
+- clear user education about participant trust and device compromise
