@@ -2,15 +2,7 @@
 
 ## `POST /api/rooms`
 
-Creates a new room and bootstraps its Durable Object.
-
-Request body:
-
-```json
-{
-  "turnstileToken": "optional-placeholder"
-}
-```
+Creates a room and bootstraps its signaling Durable Object.
 
 Response `201`:
 
@@ -20,22 +12,17 @@ Response `201`:
   "roomUrl": "https://app.example.com/c/random-room-id",
   "websocketPath": "/api/rooms/random-room-id/ws",
   "createdAt": 1744150000000,
-  "expiresAt": 1744236400000,
-  "inactivityTimeoutMs": 1800000,
-  "maxAgeMs": 86400000,
-  "disappearAfterReadSeconds": 30,
+  "expiresAt": null,
+  "inactivityTimeoutMs": 600000,
+  "maxAgeMs": null,
+  "disappearAfterReadSeconds": 420,
   "creatorToken": "creator-only-destroy-capability"
 }
 ```
 
-Notes:
-
-- the browser appends `#<room_secret>` locally
-- the room secret is never posted to the server
-
 ## `GET /api/rooms/:roomId`
 
-Returns current room status and lifecycle metadata.
+Returns room lifecycle metadata only.
 
 Response `200`:
 
@@ -43,12 +30,12 @@ Response `200`:
 {
   "roomId": "random-room-id",
   "createdAt": 1744150000000,
-  "expiresAt": 1744236400000,
-  "inactivityTimeoutMs": 1800000,
-  "maxAgeMs": 86400000,
-  "disappearAfterReadSeconds": 30,
+  "expiresAt": null,
+  "inactivityTimeoutMs": 600000,
+  "maxAgeMs": null,
+  "disappearAfterReadSeconds": 420,
   "status": "open",
-  "participantCount": 1,
+  "participantCount": 2,
   "creatorJoined": true,
   "lastActivityAt": 1744150200000
 }
@@ -56,37 +43,63 @@ Response `200`:
 
 ## `GET /api/rooms/:roomId/ws`
 
-Upgrades to a WebSocket and hands the connection to the room Durable Object.
+Upgrades to a WebSocket used only for signaling and room control.
 
-Client events:
+### Client events
 
 ```json
 { "type": "join", "sessionId": "uuid", "creatorToken": "optional" }
-{ "type": "send", "envelope": { "messageId": "uuid", "senderSessionId": "uuid", "ciphertext": "base64url", "nonce": "base64url", "sentAt": 1744150200000, "expiresAfterReadSeconds": 30 } }
-{ "type": "read", "messageId": "uuid", "readerSessionId": "uuid" }
+{
+  "type": "signal",
+  "toSessionId": "uuid",
+  "signal": { "type": "offer", "sdp": "..." }
+}
+{
+  "type": "signal",
+  "toSessionId": "uuid",
+  "signal": { "type": "answer", "sdp": "..." }
+}
+{
+  "type": "signal",
+  "toSessionId": "uuid",
+  "signal": {
+    "type": "ice",
+    "candidate": "candidate:...",
+    "sdpMid": "0",
+    "sdpMLineIndex": 0
+  }
+}
 { "type": "destroy", "creatorToken": "creator-only-token" }
 { "type": "ping" }
 ```
 
-Server events:
-
-```json
-{ "type": "joined", "room": {}, "sessionId": "uuid", "creator": true, "pending": [], "presence": { "count": 1, "connectedSessionIds": ["uuid"] } }
-{ "type": "presence", "presence": { "count": 2, "connectedSessionIds": ["uuid-1", "uuid-2"] } }
-{ "type": "message", "envelope": { "messageId": "uuid", "senderSessionId": "uuid", "ciphertext": "base64url", "nonce": "base64url", "sentAt": 1744150200000, "expiresAfterReadSeconds": 30 } }
-{ "type": "message_state", "messageId": "uuid", "state": "read", "readAt": 1744150210000, "disappearAt": 1744150240000 }
-{ "type": "room_state", "status": "destroyed", "expiresAt": 1744236400000, "reason": "destroyed" }
-{ "type": "error", "code": "room_full", "message": "Room is at capacity." }
-```
-
-## `POST /api/rooms/:roomId/destroy`
-
-Destroys a room irrecoverably when the caller provides the creator token.
-
-Request body:
+### Server events
 
 ```json
 {
-  "creatorToken": "creator-only-destroy-capability"
+  "type": "joined",
+  "room": {},
+  "sessionId": "uuid",
+  "creator": true,
+  "peers": [{ "sessionId": "uuid-2", "creator": false, "connectedAt": 1744150200000 }],
+  "presence": { "count": 2, "connectedSessionIds": ["uuid", "uuid-2"] }
 }
+{ "type": "presence", "presence": { "count": 2, "connectedSessionIds": ["uuid-1", "uuid-2"] } }
+{ "type": "peer_joined", "peer": { "sessionId": "uuid-3", "creator": false, "connectedAt": 1744150300000 } }
+{ "type": "peer_left", "sessionId": "uuid-2" }
+{ "type": "signal", "fromSessionId": "uuid-2", "signal": { "type": "offer", "sdp": "..." } }
+{ "type": "room_state", "status": "destroyed", "expiresAt": null, "reason": "destroyed" }
+{ "type": "error", "code": "peer_missing", "message": "Peer is no longer connected." }
+```
+
+## Peer Data Channel Protocol
+
+These events move directly between browsers, not through the server:
+
+```json
+{ "type": "chat_message", "envelope": { "messageId": "uuid", "senderSessionId": "uuid", "ciphertext": "base64url", "nonce": "base64url", "sentAt": 1744150200000, "expiresAfterReadSeconds": 420 } }
+{ "type": "sync_request" }
+{ "type": "sync_response", "messages": [{ "messageId": "uuid", "senderSessionId": "uuid", "ciphertext": "base64url", "nonce": "base64url", "sentAt": 1744150200000, "expiresAfterReadSeconds": 420 }] }
+{ "type": "peer_destroy" }
+{ "type": "file_offer", "fileId": "uuid", "name": "example.pdf", "mimeType": "application/pdf", "size": 12345 }
 ```

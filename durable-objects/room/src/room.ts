@@ -2,23 +2,25 @@ import {
   DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
   DEFAULT_INACTIVITY_TIMEOUT_MS,
   MAX_CONNECTIONS_PER_ROOM,
-  MAX_MESSAGES_BUFFERED,
-  MAX_MESSAGE_BYTES,
   type ClientEvent,
   type CreateRoomResponse,
-  type EncryptedMessageEnvelope,
   type ErrorEventPayload,
   type JoinPayload,
-  type MessageEvent,
-  type MessageState,
-  type MessageStateEvent,
+  type KickParticipantPayload,
+  type ParticipantKickedEvent,
+  type PeerDataRelayEvent,
+  type PeerDataRelayPayload,
+  type PeerDescriptor,
+  type PeerJoinedEvent,
+  type PeerLeftEvent,
   type PresenceEvent,
   type PresenceSnapshot,
+  type RoomInvite,
   type RoomMetadata,
   type RoomStateEvent,
-  type SendPayload,
   type ServerEvent,
-  type StoredMessage
+  type SignalEvent,
+  type SignalPayload
 } from "@elm-chat/shared";
 import { DurableObject } from "cloudflare:workers";
 
@@ -30,7 +32,7 @@ type SessionRecord = {
   sessionId: string;
   creator: boolean;
   connectedAt: number;
-  lastSeenAt: number;
+  identityKey: string;
 };
 
 type AttachmentRecord = {
@@ -53,8 +55,8 @@ export interface Env {
 }
 
 const ROOM_META_KEY = "room:meta";
-const SESSION_PREFIX = "session:";
-const MESSAGE_PREFIX = "message:";
+const INVITES_KEY = "room:invites";
+const DEFAULT_INVITE_TTL_MS = 10 * 60 * 1000;
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -74,11 +76,7 @@ function wsResponse(client: WebSocket): Response {
 }
 
 function errorEvent(code: string, message: string): ErrorEventPayload {
-  return {
-    type: "error",
-    code,
-    message
-  };
+  return { type: "error", code, message };
 }
 
 async function safeJson<T>(request: Request): Promise<T> {
@@ -88,19 +86,14 @@ async function safeJson<T>(request: Request): Promise<T> {
 export class RoomDurableObject extends DurableObject<Env> {
   private roomMeta: RoomStorage | null = null;
   private sessions = new Map<string, SessionRecord>();
+  private invites = new Map<string, RoomInvite>();
   private storageReady: Promise<void>;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.storageReady = this.ctx.blockConcurrencyWhile(async () => {
       this.roomMeta = (await this.ctx.storage.get<RoomStorage>(ROOM_META_KEY)) ?? null;
-
-      const storedSessions = await this.ctx.storage.list<SessionRecord>({
-        prefix: SESSION_PREFIX
-      });
-      for (const session of storedSessions.values()) {
-        this.sessions.set(session.sessionId, session);
-      }
+      this.invites = new Map((await this.ctx.storage.get<[string, RoomInvite][]>(INVITES_KEY)) ?? []);
     });
   }
 
@@ -110,8 +103,7 @@ export class RoomDurableObject extends DurableObject<Env> {
     const url = new URL(request.url);
 
     if (request.method === "POST" && url.pathname === "/internal/bootstrap") {
-      const bootstrap = await safeJson<RoomBootstrap>(request);
-      return this.bootstrapRoom(bootstrap);
+      return this.bootstrapRoom(await safeJson<RoomBootstrap>(request));
     }
 
     if (request.method === "GET" && url.pathname === "/internal/metadata") {
@@ -121,6 +113,21 @@ export class RoomDurableObject extends DurableObject<Env> {
     if (request.method === "POST" && url.pathname === "/internal/destroy") {
       const payload = await safeJson<{ creatorToken: string }>(request);
       return this.destroyRoom("destroyed", payload.creatorToken);
+    }
+
+    if (request.method === "POST" && url.pathname === "/internal/invites/create") {
+      const payload = await safeJson<{ creatorToken: string; ttlMs?: number }>(request);
+      return this.createInvite(payload.creatorToken, payload.ttlMs);
+    }
+
+    if (request.method === "GET" && url.pathname === "/internal/invites") {
+      const creatorToken = url.searchParams.get("creatorToken") ?? "";
+      return this.listInvites(creatorToken);
+    }
+
+    if (request.method === "POST" && url.pathname === "/internal/invites/revoke") {
+      const payload = await safeJson<{ creatorToken: string; token: string }>(request);
+      return this.revokeInvite(payload.creatorToken, payload.token);
     }
 
     if (request.method === "GET" && url.pathname === "/ws") {
@@ -139,7 +146,7 @@ export class RoomDurableObject extends DurableObject<Env> {
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
       this.ctx.acceptWebSocket(server);
-      server.serializeAttachment({ sessionId: "" satisfies string } as AttachmentRecord);
+      server.serializeAttachment({ sessionId: "" } satisfies AttachmentRecord);
       await this.markRoomActivity();
       return wsResponse(client);
     }
@@ -149,18 +156,11 @@ export class RoomDurableObject extends DurableObject<Env> {
 
   async alarm(): Promise<void> {
     await this.storageReady;
-    await this.expireMessages();
-
-    if (!this.roomMeta) {
+    if (!this.roomMeta || this.roomMeta.status !== "open") {
       return;
     }
 
     const now = Date.now();
-    if (this.roomMeta.status !== "open") {
-      return;
-    }
-
-    const noSockets = this.connectedSessionIds().length === 0;
     const idleFor = now - this.roomMeta.lastActivityAt;
 
     if (typeof this.roomMeta.expiresAt === "number" && now >= this.roomMeta.expiresAt) {
@@ -170,18 +170,9 @@ export class RoomDurableObject extends DurableObject<Env> {
 
     if (
       typeof this.roomMeta.inactivityTimeoutMs === "number" &&
-      this.sessions.size === 0 &&
       idleFor >= this.roomMeta.inactivityTimeoutMs
     ) {
-      await this.transitionRoom("expired", "join-timeout");
-      return;
-    }
-
-    if (
-      typeof this.roomMeta.inactivityTimeoutMs === "number" &&
-      idleFor >= this.roomMeta.inactivityTimeoutMs
-    ) {
-      await this.transitionRoom("expired", "inactive");
+      await this.transitionRoom("expired", this.sessions.size === 0 ? "join-timeout" : "inactive");
       return;
     }
 
@@ -207,14 +198,17 @@ export class RoomDurableObject extends DurableObject<Env> {
       case "join":
         await this.handleJoin(ws, parsed);
         break;
-      case "send":
-        await this.handleSend(ws, parsed);
+      case "signal":
+        await this.handleSignal(ws, parsed);
         break;
-      case "read":
-        await this.handleRead(parsed.messageId, parsed.readerSessionId);
+      case "peer_data":
+        await this.handlePeerData(ws, parsed);
         break;
       case "destroy":
         await this.destroyRoom("destroyed", parsed.creatorToken);
+        break;
+      case "kick_participant":
+        await this.kickParticipant(ws, parsed);
         break;
       case "ping":
         await this.markRoomActivity();
@@ -229,16 +223,13 @@ export class RoomDurableObject extends DurableObject<Env> {
       return;
     }
 
-    const record = this.sessions.get(attachment.sessionId);
-    if (record) {
-      record.lastSeenAt = Date.now();
-      this.sessions.set(record.sessionId, record);
-      await this.ctx.storage.put(`${SESSION_PREFIX}${record.sessionId}`, record);
-    }
-
+    this.sessions.delete(attachment.sessionId);
     await this.markRoomActivity();
+    this.broadcast({
+      type: "peer_left",
+      sessionId: attachment.sessionId
+    } satisfies PeerLeftEvent);
     await this.broadcastPresence();
-    await this.scheduleNextAlarm();
   }
 
   private async bootstrapRoom(bootstrap: RoomBootstrap): Promise<Response> {
@@ -252,7 +243,8 @@ export class RoomDurableObject extends DurableObject<Env> {
       expiresAt: bootstrap.expiresAt,
       inactivityTimeoutMs: bootstrap.inactivityTimeoutMs ?? DEFAULT_INACTIVITY_TIMEOUT_MS,
       maxAgeMs: bootstrap.maxAgeMs ?? null,
-      disappearAfterReadSeconds: bootstrap.disappearAfterReadSeconds ?? DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
+      disappearAfterReadSeconds:
+        bootstrap.disappearAfterReadSeconds ?? DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
       status: "open",
       participantCount: 0,
       creatorJoined: false,
@@ -263,7 +255,6 @@ export class RoomDurableObject extends DurableObject<Env> {
     this.roomMeta = meta;
     await this.ctx.storage.put(ROOM_META_KEY, meta);
     await this.scheduleNextAlarm();
-
     return jsonResponse(this.publicMetadata(meta), 201);
   }
 
@@ -288,25 +279,40 @@ export class RoomDurableObject extends DurableObject<Env> {
       return;
     }
 
-    const joinedIds = new Set(this.connectedSessionIds());
-    if (joinedIds.size >= MAX_CONNECTIONS_PER_ROOM && !joinedIds.has(payload.sessionId)) {
+    const connectedIds = new Set(this.connectedSessionIds());
+    if (connectedIds.size >= MAX_CONNECTIONS_PER_ROOM && !connectedIds.has(payload.sessionId)) {
       ws.send(JSON.stringify(errorEvent("room_full", "Room is at capacity.")));
       ws.close(4409, "room full");
       return;
     }
 
-    const creator = payload.creatorToken
-      ? payload.creatorToken === this.roomMeta.creatorToken
-      : false;
+    const creator = payload.creatorToken === this.roomMeta.creatorToken;
+    if (!creator) {
+      const invite = payload.inviteToken ? this.invites.get(payload.inviteToken) : undefined;
+      const now = Date.now();
+      if (
+        !invite ||
+        invite.revokedAt ||
+        invite.consumedAt ||
+        invite.expiresAt <= now
+      ) {
+        ws.send(JSON.stringify(errorEvent("invite_required", "A valid one-time invite is required.")));
+        ws.close(4403, "invite required");
+        return;
+      }
+      invite.consumedAt = now;
+      invite.consumedBySessionId = payload.sessionId;
+      this.invites.set(invite.token, invite);
+      await this.persistInvites();
+    }
 
     const session: SessionRecord = {
       sessionId: payload.sessionId,
       creator,
       connectedAt: Date.now(),
-      lastSeenAt: Date.now()
+      identityKey: payload.identityKey
     };
     this.sessions.set(payload.sessionId, session);
-    await this.ctx.storage.put(`${SESSION_PREFIX}${payload.sessionId}`, session);
     ws.serializeAttachment({ sessionId: payload.sessionId } satisfies AttachmentRecord);
 
     if (creator) {
@@ -316,30 +322,32 @@ export class RoomDurableObject extends DurableObject<Env> {
     this.roomMeta.lastActivityAt = Date.now();
     await this.ctx.storage.put(ROOM_META_KEY, this.roomMeta);
 
-    const pending = await this.getPendingMessagesFor(payload.sessionId);
-    const joinedEvent: ServerEvent = {
-      type: "joined",
-      room: this.publicMetadata(this.roomMeta),
-      sessionId: payload.sessionId,
-      creator,
-      pending,
-      presence: this.presenceSnapshot()
-    };
-    ws.send(JSON.stringify(joinedEvent));
+    const peers = [...this.sessions.values()]
+      .filter((peer) => peer.sessionId !== payload.sessionId)
+      .sort((left, right) => left.connectedAt - right.connectedAt)
+      .map((peer) => this.describePeer(peer));
 
-    for (const stored of pending) {
-      if (stored.state === "sent") {
-        await this.updateMessageState(stored.envelope.messageId, "delivered", {
-          deliveredAt: Date.now()
-        });
-      }
-    }
+    ws.send(
+      JSON.stringify({
+        type: "joined",
+        room: this.publicMetadata(this.roomMeta),
+        sessionId: payload.sessionId,
+        creator,
+        peers,
+        presence: this.presenceSnapshot()
+      } satisfies ServerEvent)
+    );
+
+    this.broadcastToOtherParticipants(payload.sessionId, {
+      type: "peer_joined",
+      peer: this.describePeer(session)
+    } satisfies PeerJoinedEvent);
 
     await this.broadcastPresence();
     await this.markRoomActivity();
   }
 
-  private async handleSend(ws: WebSocket, payload: SendPayload): Promise<void> {
+  private async handleSignal(ws: WebSocket, payload: SignalPayload): Promise<void> {
     if (!this.roomMeta || this.roomMeta.status !== "open") {
       ws.send(JSON.stringify(errorEvent("room_unavailable", "Room is unavailable.")));
       return;
@@ -347,122 +355,134 @@ export class RoomDurableObject extends DurableObject<Env> {
 
     const attachment = ws.deserializeAttachment() as AttachmentRecord | null;
     if (!attachment?.sessionId) {
-      ws.send(JSON.stringify(errorEvent("join_required", "Join before sending messages.")));
+      ws.send(JSON.stringify(errorEvent("join_required", "Join before sending peer signals.")));
       return;
     }
 
-    const envelope = payload.envelope;
-    const payloadBytes = new TextEncoder().encode(envelope.ciphertext).byteLength;
-    if (payloadBytes > MAX_MESSAGE_BYTES) {
-      ws.send(JSON.stringify(errorEvent("payload_too_large", "Message is too large.")));
+    if (!this.sessions.has(payload.toSessionId)) {
+      ws.send(JSON.stringify(errorEvent("peer_missing", "Peer is no longer connected.")));
       return;
     }
 
-    const messages = await this.listMessages();
-    if (messages.length >= MAX_MESSAGES_BUFFERED) {
-      ws.send(JSON.stringify(errorEvent("buffer_full", "Message buffer is full.")));
-      return;
-    }
-
-    const stored: StoredMessage = {
-      envelope,
-      state: "sent",
-      disappearAt:
-        typeof envelope.expiresAfterReadSeconds === "number"
-          ? envelope.sentAt + envelope.expiresAfterReadSeconds * 1000
-          : undefined
-    };
-
-    await this.ctx.storage.put(`${MESSAGE_PREFIX}${envelope.messageId}`, stored);
+    this.broadcastToSessions([payload.toSessionId], {
+      type: "signal",
+      fromSessionId: attachment.sessionId,
+      signal: payload.signal
+    } satisfies SignalEvent);
     await this.markRoomActivity();
-    await this.broadcastToOtherParticipants(attachment.sessionId, {
-      type: "message",
-      envelope
-    } satisfies MessageEvent);
-
-    if (this.otherConnectedSessionIds(attachment.sessionId).length > 0) {
-      await this.updateMessageState(envelope.messageId, "delivered", {
-        deliveredAt: Date.now()
-      });
-    }
   }
 
-  private async handleRead(messageId: string, readerSessionId: string): Promise<void> {
-    const key = `${MESSAGE_PREFIX}${messageId}`;
-    const stored = await this.ctx.storage.get<StoredMessage>(key);
-    if (!stored || stored.state === "expired" || stored.state === "deleted") {
+  private async handlePeerData(ws: WebSocket, payload: PeerDataRelayPayload): Promise<void> {
+    if (!this.roomMeta || this.roomMeta.status !== "open") {
+      ws.send(JSON.stringify(errorEvent("room_unavailable", "Room is unavailable.")));
       return;
     }
 
-    if (stored.envelope.senderSessionId === readerSessionId) {
+    const attachment = ws.deserializeAttachment() as AttachmentRecord | null;
+    if (!attachment?.sessionId) {
+      ws.send(JSON.stringify(errorEvent("join_required", "Join before relaying peer data.")));
       return;
     }
 
-    if (stored.state === "read") {
-      return;
+    const event = {
+      type: "peer_data",
+      fromSessionId: attachment.sessionId,
+      data: payload.data
+    } satisfies PeerDataRelayEvent;
+
+    if (payload.toSessionId) {
+      if (!this.sessions.has(payload.toSessionId)) {
+        ws.send(JSON.stringify(errorEvent("peer_missing", "Peer is no longer connected.")));
+        return;
+      }
+      this.broadcastToSessions([payload.toSessionId], event);
+    } else {
+      this.broadcastToOtherParticipants(attachment.sessionId, event);
     }
 
-    await this.updateMessageState(messageId, "read", {
-      readAt: Date.now(),
-      disappearAt: stored.disappearAt
-    });
+    await this.markRoomActivity();
   }
 
-  private async updateMessageState(
-    messageId: string,
-    state: MessageState,
-    extra: Pick<StoredMessage, "readAt" | "disappearAt" | "deliveredAt"> = {}
-  ): Promise<void> {
-    const key = `${MESSAGE_PREFIX}${messageId}`;
-    const stored = await this.ctx.storage.get<StoredMessage>(key);
-    if (!stored) {
+  private async kickParticipant(ws: WebSocket, payload: KickParticipantPayload): Promise<void> {
+    if (!this.roomMeta || this.roomMeta.status !== "open") {
+      ws.send(JSON.stringify(errorEvent("room_unavailable", "Room is unavailable.")));
       return;
     }
-
-    const next: StoredMessage = {
-      ...stored,
-      state,
-      ...extra
-    };
-    await this.ctx.storage.put(key, next);
-
-    const stateEvent: MessageStateEvent = {
-      type: "message_state",
-      messageId,
-      state,
-      deliveredAt: next.deliveredAt,
-      readAt: next.readAt,
-      disappearAt: next.disappearAt
-    };
-    this.broadcast(stateEvent);
-  }
-
-  private async getPendingMessagesFor(sessionId: string): Promise<StoredMessage[]> {
-    const messages = await this.listMessages();
-    return messages.filter((stored) => stored.envelope.senderSessionId !== sessionId);
-  }
-
-  private async listMessages(): Promise<StoredMessage[]> {
-    const stored = await this.ctx.storage.list<StoredMessage>({
-      prefix: MESSAGE_PREFIX
-    });
-    return [...stored.values()].sort((left, right) => left.envelope.sentAt - right.envelope.sentAt);
-  }
-
-  private async expireMessages(): Promise<void> {
-    const messages = await this.listMessages();
-    const now = Date.now();
-    for (const stored of messages) {
-      if (stored.disappearAt && stored.disappearAt <= now) {
-        await this.ctx.storage.delete(`${MESSAGE_PREFIX}${stored.envelope.messageId}`);
-        this.broadcast({
-          type: "message_state",
-          messageId: stored.envelope.messageId,
-          state: "expired",
-          disappearAt: stored.disappearAt
-        } satisfies MessageStateEvent);
+    if (payload.creatorToken !== this.roomMeta.creatorToken) {
+      ws.send(JSON.stringify(errorEvent("unauthorized", "Only the creator can kick participants.")));
+      return;
+    }
+    const target = payload.targetSessionId;
+    if (!this.sessions.has(target)) {
+      ws.send(JSON.stringify(errorEvent("peer_missing", "Participant is no longer connected.")));
+      return;
+    }
+    this.broadcastToSessions([target], {
+      type: "participant_kicked",
+      sessionId: target,
+      reason: "removed-by-creator"
+    } satisfies ParticipantKickedEvent);
+    for (const socket of this.ctx.getWebSockets()) {
+      const attachment = socket.deserializeAttachment() as AttachmentRecord | null;
+      if (attachment?.sessionId === target) {
+        socket.close(4403, "kicked");
       }
     }
+    this.sessions.delete(target);
+    this.broadcast({
+      type: "peer_left",
+      sessionId: target
+    } satisfies PeerLeftEvent);
+    await this.broadcastPresence();
+    await this.markRoomActivity();
+  }
+
+  private async createInvite(creatorToken: string, ttlMs?: number): Promise<Response> {
+    if (!this.roomMeta) {
+      return jsonResponse({ error: "Room not found." }, 404);
+    }
+    if (creatorToken !== this.roomMeta.creatorToken) {
+      return jsonResponse({ error: "Unauthorized." }, 403);
+    }
+    const now = Date.now();
+    const token = crypto.randomUUID();
+    const invite: RoomInvite = {
+      token,
+      createdAt: now,
+      expiresAt: now + Math.max(60_000, ttlMs ?? DEFAULT_INVITE_TTL_MS)
+    };
+    this.invites.set(token, invite);
+    await this.persistInvites();
+    return jsonResponse(invite, 201);
+  }
+
+  private listInvites(creatorToken: string): Response {
+    if (!this.roomMeta) {
+      return jsonResponse({ error: "Room not found." }, 404);
+    }
+    if (creatorToken !== this.roomMeta.creatorToken) {
+      return jsonResponse({ error: "Unauthorized." }, 403);
+    }
+    return jsonResponse(
+      [...this.invites.values()].sort((left, right) => right.createdAt - left.createdAt)
+    );
+  }
+
+  private async revokeInvite(creatorToken: string, token: string): Promise<Response> {
+    if (!this.roomMeta) {
+      return jsonResponse({ error: "Room not found." }, 404);
+    }
+    if (creatorToken !== this.roomMeta.creatorToken) {
+      return jsonResponse({ error: "Unauthorized." }, 403);
+    }
+    const invite = this.invites.get(token);
+    if (!invite) {
+      return jsonResponse({ error: "Invite not found." }, 404);
+    }
+    invite.revokedAt = Date.now();
+    this.invites.set(token, invite);
+    await this.persistInvites();
+    return jsonResponse(invite);
   }
 
   private async destroyRoom(reason: string, creatorToken: string): Promise<Response> {
@@ -499,13 +519,13 @@ export class RoomDurableObject extends DurableObject<Env> {
     for (const socket of this.ctx.getWebSockets()) {
       socket.close(4000, status);
     }
+    this.sessions.clear();
   }
 
   private async markRoomActivity(): Promise<void> {
     if (!this.roomMeta) {
       return;
     }
-
     this.roomMeta.lastActivityAt = Date.now();
     await this.ctx.storage.put(ROOM_META_KEY, this.roomMeta);
     await this.scheduleNextAlarm();
@@ -516,18 +536,11 @@ export class RoomDurableObject extends DurableObject<Env> {
       return;
     }
 
-    const messages = await this.listMessages();
-    const nextMessageExpiry = messages
-      .map((message) => message.disappearAt)
-      .filter((value): value is number => typeof value === "number")
-      .sort((left, right) => left - right)[0];
-
     const candidates = [
       this.roomMeta.expiresAt,
       typeof this.roomMeta.inactivityTimeoutMs === "number"
         ? this.roomMeta.lastActivityAt + this.roomMeta.inactivityTimeoutMs
-        : undefined,
-      nextMessageExpiry
+        : undefined
     ].filter((value): value is number => typeof value === "number");
 
     if (candidates.length === 0) {
@@ -535,8 +548,24 @@ export class RoomDurableObject extends DurableObject<Env> {
       return;
     }
 
-    const nextAlarmAt = Math.min(...candidates);
-    await this.ctx.storage.setAlarm(nextAlarmAt);
+    await this.ctx.storage.setAlarm(Math.min(...candidates));
+  }
+
+  private async persistInvites(): Promise<void> {
+    await this.ctx.storage.put(INVITES_KEY, [...this.invites.entries()]);
+  }
+
+  private async broadcastPresence(): Promise<void> {
+    if (!this.roomMeta) {
+      return;
+    }
+
+    this.roomMeta.participantCount = this.sessions.size;
+    await this.ctx.storage.put(ROOM_META_KEY, this.roomMeta);
+    this.broadcast({
+      type: "presence",
+      presence: this.presenceSnapshot()
+    } satisfies PresenceEvent);
   }
 
   private broadcast(event: ServerEvent): void {
@@ -546,24 +575,8 @@ export class RoomDurableObject extends DurableObject<Env> {
     }
   }
 
-  private async broadcastPresence(): Promise<void> {
-    if (!this.roomMeta) {
-      return;
-    }
-    this.roomMeta.participantCount = this.sessions.size;
-    await this.ctx.storage.put(ROOM_META_KEY, this.roomMeta);
-
-    this.broadcast({
-      type: "presence",
-      presence: this.presenceSnapshot()
-    } satisfies PresenceEvent);
-  }
-
-  private async broadcastToOtherParticipants(
-    senderSessionId: string,
-    event: ServerEvent
-  ): Promise<void> {
-    const targets = this.otherConnectedSessionIds(senderSessionId);
+  private broadcastToOtherParticipants(senderSessionId: string, event: ServerEvent): void {
+    const targets = this.connectedSessionIds().filter((sessionId) => sessionId !== senderSessionId);
     this.broadcastToSessions(targets, event);
   }
 
@@ -592,8 +605,13 @@ export class RoomDurableObject extends DurableObject<Env> {
       .filter(Boolean);
   }
 
-  private otherConnectedSessionIds(senderSessionId: string): string[] {
-    return this.connectedSessionIds().filter((sessionId) => sessionId !== senderSessionId);
+  private describePeer(peer: SessionRecord): PeerDescriptor {
+    return {
+      sessionId: peer.sessionId,
+      creator: peer.creator,
+      connectedAt: peer.connectedAt,
+      identityKey: peer.identityKey
+    };
   }
 
   private publicMetadata(meta: RoomStorage): RoomMetadata {

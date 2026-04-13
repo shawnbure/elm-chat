@@ -52,6 +52,10 @@ select {
   padding: 18px;
 }
 
+.room-shell-centered {
+  justify-content: center;
+}
+
 .hero,
 .room-shell {
   max-width: 1120px;
@@ -371,6 +375,41 @@ select {
   font-size: 0.92rem;
 }
 
+.access-screen {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 34px 32px;
+  border-radius: 28px;
+  background: var(--panel);
+  backdrop-filter: blur(22px);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.access-title {
+  margin: 0;
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-weight: 650;
+}
+
+.access-copy {
+  margin: 12px auto 0;
+  max-width: 28rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.access-home-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 18px;
+  text-decoration: none;
+}
+
 .participant-strip {
   display: flex;
   gap: 10px;
@@ -587,6 +626,63 @@ select {
 .room-error,
 .system-line {
   margin: 0;
+}
+
+.participant-kick {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 8px;
+}
+
+.participant-kick:hover {
+  color: var(--warning);
+}
+
+.invite-panel {
+  background: var(--panel);
+  backdrop-filter: blur(22px);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  border-radius: 20px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.invite-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--invite-surface, transparent);
+  border: 1px solid var(--invite-border, transparent);
+}
+
+.invite-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.invite-row .secondary-button {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.invite-copy {
+  border-color: var(--invite-border, var(--line));
+}
+
+.invite-revoke {
+  border-color: var(--invite-border, var(--line));
+  color: color-mix(in srgb, var(--invite-accent, var(--ink)), black 18%);
+  background: color-mix(in srgb, var(--invite-surface, rgba(255, 255, 255, 0.88)), white 30%);
 }
 
 @keyframes rise {
