@@ -380,6 +380,21 @@ function InvalidInviteScreen() {
   );
 }
 
+function RemovedFromRoomScreen() {
+  return (
+    <main className="room-shell room-shell-centered">
+      <section className="access-screen" aria-live="polite">
+        <p className="eyebrow">elm chat</p>
+        <h1 className="access-title">You were removed from this room</h1>
+        <p className="access-copy">The room creator ended your access to this conversation.</p>
+        <a className="secondary-button access-home-link" href="/">
+          Back to home
+        </a>
+      </section>
+    </main>
+  );
+}
+
 function InviteCheckingScreen() {
   return (
     <main className="room-shell room-shell-centered">
@@ -629,6 +644,7 @@ function RoomPage({ roomId }: { roomId: string }) {
   const [inviteAccess, setInviteAccess] = useState<"checking" | "granted" | "invalid">(
     isInviteGuest ? "checking" : "granted"
   );
+  const [removedFromRoom, setRemovedFromRoom] = useState(false);
   const [sessionId] = useState(() => {
     const stored = safeStorageGet("session", sessionKey(roomId));
     if (stored) {
@@ -848,7 +864,9 @@ function RoomPage({ roomId }: { roomId: string }) {
 
           if (payload.type === "participant_kicked") {
             if (payload.sessionId === sessionId) {
-              setRoomNotice("You were removed from this room by the creator.");
+              setRemovedFromRoom(true);
+              setRoomNotice(null);
+              setError(null);
               setConnection("Closed");
               joinedRef.current = false;
               socket.close();
@@ -1070,14 +1088,6 @@ function RoomPage({ roomId }: { roomId: string }) {
     };
   }, [creatorToken, inviteToken, roomId, roomSecret, sessionId]);
 
-  if (inviteAccess === "invalid") {
-    return <InvalidInviteScreen />;
-  }
-
-  if (isInviteGuest && (inviteAccess !== "granted" || !room || !ready)) {
-    return <InviteCheckingScreen />;
-  }
-
   useEffect(() => {
     if (copyFeedback !== "success") {
       return;
@@ -1255,6 +1265,7 @@ function RoomPage({ roomId }: { roomId: string }) {
           invite.token === token ? { ...invite, revokedAt: Date.now() } : invite
         )
       );
+      setRoomNotice("Invite removed.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Failed to revoke invite.");
     }
@@ -1303,6 +1314,18 @@ function RoomPage({ roomId }: { roomId: string }) {
       ? `Room self-destructs after ${formatStaticDuration(Math.floor(room.inactivityTimeoutMs / 1000))} of inactivity.`
       : "Room stays open until someone destroys it.";
   const isCreator = Boolean(creatorToken);
+
+  if (removedFromRoom) {
+    return <RemovedFromRoomScreen />;
+  }
+
+  if (inviteAccess === "invalid") {
+    return <InvalidInviteScreen />;
+  }
+
+  if (isInviteGuest && (inviteAccess !== "granted" || !room || !ready)) {
+    return <InviteCheckingScreen />;
+  }
 
   return (
     <main className="room-shell">

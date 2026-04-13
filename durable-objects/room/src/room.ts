@@ -417,24 +417,7 @@ export class RoomDurableObject extends DurableObject<Env> {
       ws.send(JSON.stringify(errorEvent("peer_missing", "Participant is no longer connected.")));
       return;
     }
-    this.broadcastToSessions([target], {
-      type: "participant_kicked",
-      sessionId: target,
-      reason: "removed-by-creator"
-    } satisfies ParticipantKickedEvent);
-    for (const socket of this.ctx.getWebSockets()) {
-      const attachment = socket.deserializeAttachment() as AttachmentRecord | null;
-      if (attachment?.sessionId === target) {
-        socket.close(4403, "kicked");
-      }
-    }
-    this.sessions.delete(target);
-    this.broadcast({
-      type: "peer_left",
-      sessionId: target
-    } satisfies PeerLeftEvent);
-    await this.broadcastPresence();
-    await this.markRoomActivity();
+    await this.disconnectSession(target, "removed-by-creator", "kicked");
   }
 
   private async createInvite(creatorToken: string, ttlMs?: number): Promise<Response> {
@@ -482,6 +465,9 @@ export class RoomDurableObject extends DurableObject<Env> {
     invite.revokedAt = Date.now();
     this.invites.set(token, invite);
     await this.persistInvites();
+    if (invite.consumedBySessionId && this.sessions.has(invite.consumedBySessionId)) {
+      await this.disconnectSession(invite.consumedBySessionId, "invite-revoked", "invite revoked");
+    }
     return jsonResponse(invite);
   }
 
@@ -566,6 +552,31 @@ export class RoomDurableObject extends DurableObject<Env> {
       type: "presence",
       presence: this.presenceSnapshot()
     } satisfies PresenceEvent);
+  }
+
+  private async disconnectSession(
+    targetSessionId: string,
+    reason: string,
+    closeReason: string
+  ): Promise<void> {
+    this.broadcastToSessions([targetSessionId], {
+      type: "participant_kicked",
+      sessionId: targetSessionId,
+      reason
+    } satisfies ParticipantKickedEvent);
+    for (const socket of this.ctx.getWebSockets()) {
+      const attachment = socket.deserializeAttachment() as AttachmentRecord | null;
+      if (attachment?.sessionId === targetSessionId) {
+        socket.close(4403, closeReason);
+      }
+    }
+    this.sessions.delete(targetSessionId);
+    this.broadcast({
+      type: "peer_left",
+      sessionId: targetSessionId
+    } satisfies PeerLeftEvent);
+    await this.broadcastPresence();
+    await this.markRoomActivity();
   }
 
   private broadcast(event: ServerEvent): void {
