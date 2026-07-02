@@ -143,6 +143,16 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
+const GITHUB_URL = "https://github.com/shawnbure/elm-chat";
+
+function formatCount(value: number): string {
+  if (value < 1000) {
+    return String(value);
+  }
+  const thousands = value / 1000;
+  return `${thousands.toFixed(thousands < 10 ? 1 : 0).replace(/\.0$/, "")}k`;
+}
+
 function creatorTokenKey(roomId: string): string {
   return `elm-chat:creator:${roomId}`;
 }
@@ -532,6 +542,14 @@ function RemovedFromRoomScreen() {
   );
 }
 
+function GithubMark({ size = 16 }: { size?: number }) {
+  return (
+    <svg aria-hidden="true" fill="currentColor" height={size} viewBox="0 0 16 16" width={size}>
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 012-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z" />
+    </svg>
+  );
+}
+
 function FileCard({ file, onDownload }: { file: UiFile; onDownload: () => void }) {
   const percent = Math.round((file.progress ?? 0) * 100);
   return (
@@ -593,6 +611,10 @@ export function App() {
 function LandingPage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ghStats, setGhStats] = useState<{ stars: number | null; forks: number | null }>({
+    stars: null,
+    forks: null
+  });
   const whyUseUrl =
     "https://github.com/shawnbure/elm-chat/blob/main/docs/why-use-elm-chat.md";
   const articleUrl =
@@ -607,6 +629,23 @@ function LandingPage() {
     unit: "minutes",
     indefinite: false
   });
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/stars")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (active && data) {
+          setGhStats({ stars: data.stars ?? null, forks: data.forks ?? null });
+        }
+      })
+      .catch(() => {
+        // Non-fatal: counts simply stay hidden if the lookup fails.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function updateDurationIndefinite(kind: DurationKind, checked: boolean) {
     if (kind === "message") {
@@ -772,6 +811,36 @@ function LandingPage() {
             </a>
             <a className="hero-link" href={articleUrl} rel="noreferrer" target="_blank">
               Read the article
+            </a>
+          </div>
+          <a className="github-cta" href={GITHUB_URL} rel="noreferrer" target="_blank">
+            <GithubMark size={22} />
+            <span className="github-cta-copy">
+              <strong>Star us on GitHub</strong>
+              <span>Open source. Audit the code, fork it, run your own.</span>
+            </span>
+            <span className="github-cta-stats" aria-label="GitHub stars and forks">
+              {ghStats.stars !== null ? (
+                <span className="github-stat">
+                  <span aria-hidden="true">★</span> {formatCount(ghStats.stars)}
+                </span>
+              ) : null}
+              {ghStats.forks !== null ? (
+                <span className="github-stat">
+                  <span aria-hidden="true">⑂</span> {formatCount(ghStats.forks)}
+                </span>
+              ) : null}
+            </span>
+          </a>
+          <div className="github-links" aria-label="Project source">
+            <a className="github-mini" href={GITHUB_URL} rel="noreferrer" target="_blank">
+              <GithubMark size={13} /> View source
+            </a>
+            <a className="github-mini" href={`${GITHUB_URL}/fork`} rel="noreferrer" target="_blank">
+              Fork me
+            </a>
+            <a className="github-mini" href={`${GITHUB_URL}/blob/main/apps/web/src/App.tsx`} rel="noreferrer" target="_blank">
+              Read my code
             </a>
           </div>
           <div className="hero-metrics">
