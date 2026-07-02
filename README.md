@@ -30,7 +30,7 @@ Inside a room, people see:
 - single-use invite links instead of a permanent reusable room invite
 - creator ability to revoke invites and remove participants
 - a single composer for fast message entry
-- encrypted file sharing that streams peer-to-peer over the relay and vanishes on the same policy as messages
+- encrypted file sharing that streams over the encrypted relay and vanishes on the same policy as messages
 - a room that is meant to disappear instead of becoming a permanent archive
 
 The interface is meant to feel immediate, readable, and disposable. It should communicate privacy without turning the user experience into a configuration maze.
@@ -58,24 +58,24 @@ This project is trying to move toward a system where:
 
 ## Current Direction
 
-The project is currently centered around:
+The shipping implementation is built around:
 
-- a Cloudflare Worker frontend and API layer
-- a Cloudflare Durable Object per room
-- encrypted room secrets kept in the URL fragment so they do not reach the server in normal requests
-- encrypted message payloads handled in the browser
-- creator-issued single-use invite links for room entry
-- a disposable room lifecycle instead of permanent conversation storage
+- a Cloudflare Worker serving the app and API, plus one Durable Object per room
+- room secrets kept in the URL fragment so they do not reach the server in normal requests
+- end-to-end encrypted message payloads (AES-GCM under a room key derived in the browser)
+- **encrypted content relayed — never stored — through the room's Durable Object over a single WebSocket**, so the server only ever sees ciphertext
+- end-to-end encrypted, chunked file sharing over that same relay
+- creator-issued single-use invite links, invite revocation, and participant removal
+- optional invisible Cloudflare Turnstile on room creation (inert until keys are configured)
+- a disposable room lifecycle (idle + max-age self-destruct, manual destroy) instead of permanent storage
 
-The long-term direction is stronger than the current implementation. The architectural target is:
+### Why relay instead of peer-to-peer
 
-1. socket-based live coordination for reliability
-2. client-aggregated transcript recovery
-3. no persistent server-side message archive
-4. peer-assisted synchronization when new participants join
-5. direct encrypted file exchange where practical
+A WebRTC peer-to-peer scaffold exists in the codebase but is **intentionally disabled**. Relaying encrypted payloads through the Durable Object is a deliberate choice: it keeps every participant's IP address private from other room members (naive WebRTC would leak peer IPs via ICE), needs no TURN server, and works reliably on mobile and restrictive networks. The trade-off is that the honest-but-curious server relays ciphertext and can observe connection metadata (timing, sizes, presence). `stun.cloudflare.com` and the `/api/turn-credentials` endpoint are referenced only by the dormant WebRTC path and are not used by the shipping app.
 
-If you are contributing, treat the phrases "footprint-less", "log-less", and "no-server" as the product standard we are aiming toward, not as a slogan.
+The long-term direction still includes an optional direct-peer transport for participants who accept the IP-exposure trade-off, plus message authentication using the ephemeral identity keys already exchanged on join.
+
+If you are contributing, treat the phrases "footprint-less", "log-less", and "no-server" as the product standard we are aiming toward, not as a slogan. See [docs/architecture.md](docs/architecture.md) and [docs/threat-model.md](docs/threat-model.md) for the precise current model.
 
 ## What This Is For
 
@@ -275,7 +275,8 @@ Priority contribution areas:
 - transcript sync and deduplication
 - mobile-first UX
 - accessibility under stress
-- secure file transfer
+- file-transfer hardening (large files, resumability, backpressure)
+- WebSocket auto-reconnect and resync
 - traffic and metadata minimization
 - operational hardening
 - documentation and threat modeling
