@@ -17,7 +17,7 @@ elm.chat is Cloudflare-native, so you can fork and self-host a full private inst
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shawnbure/elm-chat)
 
-Prefer to do it by hand? See [Free Cloudflare Setup](#free-cloudflare-setup) below. Want to contribute instead of just run it? Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [good first issues](docs/GOOD-FIRST-ISSUES.md).
+Prefer to do it by hand? See [Deploy to Cloudflare](#deploy-to-cloudflare) below. Want to contribute instead of just run it? Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [good first issues](docs/GOOD-FIRST-ISSUES.md).
 
 ![elm.chat landing page](docs/images/landing-page.jpg)
 
@@ -130,34 +130,89 @@ Official references:
 - [Cloudflare Durable Objects pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/)
 - [Cloudflare Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/)
 
-## Free Cloudflare Setup
+## Deploy to Cloudflare
 
-You can stand this project up on a free Cloudflare developer account.
+This is the complete, end-to-end guide to running your own elm.chat instance on Cloudflare. The whole app is a single Cloudflare Worker: it serves the static React app **and** the API, and coordinates each room with a Durable Object. There is no separate database, server, or STUN/TURN service to run.
 
-High-level setup:
+### What you need
 
-1. Create a Cloudflare account at [dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up).
-2. Install Node.js and npm.
-3. Install Wrangler:
-   `npm install -g wrangler`
-4. Authenticate Wrangler:
-   `wrangler login`
-5. Clone this repository.
-6. Install dependencies:
-   `npm install`
-7. Build the web app:
-   `npm run build`
-8. Deploy the Worker:
-   `cd workers/api && npx wrangler deploy`
+- A **Cloudflare account** (the free plan is enough) — [sign up](https://dash.cloudflare.com/sign-up).
+- **Node.js 18+** and npm.
+- **Git**.
 
-On free tier expectations:
+No paid add-ons are required. SQLite-backed Durable Objects (what this project uses) are available on the Workers Free plan.
+
+### Option A — one click
+
+1. Click **[Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/shawnbure/elm-chat)**.
+2. Authorize Cloudflare to create a fork in your GitHub account and connect it to Workers Builds.
+3. When prompted for build settings, set the **build command** to `npm install && npm run build` and leave the Wrangler config path as `workers/api/wrangler.jsonc`. (The build step compiles the React app into `apps/web/dist`, which the Worker serves.)
+4. Deploy. Cloudflare provisions the Worker and the Durable Object namespace for you.
+
+If the hosted build fails for any reason, use Option B — it is the fully tested path.
+
+### Option B — manual deploy with Wrangler (recommended)
+
+```bash
+# 1. Clone and install
+git clone https://github.com/shawnbure/elm-chat.git
+cd elm-chat
+npm install
+
+# 2. Authenticate Wrangler (opens a browser)
+npx wrangler login
+
+# 3. Build the web app (creates apps/web/dist that the Worker serves)
+npm run build
+
+# 4. Deploy the Worker + Durable Object
+cd workers/api
+npx wrangler deploy
+```
+
+On success, Wrangler prints your live URL, e.g. `https://elm-chat.<your-subdomain>.workers.dev`. Open it, click **Create private conversation**, and you have a working room.
+
+Notes:
+
+- **Choosing an account.** `wrangler.jsonc` intentionally does **not** hardcode an `account_id`, so it deploys to whatever account you logged in with. If your Wrangler login has access to more than one account, set the target explicitly: `export CLOUDFLARE_ACCOUNT_ID=<your-account-id>` (find it under **Workers & Pages → Account details** in the dashboard), or pass `--account <id>` to `wrangler deploy`.
+- **workers.dev subdomain.** The first time you deploy to an account, Cloudflare may ask you to register a free `*.workers.dev` subdomain (in the dashboard under **Workers & Pages**). Do that once, then re-run `wrangler deploy`.
+- **Durable Object migration.** The `migrations` block in `wrangler.jsonc` creates the `RoomDurableObject` SQLite class automatically on first deploy — no manual step.
+- **Renaming.** To run multiple instances or avoid a name clash, change `"name"` in `workers/api/wrangler.jsonc` before deploying.
+- **Redeploying after changes.** Always run `npm run build` (from the repo root) before `wrangler deploy`, so the Worker ships the latest `apps/web/dist`.
+
+### Optional — custom domain
+
+To serve the app from your own domain instead of `*.workers.dev`:
+
+1. Add the domain to your Cloudflare account (it must use Cloudflare DNS).
+2. In the dashboard: **Workers & Pages → your Worker → Settings → Domains & Routes → Add custom domain**, or add a `routes` entry to `wrangler.jsonc` and redeploy. Cloudflare provisions the TLS certificate automatically.
+
+### Optional — abuse protection (Turnstile)
+
+Room creation can be gated by an invisible Cloudflare Turnstile challenge. It is off until you add keys, so the steps above work without it. See [Abuse Prevention (Turnstile)](#abuse-prevention-turnstile) below for the two-step setup.
+
+### Verify it works
+
+1. Open your deployed URL and create a room.
+2. Copy the room link (it contains a `#secret` fragment) and open it in a second browser or an incognito window to confirm two participants can exchange encrypted messages and files.
+3. Optional: watch live logs with `npx wrangler tail` from `workers/api`.
+
+### Free-tier expectations
 
 - keep rooms short-lived
 - keep storage minimal
-- expect usage ceilings
-- prefer aggressive cleanup and self-destruction policies
+- expect daily usage ceilings on the free plan
+- prefer aggressive message expiry and room self-destruct
+- large or frequent file transfers consume more of your Workers/Durable Object budget, since file chunks are relayed through the Worker
 
 That matches the philosophy of the project anyway.
+
+### Troubleshooting
+
+- **`Missing entry-point` / assets error on deploy** — you didn't build first. Run `npm run build` from the repo root, then `wrangler deploy` from `workers/api`.
+- **`More than one account available`** — set `CLOUDFLARE_ACCOUNT_ID` (see above).
+- **`workers.dev` URL returns 404 or won't register** — register your workers.dev subdomain in the dashboard, then redeploy.
+- **Room says "Room not found" right after creating it** — you're pointing the web app at a different Worker than the one that created the room (usually a stale local dev setup). In production this is one Worker, so it does not occur.
 
 ## Local Development
 
