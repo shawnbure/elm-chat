@@ -802,9 +802,6 @@ function LandingPage() {
             </p>
           </div>
           {error ? <p className="error-text">{error}</p> : null}
-        </div>
-        <div className="hero-panel">
-          <div className="signal-grid" />
           <div className="hero-links" aria-label="Learn about elm chat">
             <a className="hero-link" href={whyUseUrl} rel="noreferrer" target="_blank">
               Why use this?
@@ -813,6 +810,10 @@ function LandingPage() {
               Read the article
             </a>
           </div>
+        </div>
+        <div className="hero-panel">
+          <div className="signal-grid" />
+          <div className="hero-panel-top">
           <a className="github-cta" href={GITHUB_URL} rel="noreferrer" target="_blank">
             <GithubMark size={22} />
             <span className="github-cta-copy">
@@ -842,6 +843,7 @@ function LandingPage() {
             <a className="github-mini" href={`${GITHUB_URL}/blob/main/apps/web/src/App.tsx`} rel="noreferrer" target="_blank">
               Read my code
             </a>
+          </div>
           </div>
           <div className="hero-metrics">
             <div>
