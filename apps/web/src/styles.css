@@ -235,8 +235,9 @@ select {
   display: flex;
   gap: 10px;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
-  margin-top: 18px;
+  margin: 0 0 18px;
 }
 
 .hero-link {
@@ -915,8 +916,7 @@ select {
   }
 
   .hero-links {
-    position: static;
-    justify-content: flex-start;
+    justify-content: center;
   }
 
   .setting-row {

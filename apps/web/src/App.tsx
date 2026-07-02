@@ -684,6 +684,14 @@ function LandingPage() {
     <main className="landing-shell">
       <section className="hero">
         <div className="hero-copy">
+          <div className="hero-links" aria-label="Learn about elm chat">
+            <a className="hero-link" href={whyUseUrl} rel="noreferrer" target="_blank">
+              Why use this?
+            </a>
+            <a className="hero-link" href={articleUrl} rel="noreferrer" target="_blank">
+              Read the article
+            </a>
+          </div>
           <p className="eyebrow">elm chat</p>
           <h1>Instant chat. Private, secure, fast and disposable.</h1>
           <p className="lede">
@@ -802,14 +810,6 @@ function LandingPage() {
             </p>
           </div>
           {error ? <p className="error-text">{error}</p> : null}
-          <div className="hero-links" aria-label="Learn about elm chat">
-            <a className="hero-link" href={whyUseUrl} rel="noreferrer" target="_blank">
-              Why use this?
-            </a>
-            <a className="hero-link" href={articleUrl} rel="noreferrer" target="_blank">
-              Read the article
-            </a>
-          </div>
         </div>
         <div className="hero-panel">
           <div className="signal-grid" />
