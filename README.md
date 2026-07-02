@@ -143,6 +143,35 @@ On free tier expectations:
 
 That matches the philosophy of the project anyway.
 
+## Local Development
+
+The app runs as two processes in development:
+
+- the Cloudflare Worker + Durable Object under `wrangler dev` on `http://localhost:8787`
+- the Vite dev server (React app, hot reload) on `http://localhost:3000`
+
+Vite proxies `/api` (including the room WebSocket) to the Worker, so the app behaves exactly like production, where a single Worker serves both the static assets and the API.
+
+First-time setup:
+
+1. `npm install`
+2. `npm run build` once (creates `apps/web/dist`, which `wrangler dev` expects)
+
+Then, to run everything with one command:
+
+```
+npm run dev
+```
+
+Open `http://localhost:3000`. Create a room, then open the copied link (or an invite link) in a second browser/tab to see live encrypted chat between participants.
+
+### Running from VS Code
+
+Two entry points are provided in `.vscode/`:
+
+- **Run without a debugger** — open the Command Palette → `Tasks: Run Task` → `dev` (also bound to the default build task, `Cmd/Ctrl+Shift+B`). This starts both servers and opens elm.chat in your **default browser**.
+- **Run with the debugger** — press `F5` and pick `Debug: elm.chat (Chrome)` or `Debug: elm.chat (Edge)`. This starts both servers and launches the chosen browser attached to the VS Code debugger, so breakpoints in the React/TypeScript source work. (VS Code's JavaScript debugger supports Chrome and Edge only; for other browsers use the no-debugger task above.)
+
 ## Durable Object Lifecycle
 
 Each room is coordinated by a dedicated Durable Object instance.

@@ -10,7 +10,6 @@ import {
 } from "@elm-chat/crypto";
 import {
   DEFAULT_STUN_ICE_SERVERS,
-  DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
   MAX_TRANSCRIPT_SYNC_MESSAGES,
   type CreateRoomRequest,
   type CreateRoomResponse,
@@ -1170,7 +1169,7 @@ function RoomPage({ roomId }: { roomId: string }) {
       ciphertext: encrypted.ciphertext,
       nonce: encrypted.nonce,
       sentAt,
-      expiresAfterReadSeconds: room.disappearAfterReadSeconds ?? DEFAULT_DISAPPEAR_AFTER_READ_SECONDS
+      expiresAfterReadSeconds: room.disappearAfterReadSeconds ?? null
     };
 
     messageRef.current.set(envelope.messageId, envelope);

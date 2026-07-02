@@ -290,20 +290,22 @@ export class RoomDurableObject extends DurableObject<Env> {
     if (!creator) {
       const invite = payload.inviteToken ? this.invites.get(payload.inviteToken) : undefined;
       const now = Date.now();
-      if (
-        !invite ||
-        invite.revokedAt ||
-        invite.consumedAt ||
-        invite.expiresAt <= now
-      ) {
-        ws.send(JSON.stringify(errorEvent("invite_required", "A valid one-time invite is required.")));
-        ws.close(4403, "invite required");
-        return;
+      // The session that already consumed this invite may reconnect (e.g. a page
+      // reload) as long as the invite has not been revoked. A brand-new session
+      // must present an invite that is unrevoked, unconsumed, and unexpired.
+      const isReconnectingConsumer =
+        !!invite && !invite.revokedAt && invite.consumedBySessionId === payload.sessionId;
+      if (!isReconnectingConsumer) {
+        if (!invite || invite.revokedAt || invite.consumedAt || invite.expiresAt <= now) {
+          ws.send(JSON.stringify(errorEvent("invite_required", "A valid one-time invite is required.")));
+          ws.close(4403, "invite required");
+          return;
+        }
+        invite.consumedAt = now;
+        invite.consumedBySessionId = payload.sessionId;
+        this.invites.set(invite.token, invite);
+        await this.persistInvites();
       }
-      invite.consumedAt = now;
-      invite.consumedBySessionId = payload.sessionId;
-      this.invites.set(invite.token, invite);
-      await this.persistInvites();
     }
 
     const session: SessionRecord = {
