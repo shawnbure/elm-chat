@@ -190,11 +190,55 @@ async function handleRevokeInvite(request: Request, roomId: string, env: Env): P
   });
 }
 
+const GITHUB_REPO = "shawnbure/elm-chat";
+const GITHUB_STATS_TTL_MS = 60 * 60 * 1000;
+
+// Cached in the isolate so repeated visitors don't each trigger a GitHub call.
+let githubStatsCache: { at: number; stars: number | null; forks: number | null } | null = null;
+
+// Server-side proxy for the repo's star/fork counts. Fetched from GitHub by the
+// Worker, so visitors' browsers never contact GitHub — keeping the landing page
+// free of third-party requests and tracking.
+async function handleGithubStats(): Promise<Response> {
+  const now = Date.now();
+  if (!githubStatsCache || now - githubStatsCache.at > GITHUB_STATS_TTL_MS) {
+    let stars: number | null = null;
+    let forks: number | null = null;
+    try {
+      const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}`, {
+        headers: {
+          "user-agent": "elm-chat",
+          accept: "application/vnd.github+json"
+        }
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { stargazers_count?: number; forks_count?: number };
+        stars = typeof data.stargazers_count === "number" ? data.stargazers_count : null;
+        forks = typeof data.forks_count === "number" ? data.forks_count : null;
+      }
+    } catch {
+      // Fall through to nulls; the client hides counts it cannot load.
+    }
+    // Keep a short TTL on failures so a transient error doesn't stick for an hour.
+    githubStatsCache = { at: stars === null ? now - GITHUB_STATS_TTL_MS + 5 * 60 * 1000 : now, stars, forks };
+  }
+
+  return json({
+    repo: GITHUB_REPO,
+    stars: githubStatsCache.stars,
+    forks: githubStatsCache.forks
+  });
+}
+
 function routeApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
 
   if (request.method === "POST" && url.pathname === "/api/rooms") {
     return handleCreateRoom(request, env);
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/stars") {
+    return handleGithubStats();
   }
 
   const revokeMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)\/invites\/revoke$/);
