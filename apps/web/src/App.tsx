@@ -11,7 +11,6 @@ import {
   generateSessionId
 } from "@elm-chat/crypto";
 import {
-  DEFAULT_STUN_ICE_SERVERS,
   FILE_CHUNK_BYTES,
   MAX_FILE_BYTES,
   MAX_TRANSCRIPT_SYNC_MESSAGES,
@@ -19,9 +18,7 @@ import {
   type CreateRoomResponse,
   type EncryptedMessageEnvelope,
   type PeerDataEvent,
-  type PeerDescriptor,
   type PeerFileChunk,
-  type PeerSignal,
   type PresenceSnapshot,
   type RoomInvite,
   type RoomMetadata,
@@ -68,11 +65,6 @@ type IncomingFile = {
   received: number;
   chunks: (Uint8Array | undefined)[];
   senderSessionId: string;
-};
-
-type PeerLink = {
-  peer: PeerDescriptor;
-  pc: RTCPeerConnection;
 };
 
 type ActionFeedback = "idle" | "success";
@@ -492,6 +484,20 @@ function roomStateMessage(status: RoomMetadata["status"], reason?: string): stri
   }
 }
 
+// Privacy-safe growth callout: shown on the end-of-room screens a link
+// recipient reaches. No tracking, no telemetry — just a way for a first-time
+// visitor to learn they can spin up their own room. elm.chat's main organic loop.
+function MakeYourOwnCallout() {
+  return (
+    <p className="make-your-own">
+      This secure room was made with elm.chat.{" "}
+      <a className="make-your-own-link" href="/">
+        Create your own &mdash; free, no signup.
+      </a>
+    </p>
+  );
+}
+
 function InvalidInviteScreen() {
   return (
     <main className="room-shell room-shell-centered">
@@ -504,6 +510,7 @@ function InvalidInviteScreen() {
         <a className="secondary-button access-home-link" href="/">
           Back to home
         </a>
+        <MakeYourOwnCallout />
       </section>
     </main>
   );
@@ -519,6 +526,7 @@ function RemovedFromRoomScreen() {
         <a className="secondary-button access-home-link" href="/">
           Back to home
         </a>
+        <MakeYourOwnCallout />
       </section>
     </main>
   );
@@ -832,7 +840,6 @@ function RoomPage({ roomId }: { roomId: string }) {
   // already-closed room without reading a stale `room` value.
   const roomStatusRef = useRef<RoomMetadata["status"] | null>(null);
   const chatLogRef = useRef<HTMLElement | null>(null);
-  const peersRef = useRef(new Map<string, PeerLink>());
   const messageRef = useRef(new Map<string, EncryptedMessageEnvelope>());
   const shouldRequestSyncRef = useRef(false);
   // Files being served by this client (we are the sender), kept in memory so we
@@ -843,7 +850,6 @@ function RoomPage({ roomId }: { roomId: string }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   // Object URLs created for received files, revoked on expiry/unmount.
   const objectUrlsRef = useRef(new Set<string>());
-  const peerTransportEnabled = false;
 
   function sendPeerData(payload: PeerDataEvent, toSessionId?: string) {
     const socket = socketRef.current;
@@ -1095,7 +1101,6 @@ function RoomPage({ roomId }: { roomId: string }) {
             return;
           }
           setConnection(roomStatusRef.current === "open" ? "Disconnected" : "Closed");
-          closeAllPeerLinks();
         });
 
         socket.addEventListener("error", () => {
@@ -1174,18 +1179,6 @@ function RoomPage({ roomId }: { roomId: string }) {
             if (creatorToken) {
               void refreshInvites();
             }
-            const link = peersRef.current.get(payload.sessionId);
-            if (link) {
-              link.pc.close();
-              peersRef.current.delete(payload.sessionId);
-            }
-            return;
-          }
-
-          if (payload.type === "signal") {
-            if (peerTransportEnabled) {
-              await handleIncomingSignal(payload.fromSessionId, payload.signal);
-            }
             return;
           }
 
@@ -1210,7 +1203,6 @@ function RoomPage({ roomId }: { roomId: string }) {
               setConnection("Closed");
             });
             sendPeerData({ type: "peer_destroy" });
-            closeAllPeerLinks();
             return;
           }
 
@@ -1248,113 +1240,6 @@ function RoomPage({ roomId }: { roomId: string }) {
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Failed to join room.");
       }
-    }
-
-    function closeAllPeerLinks() {
-      for (const link of peersRef.current.values()) {
-        link.pc.close();
-      }
-      peersRef.current.clear();
-    }
-
-    function ensurePeer(peer: PeerDescriptor, initiator: boolean): PeerLink {
-      const existing = peersRef.current.get(peer.sessionId);
-      if (existing) {
-        return existing;
-      }
-
-      const pc = new RTCPeerConnection({ iceServers: DEFAULT_STUN_ICE_SERVERS });
-      const link: PeerLink = {
-        pc,
-        peer
-      };
-      peersRef.current.set(peer.sessionId, link);
-
-      pc.onicecandidate = (event) => {
-        if (!event.candidate) {
-          return;
-        }
-        socketRef.current?.send(
-          JSON.stringify({
-            type: "signal",
-            toSessionId: peer.sessionId,
-            signal: {
-              type: "ice",
-              candidate: event.candidate.candidate,
-              sdpMid: event.candidate.sdpMid,
-              sdpMLineIndex: event.candidate.sdpMLineIndex
-            }
-          })
-        );
-      };
-
-      pc.onconnectionstatechange = () => {
-        if (["failed", "closed", "disconnected"].includes(pc.connectionState)) {
-          const stale = peersRef.current.get(peer.sessionId);
-          if (stale?.pc === pc) {
-            peersRef.current.delete(peer.sessionId);
-          }
-        }
-      };
-
-      if (initiator) {
-        void (async () => {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          socketRef.current?.send(
-            JSON.stringify({
-              type: "signal",
-              toSessionId: peer.sessionId,
-              signal: {
-                type: "offer",
-                sdp: offer.sdp ?? ""
-              }
-            })
-          );
-        })();
-      }
-
-      return link;
-    }
-
-    async function handleIncomingSignal(fromSessionId: string, signal: PeerSignal) {
-      const knownPeer =
-        peersRef.current.get(fromSessionId)?.peer ??
-        ({
-          sessionId: fromSessionId,
-          creator: false,
-          connectedAt: Date.now(),
-          identityKey: ""
-        } satisfies PeerDescriptor);
-      const link = ensurePeer(knownPeer, false);
-
-      if (signal.type === "offer") {
-        await link.pc.setRemoteDescription({ type: "offer", sdp: signal.sdp });
-        const answer = await link.pc.createAnswer();
-        await link.pc.setLocalDescription(answer);
-        socketRef.current?.send(
-          JSON.stringify({
-            type: "signal",
-            toSessionId: fromSessionId,
-            signal: {
-              type: "answer",
-              sdp: answer.sdp ?? ""
-            }
-          })
-        );
-        return;
-      }
-
-      if (signal.type === "answer") {
-        await link.pc.setRemoteDescription({ type: "answer", sdp: signal.sdp });
-        return;
-      }
-
-      await link.pc.addIceCandidate({
-        candidate: signal.candidate,
-        sdpMid: signal.sdpMid ?? null,
-        sdpMLineIndex: signal.sdpMLineIndex ?? null
-      });
     }
 
     async function addEnvelope(envelope: EncryptedMessageEnvelope) {
@@ -1482,7 +1367,6 @@ function RoomPage({ roomId }: { roomId: string }) {
       if (payload.type === "peer_destroy") {
         setRoomNotice("A connected peer destroyed this room.");
         setConnection("Closed");
-        closeAllPeerLinks();
       }
     }
 
@@ -1491,7 +1375,6 @@ function RoomPage({ roomId }: { roomId: string }) {
     return () => {
       active = false;
       window.clearInterval(tick);
-      closeAllPeerLinks();
       socketRef.current?.close();
     };
   }, [creatorToken, inviteToken, roomId, roomSecret, sessionId]);

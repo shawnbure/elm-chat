@@ -1,8 +1,23 @@
 # elm.chat
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shawnbure/elm-chat)
+![Stars](https://img.shields.io/github/stars/shawnbure/elm-chat?style=social)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+> **Instant chat. Private, secure, fast and disposable.** End-to-end encrypted rooms that self-destruct. No accounts, no archive, no trace.
+
 `elm.chat` is an open effort to build a messaging system for people who need privacy by default, operational simplicity, and as little server trust as possible.
 
 This repository is for builders, reviewers, security researchers, and contributors who want to help push the project toward a genuinely minimal-footprint private communication model.
+
+## Run your own in one click
+
+elm.chat is Cloudflare-native, so you can fork and self-host a full private instance in about a minute — Cloudflare clones the repo into your account and provisions the Durable Objects for you:
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shawnbure/elm-chat)
+
+Prefer to do it by hand? See [Free Cloudflare Setup](#free-cloudflare-setup) below. Want to contribute instead of just run it? Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [good first issues](docs/GOOD-FIRST-ISSUES.md).
 
 ![elm.chat landing page](docs/images/landing-page.jpg)
 
@@ -71,9 +86,9 @@ The shipping implementation is built around:
 
 ### Why relay instead of peer-to-peer
 
-A WebRTC peer-to-peer scaffold exists in the codebase but is **intentionally disabled**. Relaying encrypted payloads through the Durable Object is a deliberate choice: it keeps every participant's IP address private from other room members (naive WebRTC would leak peer IPs via ICE), needs no TURN server, and works reliably on mobile and restrictive networks. The trade-off is that the honest-but-curious server relays ciphertext and can observe connection metadata (timing, sizes, presence). `stun.cloudflare.com` and the `/api/turn-credentials` endpoint are referenced only by the dormant WebRTC path and are not used by the shipping app.
+elm-chat does not use WebRTC peer-to-peer transport, and it contacts no STUN or TURN servers. Relaying encrypted payloads through the Durable Object is a deliberate choice: it keeps every participant's IP address private from other room members (naive WebRTC would leak peer IPs via ICE), needs no TURN server, and works reliably on mobile and restrictive networks. The trade-off is that the honest-but-curious server relays ciphertext and can observe connection metadata (timing, sizes, presence).
 
-The long-term direction still includes an optional direct-peer transport for participants who accept the IP-exposure trade-off, plus message authentication using the ephemeral identity keys already exchanged on join.
+The long-term direction may add an optional direct-peer transport for participants who accept the IP-exposure trade-off, plus message authentication using the ephemeral identity keys already exchanged on join.
 
 If you are contributing, treat the phrases "footprint-less", "log-less", and "no-server" as the product standard we are aiming toward, not as a slogan. See [docs/architecture.md](docs/architecture.md) and [docs/threat-model.md](docs/threat-model.md) for the precise current model.
 
@@ -299,6 +314,16 @@ Recommended reading in this repository:
 - [docs/room-lifecycle.md](docs/room-lifecycle.md)
 - [docs/why-use-elm-chat.md](docs/why-use-elm-chat.md)
 - [docs/truly-private-messaging.md](docs/truly-private-messaging.md)
+
+## License
+
+elm.chat is free software licensed under the **[GNU Affero General Public License v3.0](LICENSE)**. AGPL is chosen deliberately: because this is a trust-minimizing tool, anyone who runs a *modified public* instance must make their modified source available to that instance's users (see Section 13 of the license). That keeps every deployment — including forks — honest and inspectable, which is the entire point of a private messenger.
+
+If you deploy a modified version as a network service, you must offer its users access to the corresponding source. Contributions are accepted under the same license; see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Acceptable use
+
+Privacy protects people; it is not a shield for abuse. See [docs/abuse-policy.md](docs/abuse-policy.md) for what is not allowed, what the architecture does and does not let anyone see, and how to report a problem. Self-hosters are the operators of their own instances and are responsible for acceptable use and local-law compliance.
 
 ## Disclaimer
 

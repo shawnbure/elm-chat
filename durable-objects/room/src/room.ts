@@ -18,9 +18,7 @@ import {
   type RoomInvite,
   type RoomMetadata,
   type RoomStateEvent,
-  type ServerEvent,
-  type SignalEvent,
-  type SignalPayload
+  type ServerEvent
 } from "@elm-chat/shared";
 import { DurableObject } from "cloudflare:workers";
 
@@ -205,9 +203,6 @@ export class RoomDurableObject extends DurableObject<Env> {
       case "join":
         await this.handleJoin(ws, parsed);
         break;
-      case "signal":
-        await this.handleSignal(ws, parsed);
-        break;
       case "peer_data":
         await this.handlePeerData(ws, parsed);
         break;
@@ -351,31 +346,6 @@ export class RoomDurableObject extends DurableObject<Env> {
     } satisfies PeerJoinedEvent);
 
     await this.broadcastPresence();
-    await this.markRoomActivity();
-  }
-
-  private async handleSignal(ws: WebSocket, payload: SignalPayload): Promise<void> {
-    if (!this.roomMeta || this.roomMeta.status !== "open") {
-      ws.send(JSON.stringify(errorEvent("room_unavailable", "Room is unavailable.")));
-      return;
-    }
-
-    const attachment = ws.deserializeAttachment() as AttachmentRecord | null;
-    if (!attachment?.sessionId) {
-      ws.send(JSON.stringify(errorEvent("join_required", "Join before sending peer signals.")));
-      return;
-    }
-
-    if (!this.isConnected(payload.toSessionId)) {
-      ws.send(JSON.stringify(errorEvent("peer_missing", "Peer is no longer connected.")));
-      return;
-    }
-
-    this.broadcastToSessions([payload.toSessionId], {
-      type: "signal",
-      fromSessionId: attachment.sessionId,
-      signal: payload.signal
-    } satisfies SignalEvent);
     await this.markRoomActivity();
   }
 

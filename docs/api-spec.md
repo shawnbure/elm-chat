@@ -94,10 +94,6 @@ Invite shape:
 
 An invite link is `/(c)/:roomId?invite=<token>#<room_secret>`.
 
-## `GET /api/turn-credentials`
-
-Returns STUN/ICE servers (and short-lived TURN credentials if `TURN_SECRET` + `TURN_URLS` are configured). **Reserved for the currently-disabled WebRTC path; the shipping relay client does not call it.**
-
 ## `GET /api/rooms/:roomId/ws`
 
 Upgrades to the room WebSocket. This carries both control and **relayed encrypted content** (see Peer Data Protocol).
@@ -107,14 +103,12 @@ Upgrades to the room WebSocket. This carries both control and **relayed encrypte
 ```json
 { "type": "join", "sessionId": "uuid", "identityKey": "base64url-ecdsa-pubkey", "creatorToken": "optional", "inviteToken": "optional" }
 { "type": "peer_data", "toSessionId": "uuid-or-omitted", "data": { /* see Peer Data Protocol */ } }
-{ "type": "signal", "toSessionId": "uuid", "signal": { "type": "offer|answer|ice", "sdp": "...", "candidate": "..." } }
 { "type": "kick_participant", "creatorToken": "creator-only", "targetSessionId": "uuid" }
 { "type": "destroy", "creatorToken": "creator-only" }
 { "type": "ping" }
 ```
 
 - `peer_data` with `toSessionId` omitted is broadcast to all other participants; with `toSessionId` set it is relayed to that one session.
-- `signal` is the dormant WebRTC signaling relay (unused while `peerTransportEnabled` is false).
 
 ### Server → client events
 
@@ -126,7 +120,6 @@ Upgrades to the room WebSocket. This carries both control and **relayed encrypte
 { "type": "peer_joined", "peer": { "sessionId": "uuid-3", "creator": false, "connectedAt": 1744150300000, "identityKey": "base64url" } }
 { "type": "peer_left", "sessionId": "uuid-2" }
 { "type": "peer_data", "fromSessionId": "uuid-2", "data": { /* see Peer Data Protocol */ } }
-{ "type": "signal", "fromSessionId": "uuid-2", "signal": { "type": "offer", "sdp": "..." } }
 { "type": "participant_kicked", "sessionId": "uuid", "reason": "kicked" }
 { "type": "room_state", "status": "destroyed", "expiresAt": null, "reason": "destroyed" }
 { "type": "error", "code": "invite_required", "message": "A valid one-time invite is required." }

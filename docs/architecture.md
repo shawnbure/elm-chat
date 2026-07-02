@@ -30,12 +30,12 @@ Content is end-to-end encrypted in the browser and **relayed — never stored �
 
 ### Why relay instead of peer-to-peer
 
-A WebRTC scaffold exists (signaling relay, ICE handling, offer/answer) but is **intentionally disabled** (`peerTransportEnabled = false`, and no data channels are created). Relaying encrypted payloads through the Durable Object is a deliberate choice for this threat model:
+elm-chat does **not** use WebRTC peer-to-peer transport, and it contacts **no STUN or TURN servers**. Relaying encrypted payloads through the Durable Object is a deliberate choice for this threat model:
 
 - **Peer IP addresses stay private.** With relay, participants never connect directly, so no room member learns another member's IP. WebRTC would expose peer IPs to everyone in the room via ICE candidates — a regression for a coercion/surveillance threat model where an invitee may be hostile.
 - **No TURN dependency, works everywhere.** Direct P2P fails on symmetric NAT, mobile carriers, and restrictive networks without a TURN relay. Relaying through the Worker is reliable globally.
 
-The trade-off is that the honest-but-curious server relays ciphertext and observes connection metadata (timing, sizes, presence). `stun.cloudflare.com` and the `/api/turn-credentials` endpoint are referenced only by the dormant WebRTC path and are **not used** by the shipping app.
+The trade-off is that the honest-but-curious server relays ciphertext and observes connection metadata (timing, sizes, presence). Direct peer transport (with its IP-exposure trade-off) remains a possible future option, but is not part of the current implementation.
 
 ## Data Placement
 

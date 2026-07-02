@@ -8,13 +8,6 @@ export const DEFAULT_MAX_ROOM_AGE_MS = 24 * 60 * 60 * 1000;
 export const DEFAULT_DISAPPEAR_AFTER_READ_SECONDS = 7 * 60;
 export const MAX_CONNECTIONS_PER_ROOM = 16;
 export const MAX_TRANSCRIPT_SYNC_MESSAGES = 200;
-export type IceServer = {
-  urls: string[];
-  username?: string;
-  credential?: string;
-};
-
-export const DEFAULT_STUN_ICE_SERVERS: IceServer[] = [{ urls: ["stun:stun.cloudflare.com:3478"] }];
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 // 64 KiB of plaintext per chunk. Base64 (~87 KiB) plus the JSON envelope stays
 // well under the Cloudflare Workers ~1 MiB WebSocket message limit, while
@@ -40,11 +33,6 @@ export interface CreateRoomResponse {
   maxAgeMs: number | null;
   disappearAfterReadSeconds: number | null;
   creatorToken: string;
-}
-
-export interface TurnCredentialsResponse {
-  iceServers: IceServer[];
-  ttlSeconds: number;
 }
 
 export interface RoomMetadata {
@@ -83,28 +71,12 @@ export interface PresenceSnapshot {
   connectedSessionIds: string[];
 }
 
-export type PeerSignal =
-  | { type: "offer"; sdp: string }
-  | { type: "answer"; sdp: string }
-  | {
-      type: "ice";
-      candidate: string;
-      sdpMid?: string | null;
-      sdpMLineIndex?: number | null;
-    };
-
 export interface JoinPayload {
   type: "join";
   sessionId: string;
   identityKey: string;
   creatorToken?: string;
   inviteToken?: string;
-}
-
-export interface SignalPayload {
-  type: "signal";
-  toSessionId: string;
-  signal: PeerSignal;
 }
 
 export interface PeerDataRelayPayload {
@@ -130,7 +102,6 @@ export interface KickParticipantPayload {
 
 export type ClientEvent =
   | JoinPayload
-  | SignalPayload
   | PeerDataRelayPayload
   | KickParticipantPayload
   | DestroyPayload
@@ -158,12 +129,6 @@ export interface PeerJoinedEvent {
 export interface PeerLeftEvent {
   type: "peer_left";
   sessionId: string;
-}
-
-export interface SignalEvent {
-  type: "signal";
-  fromSessionId: string;
-  signal: PeerSignal;
 }
 
 export interface PeerDataRelayEvent {
@@ -196,7 +161,6 @@ export type ServerEvent =
   | PresenceEvent
   | PeerJoinedEvent
   | PeerLeftEvent
-  | SignalEvent
   | PeerDataRelayEvent
   | ParticipantKickedEvent
   | RoomStateEvent

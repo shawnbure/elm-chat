@@ -1,11 +1,9 @@
 import {
-  DEFAULT_STUN_ICE_SERVERS,
   DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
   DEFAULT_INACTIVITY_TIMEOUT_MS,
   ROOM_ID_BYTES,
   type CreateRoomRequest,
-  type CreateRoomResponse,
-  type TurnCredentialsResponse
+  type CreateRoomResponse
 } from "@elm-chat/shared";
 import { RoomDurableObject } from "../../../durable-objects/room/src/room";
 
@@ -14,8 +12,6 @@ export { RoomDurableObject };
 type Env = {
   ASSETS: Fetcher;
   ROOM_OBJECT: DurableObjectNamespace<RoomDurableObject>;
-  TURN_SECRET?: string;
-  TURN_URLS?: string;
   TURNSTILE_SECRET?: string;
 };
 
@@ -63,28 +59,6 @@ function randomRoomId(): string {
 
 function randomToken(): string {
   return base64Url(crypto.getRandomValues(new Uint8Array(32)));
-}
-
-function parseTurnUrls(value?: string): string[] {
-  if (!value) {
-    return [];
-  }
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-async function hmacSha1Base64(secret: string, message: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-1" },
-    false,
-    ["sign"]
-  );
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
-  return btoa(String.fromCharCode(...new Uint8Array(signature)));
 }
 
 async function safeJson<T>(request: Request): Promise<T> {
@@ -216,36 +190,11 @@ async function handleRevokeInvite(request: Request, roomId: string, env: Env): P
   });
 }
 
-async function handleTurnCredentials(env: Env): Promise<Response> {
-  const ttlSeconds = 600;
-  const iceServers = [...DEFAULT_STUN_ICE_SERVERS];
-  const turnUrls = parseTurnUrls(env.TURN_URLS);
-
-  if (env.TURN_SECRET && turnUrls.length > 0) {
-    const username = `${Math.floor(Date.now() / 1000) + ttlSeconds}:${crypto.randomUUID()}`;
-    const credential = await hmacSha1Base64(env.TURN_SECRET, username);
-    iceServers.push({
-      urls: turnUrls,
-      username,
-      credential
-    });
-  }
-
-  return json({
-    iceServers,
-    ttlSeconds
-  } satisfies TurnCredentialsResponse);
-}
-
 function routeApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
 
   if (request.method === "POST" && url.pathname === "/api/rooms") {
     return handleCreateRoom(request, env);
-  }
-
-  if (request.method === "GET" && url.pathname === "/api/turn-credentials") {
-    return handleTurnCredentials(env);
   }
 
   const revokeMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)\/invites\/revoke$/);
