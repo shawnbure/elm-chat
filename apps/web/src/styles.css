@@ -91,7 +91,7 @@ select {
   padding: 42px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .eyebrow {
