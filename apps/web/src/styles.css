@@ -217,7 +217,10 @@ select {
   overflow: hidden;
   padding: 28px;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  gap: 12px;
 }
 
 .hero-links {
@@ -259,6 +262,92 @@ select {
 .hero-link:active {
   transform: translateY(0);
   box-shadow: none;
+}
+
+.github-cta {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.github-cta:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 10px 24px rgba(31, 26, 23, 0.1);
+}
+
+.github-cta > svg {
+  flex: 0 0 auto;
+}
+
+.github-cta-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.github-cta-copy strong {
+  font-size: 0.98rem;
+}
+
+.github-cta-copy span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.github-cta-stats {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.github-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent), white 86%);
+  color: var(--accent-strong);
+  white-space: nowrap;
+}
+
+.github-links {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.github-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.github-mini:hover {
+  color: var(--ink);
+  text-decoration: underline;
 }
 
 .signal-grid {
@@ -804,6 +893,7 @@ select {
   }
 }
 
+/* Tablets and small laptops: stack the hero, keep the room app-shell intact. */
 @media (max-width: 900px) {
   .hero {
     grid-template-columns: 1fr;
@@ -811,49 +901,181 @@ select {
   }
 
   .hero-copy {
-    padding: 28px 22px;
+    padding: 30px 24px;
+  }
+
+  .hero-panel {
+    padding: 22px;
+    min-height: 220px;
   }
 
   .hero-links {
-    top: 16px;
-    right: 16px;
-    left: 16px;
-  }
-
-  .room-header,
-  .composer {
-    grid-template-columns: 1fr;
-  }
-
-  .room-header,
-  .composer,
-  .room-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .room-shell {
-    height: auto;
-    min-height: calc(100svh - 36px);
-    overflow: visible;
-  }
-
-  .composer {
-    display: flex;
     position: static;
-  }
-
-  .bubble {
-    max-width: 100%;
+    justify-content: flex-start;
   }
 
   .setting-row {
     grid-template-columns: 1fr;
   }
 
-  .room-strip,
-  .room-toolbar {
+  /* Keep form controls at 16px so mobile browsers don't zoom on focus. */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Phones: compact spacing, safe-area insets, a bottom-pinned composer. */
+@media (max-width: 560px) {
+  .landing-shell,
+  .room-shell {
+    padding: 10px;
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+  }
+
+  .hero h1 {
+    font-size: clamp(2.1rem, 11vw, 3rem);
+  }
+
+  .hero-copy {
+    padding: 22px 18px;
+    border-radius: 22px;
+  }
+
+  .lede {
+    font-size: 0.95rem;
+  }
+
+  .setting-controls {
+    flex-wrap: wrap;
+  }
+
+  .setting-input {
+    flex: 1 1 84px;
+    min-width: 0;
+  }
+
+  .setting-select {
+    flex: 1 1 116px;
+  }
+
+  .hero-actions {
     align-items: stretch;
+  }
+
+  .hero-actions .primary-button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .hero-panel {
+    padding: 18px;
+    min-height: 170px;
+    border-radius: 22px;
+  }
+
+  .github-cta-copy span {
+    display: none;
+  }
+
+  /* Room stays a fixed app shell; the composer sits above the home indicator. */
+  .room-shell {
+    gap: 8px;
+    height: 100svh;
+    height: 100dvh;
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .room-header,
+  .room-strip,
+  .chat-log,
+  .composer textarea {
+    border-radius: 18px;
+  }
+
+  .room-header,
+  .room-strip {
+    padding: 10px 12px;
+  }
+
+  .room-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .room-header h1 {
+    font-size: 1.1rem;
+  }
+
+  .room-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .room-toolbar {
+    width: 100%;
     justify-items: stretch;
+  }
+
+  .room-meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .room-actions {
+    width: 100%;
+  }
+
+  .room-actions .secondary-button {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .participant-strip {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .participant-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .participant-chip {
+    flex: 0 0 auto;
+  }
+
+  .chat-log {
+    padding: 10px;
+  }
+
+  .bubble {
+    max-width: 88%;
+  }
+
+  /* Two-row composer: [attach] [message] on top, full-width Send below. */
+  .composer {
+    grid-template-columns: auto 1fr;
+    gap: 6px;
+  }
+
+  .composer textarea {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  .composer-attach {
+    height: 44px;
+    width: 44px;
+  }
+
+  .composer .primary-button {
+    grid-column: 1 / -1;
+    width: 100%;
+    text-align: center;
   }
 }
