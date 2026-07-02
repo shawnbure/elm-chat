@@ -410,6 +410,24 @@ select {
   text-decoration: none;
 }
 
+.make-your-own {
+  margin: 22px auto 0;
+  max-width: 26rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.make-your-own-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.make-your-own-link:hover {
+  text-decoration: underline;
+}
+
 .participant-strip {
   display: flex;
   gap: 10px;
