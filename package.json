@@ -11,7 +11,12 @@
   "scripts": {
     "build": "npm run build --workspace @elm-chat/web && npm run build --workspace @elm-chat/api",
     "typecheck": "npm run typecheck --workspace @elm-chat/shared && npm run typecheck --workspace @elm-chat/crypto && npm run typecheck --workspace @elm-chat/web && npm run typecheck --workspace @elm-chat/api",
+    "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
     "dev:web": "npm run dev --workspace @elm-chat/web",
-    "dev:api": "npm run dev --workspace @elm-chat/api"
+    "dev:api": "npm run dev --workspace @elm-chat/api",
+    "deploy": "npm run build --workspace @elm-chat/web && npm run deploy --workspace @elm-chat/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
   }
 }

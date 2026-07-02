@@ -1,0 +1,76 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev:api",
+      "detail": "Cloudflare Worker + Durable Object (wrangler dev on :8787)",
+      "type": "shell",
+      "command": "npm run dev:api",
+      "isBackground": true,
+      "presentation": {
+        "group": "elm-chat-dev",
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": {
+        "owner": "wrangler",
+        "pattern": {
+          "regexp": "^(.*)$",
+          "file": 1,
+          "location": 1,
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*(Starting local server|wrangler).*",
+          "endsPattern": ".*Ready on http.*"
+        }
+      }
+    },
+    {
+      "label": "dev:web",
+      "detail": "Vite dev server with HMR (:3000, proxies /api to the Worker)",
+      "type": "shell",
+      "command": "npm run dev:web",
+      "isBackground": true,
+      "presentation": {
+        "group": "elm-chat-dev",
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": {
+          "regexp": "^(.*)$",
+          "file": 1,
+          "location": 1,
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*(VITE|vite).*",
+          "endsPattern": ".*Local:.*http.*"
+        }
+      }
+    },
+    {
+      "label": "dev:servers",
+      "detail": "Start both the Worker and the web dev server, then wait until both are ready.",
+      "dependsOn": ["dev:api", "dev:web"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev",
+      "detail": "Start the full stack and open elm.chat in your default browser (no debugger).",
+      "type": "shell",
+      "command": "open http://localhost:3000 || xdg-open http://localhost:3000 || start http://localhost:3000",
+      "dependsOn": ["dev:servers"],
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

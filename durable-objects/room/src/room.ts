@@ -18,9 +18,7 @@ import {
   type RoomInvite,
   type RoomMetadata,
   type RoomStateEvent,
-  type ServerEvent,
-  type SignalEvent,
-  type SignalPayload
+  type ServerEvent
 } from "@elm-chat/shared";
 import { DurableObject } from "cloudflare:workers";
 
@@ -28,15 +26,15 @@ type RoomStorage = RoomMetadata & {
   creatorToken: string;
 };
 
-type SessionRecord = {
-  sessionId: string;
-  creator: boolean;
-  connectedAt: number;
-  identityKey: string;
-};
-
+// Stored on each accepted WebSocket via serializeAttachment. This survives
+// Durable Object hibernation, so it — not an in-memory map — is the source of
+// truth for who is connected. An empty sessionId marks a socket that has been
+// accepted but has not completed a join yet.
 type AttachmentRecord = {
   sessionId: string;
+  creator: boolean;
+  identityKey: string;
+  connectedAt: number;
 };
 
 type RoomBootstrap = Pick<
@@ -85,7 +83,6 @@ async function safeJson<T>(request: Request): Promise<T> {
 
 export class RoomDurableObject extends DurableObject<Env> {
   private roomMeta: RoomStorage | null = null;
-  private sessions = new Map<string, SessionRecord>();
   private invites = new Map<string, RoomInvite>();
   private storageReady: Promise<void>;
 
@@ -146,7 +143,12 @@ export class RoomDurableObject extends DurableObject<Env> {
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
       this.ctx.acceptWebSocket(server);
-      server.serializeAttachment({ sessionId: "" } satisfies AttachmentRecord);
+      server.serializeAttachment({
+        sessionId: "",
+        creator: false,
+        identityKey: "",
+        connectedAt: 0
+      } satisfies AttachmentRecord);
       await this.markRoomActivity();
       return wsResponse(client);
     }
@@ -172,7 +174,10 @@ export class RoomDurableObject extends DurableObject<Env> {
       typeof this.roomMeta.inactivityTimeoutMs === "number" &&
       idleFor >= this.roomMeta.inactivityTimeoutMs
     ) {
-      await this.transitionRoom("expired", this.sessions.size === 0 ? "join-timeout" : "inactive");
+      await this.transitionRoom(
+        "expired",
+        this.connectedSessionIds().length === 0 ? "join-timeout" : "inactive"
+      );
       return;
     }
 
@@ -198,9 +203,6 @@ export class RoomDurableObject extends DurableObject<Env> {
       case "join":
         await this.handleJoin(ws, parsed);
         break;
-      case "signal":
-        await this.handleSignal(ws, parsed);
-        break;
       case "peer_data":
         await this.handlePeerData(ws, parsed);
         break;
@@ -223,7 +225,6 @@ export class RoomDurableObject extends DurableObject<Env> {
       return;
     }
 
-    this.sessions.delete(attachment.sessionId);
     await this.markRoomActivity();
     this.broadcast({
       type: "peer_left",
@@ -290,39 +291,40 @@ export class RoomDurableObject extends DurableObject<Env> {
     if (!creator) {
       const invite = payload.inviteToken ? this.invites.get(payload.inviteToken) : undefined;
       const now = Date.now();
-      if (
-        !invite ||
-        invite.revokedAt ||
-        invite.consumedAt ||
-        invite.expiresAt <= now
-      ) {
-        ws.send(JSON.stringify(errorEvent("invite_required", "A valid one-time invite is required.")));
-        ws.close(4403, "invite required");
-        return;
+      // The session that already consumed this invite may reconnect (e.g. a page
+      // reload) as long as the invite has not been revoked. A brand-new session
+      // must present an invite that is unrevoked, unconsumed, and unexpired.
+      const isReconnectingConsumer =
+        !!invite && !invite.revokedAt && invite.consumedBySessionId === payload.sessionId;
+      if (!isReconnectingConsumer) {
+        if (!invite || invite.revokedAt || invite.consumedAt || invite.expiresAt <= now) {
+          ws.send(JSON.stringify(errorEvent("invite_required", "A valid one-time invite is required.")));
+          ws.close(4403, "invite required");
+          return;
+        }
+        invite.consumedAt = now;
+        invite.consumedBySessionId = payload.sessionId;
+        this.invites.set(invite.token, invite);
+        await this.persistInvites();
       }
-      invite.consumedAt = now;
-      invite.consumedBySessionId = payload.sessionId;
-      this.invites.set(invite.token, invite);
-      await this.persistInvites();
     }
 
-    const session: SessionRecord = {
+    const session: AttachmentRecord = {
       sessionId: payload.sessionId,
       creator,
       connectedAt: Date.now(),
       identityKey: payload.identityKey
     };
-    this.sessions.set(payload.sessionId, session);
-    ws.serializeAttachment({ sessionId: payload.sessionId } satisfies AttachmentRecord);
+    ws.serializeAttachment(session satisfies AttachmentRecord);
 
     if (creator) {
       this.roomMeta.creatorJoined = true;
     }
-    this.roomMeta.participantCount = this.sessions.size;
+    this.roomMeta.participantCount = this.connectedSessionIds().length;
     this.roomMeta.lastActivityAt = Date.now();
     await this.ctx.storage.put(ROOM_META_KEY, this.roomMeta);
 
-    const peers = [...this.sessions.values()]
+    const peers = this.connectedSessions()
       .filter((peer) => peer.sessionId !== payload.sessionId)
       .sort((left, right) => left.connectedAt - right.connectedAt)
       .map((peer) => this.describePeer(peer));
@@ -347,31 +349,6 @@ export class RoomDurableObject extends DurableObject<Env> {
     await this.markRoomActivity();
   }
 
-  private async handleSignal(ws: WebSocket, payload: SignalPayload): Promise<void> {
-    if (!this.roomMeta || this.roomMeta.status !== "open") {
-      ws.send(JSON.stringify(errorEvent("room_unavailable", "Room is unavailable.")));
-      return;
-    }
-
-    const attachment = ws.deserializeAttachment() as AttachmentRecord | null;
-    if (!attachment?.sessionId) {
-      ws.send(JSON.stringify(errorEvent("join_required", "Join before sending peer signals.")));
-      return;
-    }
-
-    if (!this.sessions.has(payload.toSessionId)) {
-      ws.send(JSON.stringify(errorEvent("peer_missing", "Peer is no longer connected.")));
-      return;
-    }
-
-    this.broadcastToSessions([payload.toSessionId], {
-      type: "signal",
-      fromSessionId: attachment.sessionId,
-      signal: payload.signal
-    } satisfies SignalEvent);
-    await this.markRoomActivity();
-  }
-
   private async handlePeerData(ws: WebSocket, payload: PeerDataRelayPayload): Promise<void> {
     if (!this.roomMeta || this.roomMeta.status !== "open") {
       ws.send(JSON.stringify(errorEvent("room_unavailable", "Room is unavailable.")));
@@ -391,7 +368,7 @@ export class RoomDurableObject extends DurableObject<Env> {
     } satisfies PeerDataRelayEvent;
 
     if (payload.toSessionId) {
-      if (!this.sessions.has(payload.toSessionId)) {
+      if (!this.isConnected(payload.toSessionId)) {
         ws.send(JSON.stringify(errorEvent("peer_missing", "Peer is no longer connected.")));
         return;
       }
@@ -413,7 +390,7 @@ export class RoomDurableObject extends DurableObject<Env> {
       return;
     }
     const target = payload.targetSessionId;
-    if (!this.sessions.has(target)) {
+    if (!this.isConnected(target)) {
       ws.send(JSON.stringify(errorEvent("peer_missing", "Participant is no longer connected.")));
       return;
     }
@@ -465,7 +442,7 @@ export class RoomDurableObject extends DurableObject<Env> {
     invite.revokedAt = Date.now();
     this.invites.set(token, invite);
     await this.persistInvites();
-    if (invite.consumedBySessionId && this.sessions.has(invite.consumedBySessionId)) {
+    if (invite.consumedBySessionId && this.isConnected(invite.consumedBySessionId)) {
       await this.disconnectSession(invite.consumedBySessionId, "invite-revoked", "invite revoked");
     }
     return jsonResponse(invite);
@@ -505,7 +482,6 @@ export class RoomDurableObject extends DurableObject<Env> {
     for (const socket of this.ctx.getWebSockets()) {
       socket.close(4000, status);
     }
-    this.sessions.clear();
   }
 
   private async markRoomActivity(): Promise<void> {
@@ -546,7 +522,7 @@ export class RoomDurableObject extends DurableObject<Env> {
       return;
     }
 
-    this.roomMeta.participantCount = this.sessions.size;
+    this.roomMeta.participantCount = this.connectedSessionIds().length;
     await this.ctx.storage.put(ROOM_META_KEY, this.roomMeta);
     this.broadcast({
       type: "presence",
@@ -570,7 +546,6 @@ export class RoomDurableObject extends DurableObject<Env> {
         socket.close(4403, closeReason);
       }
     }
-    this.sessions.delete(targetSessionId);
     this.broadcast({
       type: "peer_left",
       sessionId: targetSessionId
@@ -603,20 +578,37 @@ export class RoomDurableObject extends DurableObject<Env> {
   }
 
   private presenceSnapshot(): PresenceSnapshot {
+    const ids = this.connectedSessionIds();
     return {
-      count: this.connectedSessionIds().length,
-      connectedSessionIds: this.connectedSessionIds()
+      count: ids.length,
+      connectedSessionIds: ids
     };
   }
 
-  private connectedSessionIds(): string[] {
-    return this.ctx
-      .getWebSockets()
-      .map((socket) => (socket.deserializeAttachment() as AttachmentRecord | null)?.sessionId ?? "")
-      .filter(Boolean);
+  // Source of truth for connected participants, derived from live WebSockets so
+  // it survives Durable Object hibernation. Deduplicated by session id.
+  private connectedSessions(): AttachmentRecord[] {
+    const seen = new Set<string>();
+    const sessions: AttachmentRecord[] = [];
+    for (const socket of this.ctx.getWebSockets()) {
+      const attachment = socket.deserializeAttachment() as AttachmentRecord | null;
+      if (attachment?.sessionId && !seen.has(attachment.sessionId)) {
+        seen.add(attachment.sessionId);
+        sessions.push(attachment);
+      }
+    }
+    return sessions;
   }
 
-  private describePeer(peer: SessionRecord): PeerDescriptor {
+  private connectedSessionIds(): string[] {
+    return this.connectedSessions().map((session) => session.sessionId);
+  }
+
+  private isConnected(sessionId: string): boolean {
+    return this.connectedSessions().some((session) => session.sessionId === sessionId);
+  }
+
+  private describePeer(peer: AttachmentRecord): PeerDescriptor {
     return {
       sessionId: peer.sessionId,
       creator: peer.creator,

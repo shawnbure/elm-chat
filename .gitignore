@@ -4,3 +4,6 @@ dist
 .DS_Store
 coverage
 
+# Internal go-to-market / growth strategy — kept local, not published
+gtm/
+
