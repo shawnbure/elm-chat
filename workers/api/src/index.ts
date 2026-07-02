@@ -1,11 +1,9 @@
 import {
-  DEFAULT_STUN_ICE_SERVERS,
   DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
   DEFAULT_INACTIVITY_TIMEOUT_MS,
   ROOM_ID_BYTES,
   type CreateRoomRequest,
-  type CreateRoomResponse,
-  type TurnCredentialsResponse
+  type CreateRoomResponse
 } from "@elm-chat/shared";
 import { RoomDurableObject } from "../../../durable-objects/room/src/room";
 
@@ -14,8 +12,7 @@ export { RoomDurableObject };
 type Env = {
   ASSETS: Fetcher;
   ROOM_OBJECT: DurableObjectNamespace<RoomDurableObject>;
-  TURN_SECRET?: string;
-  TURN_URLS?: string;
+  TURNSTILE_SECRET?: string;
 };
 
 function json(payload: unknown, status = 200): Response {
@@ -64,28 +61,6 @@ function randomToken(): string {
   return base64Url(crypto.getRandomValues(new Uint8Array(32)));
 }
 
-function parseTurnUrls(value?: string): string[] {
-  if (!value) {
-    return [];
-  }
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-async function hmacSha1Base64(secret: string, message: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-1" },
-    false,
-    ["sign"]
-  );
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
-  return btoa(String.fromCharCode(...new Uint8Array(signature)));
-}
-
 async function safeJson<T>(request: Request): Promise<T> {
   return (await request.json()) as T;
 }
@@ -95,10 +70,51 @@ function buildRoomUrl(request: Request, roomId: string): string {
   return `${url.origin}/c/${roomId}`;
 }
 
+async function verifyTurnstile(
+  secret: string,
+  token: string | undefined,
+  remoteIp: string | null
+): Promise<boolean> {
+  if (!token) {
+    return false;
+  }
+  const form = new FormData();
+  form.append("secret", secret);
+  form.append("response", token);
+  if (remoteIp) {
+    form.append("remoteip", remoteIp);
+  }
+  try {
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body: form
+    });
+    if (!response.ok) {
+      return false;
+    }
+    const outcome = (await response.json()) as { success?: boolean };
+    return outcome.success === true;
+  } catch {
+    return false;
+  }
+}
+
 async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
   const body = await safeJson<CreateRoomRequest>(request).catch(() => ({} as CreateRoomRequest));
 
-  // Abuse-prevention hook: verify Turnstile token here.
+  // Abuse prevention: when a Turnstile secret is configured, require a valid
+  // token. Without a secret (e.g. local dev) creation stays open.
+  if (env.TURNSTILE_SECRET) {
+    const passed = await verifyTurnstile(
+      env.TURNSTILE_SECRET,
+      body.turnstileToken,
+      request.headers.get("CF-Connecting-IP")
+    );
+    if (!passed) {
+      return json({ error: "Bot verification failed. Please try again." }, 403);
+    }
+  }
+
   const now = Date.now();
   const roomId = randomRoomId();
   const creatorToken = randomToken();
@@ -174,36 +190,11 @@ async function handleRevokeInvite(request: Request, roomId: string, env: Env): P
   });
 }
 
-async function handleTurnCredentials(env: Env): Promise<Response> {
-  const ttlSeconds = 600;
-  const iceServers = [...DEFAULT_STUN_ICE_SERVERS];
-  const turnUrls = parseTurnUrls(env.TURN_URLS);
-
-  if (env.TURN_SECRET && turnUrls.length > 0) {
-    const username = `${Math.floor(Date.now() / 1000) + ttlSeconds}:${crypto.randomUUID()}`;
-    const credential = await hmacSha1Base64(env.TURN_SECRET, username);
-    iceServers.push({
-      urls: turnUrls,
-      username,
-      credential
-    });
-  }
-
-  return json({
-    iceServers,
-    ttlSeconds
-  } satisfies TurnCredentialsResponse);
-}
-
 function routeApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
 
   if (request.method === "POST" && url.pathname === "/api/rooms") {
     return handleCreateRoom(request, env);
-  }
-
-  if (request.method === "GET" && url.pathname === "/api/turn-credentials") {
-    return handleTurnCredentials(env);
   }
 
   const revokeMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)\/invites\/revoke$/);

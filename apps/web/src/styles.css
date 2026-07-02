@@ -410,6 +410,24 @@ select {
   text-decoration: none;
 }
 
+.make-your-own {
+  margin: 22px auto 0;
+  max-width: 26rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.make-your-own-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.make-your-own-link:hover {
+  text-decoration: underline;
+}
+
 .participant-strip {
   display: flex;
   gap: 10px;
@@ -531,7 +549,7 @@ select {
 
 .composer {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto 1fr auto;
   gap: 8px;
   align-items: end;
   background: transparent;
@@ -539,6 +557,96 @@ select {
   box-shadow: none;
   backdrop-filter: none;
   padding: 0;
+}
+
+.composer-attach {
+  height: 48px;
+  width: 48px;
+  padding: 0;
+  font-size: 1.15rem;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.file-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.file-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.file-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.file-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.file-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 32ch;
+}
+
+.file-size {
+  font-size: 0.74rem;
+  opacity: 0.7;
+}
+
+.file-status {
+  font-size: 0.76rem;
+  opacity: 0.75;
+}
+
+.file-status-error {
+  color: #c0392b;
+  opacity: 1;
+}
+
+.file-action {
+  align-self: flex-start;
+  padding: 4px 12px;
+  font-size: 0.82rem;
+}
+
+.file-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.file-progress-track {
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor, transparent 82%);
+  overflow: hidden;
+}
+
+.file-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--bubble-accent, var(--accent, #6c5ce7));
+  transition: width 120ms ease;
+}
+
+.file-progress-label {
+  font-size: 0.74rem;
+  opacity: 0.75;
+  min-width: 3ch;
+  text-align: right;
 }
 
 .composer textarea {
