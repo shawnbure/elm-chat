@@ -162,23 +162,24 @@ npm install
 # 2. Authenticate Wrangler (opens a browser)
 npx wrangler login
 
-# 3. Build the web app (creates apps/web/dist that the Worker serves)
-npm run build
+# 3. (If your Cloudflare login has more than one account) pick the target.
+#    This project-scoped variable maps to Wrangler's account for deploys,
+#    so it won't clobber CLOUDFLARE_ACCOUNT_ID for your other projects.
+export ELM_CHAT_CLOUDFLARE_ACCOUNT_ID=<your-account-id>
 
-# 4. Deploy the Worker + Durable Object
-cd workers/api
-npx wrangler deploy
+# 4. Build the web app and deploy the Worker + Durable Object (one command)
+npm run deploy
 ```
 
-On success, Wrangler prints your live URL, e.g. `https://elm-chat.<your-subdomain>.workers.dev`. Open it, click **Create private conversation**, and you have a working room.
+`npm run deploy` (run from the repo root) builds `apps/web/dist` and then deploys the Worker. On success, Wrangler prints your live URL, e.g. `https://elm-chat.<your-subdomain>.workers.dev`. Open it, click **Create private conversation**, and you have a working room.
 
 Notes:
 
-- **Choosing an account.** `wrangler.jsonc` intentionally does **not** hardcode an `account_id`, so it deploys to whatever account you logged in with. If your Wrangler login has access to more than one account, set the target explicitly: `export CLOUDFLARE_ACCOUNT_ID=<your-account-id>` (find it under **Workers & Pages → Account details** in the dashboard), or pass `--account <id>` to `wrangler deploy`.
-- **workers.dev subdomain.** The first time you deploy to an account, Cloudflare may ask you to register a free `*.workers.dev` subdomain (in the dashboard under **Workers & Pages**). Do that once, then re-run `wrangler deploy`.
+- **Choosing an account.** `wrangler.jsonc` intentionally does **not** hardcode an `account_id`, so it deploys to whatever account you logged in with. If your login has access to more than one account, set **`ELM_CHAT_CLOUDFLARE_ACCOUNT_ID`** (find the id under **Workers & Pages → Account details** in the dashboard). The `deploy` script maps it to the `CLOUDFLARE_ACCOUNT_ID` Wrangler expects, so it stays scoped to this project. If you already export the standard `CLOUDFLARE_ACCOUNT_ID`, that is used as a fallback.
+- **workers.dev subdomain.** The first time you deploy to an account, Cloudflare may ask you to register a free `*.workers.dev` subdomain (in the dashboard under **Workers & Pages**). Do that once, then re-run `npm run deploy`.
 - **Durable Object migration.** The `migrations` block in `wrangler.jsonc` creates the `RoomDurableObject` SQLite class automatically on first deploy — no manual step.
 - **Renaming.** To run multiple instances or avoid a name clash, change `"name"` in `workers/api/wrangler.jsonc` before deploying.
-- **Redeploying after changes.** Always run `npm run build` (from the repo root) before `wrangler deploy`, so the Worker ships the latest `apps/web/dist`.
+- **Redeploying after changes.** Just run `npm run deploy` again — it rebuilds `apps/web/dist` before deploying.
 
 ### Optional — custom domain
 
@@ -210,7 +211,7 @@ That matches the philosophy of the project anyway.
 ### Troubleshooting
 
 - **`Missing entry-point` / assets error on deploy** — you didn't build first. Run `npm run build` from the repo root, then `wrangler deploy` from `workers/api`.
-- **`More than one account available`** — set `CLOUDFLARE_ACCOUNT_ID` (see above).
+- **`More than one account available`** — set `ELM_CHAT_CLOUDFLARE_ACCOUNT_ID` (see above), then re-run `npm run deploy`.
 - **`workers.dev` URL returns 404 or won't register** — register your workers.dev subdomain in the dashboard, then redeploy.
 - **Room says "Room not found" right after creating it** — you're pointing the web app at a different Worker than the one that created the room (usually a stale local dev setup). In production this is one Worker, so it does not occur.
 

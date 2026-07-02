@@ -13,6 +13,7 @@
   "scripts": {
     "build": "wrangler deploy --dry-run",
     "dev": "wrangler dev",
+    "deploy": "CLOUDFLARE_ACCOUNT_ID=\"${ELM_CHAT_CLOUDFLARE_ACCOUNT_ID:-$CLOUDFLARE_ACCOUNT_ID}\" wrangler deploy",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
