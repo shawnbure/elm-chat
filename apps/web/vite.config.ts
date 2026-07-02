@@ -4,8 +4,10 @@ import { defineConfig } from "vite";
 // During local development the React app is served by Vite (HMR) on port 3000,
 // while the Cloudflare Worker + Durable Object run under `wrangler dev` on 8787.
 // Proxy the API surface (including the room WebSocket) to the Worker so the app
-// behaves exactly like production, where a single Worker serves both.
-const WORKER_ORIGIN = process.env.WORKER_ORIGIN ?? "http://localhost:8787";
+// behaves exactly like production, where a single Worker serves both. The Worker
+// runs on a dedicated port (see wrangler.jsonc `dev.port`) so it never collides
+// with other Cloudflare projects that also default to wrangler's port 8787.
+const WORKER_ORIGIN = process.env.WORKER_ORIGIN ?? "http://localhost:8799";
 
 export default defineConfig({
   plugins: [react()],

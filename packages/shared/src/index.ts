@@ -16,7 +16,10 @@ export type IceServer = {
 
 export const DEFAULT_STUN_ICE_SERVERS: IceServer[] = [{ urls: ["stun:stun.cloudflare.com:3478"] }];
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
-export const FILE_CHUNK_BYTES = 16 * 1024;
+// 64 KiB of plaintext per chunk. Base64 (~87 KiB) plus the JSON envelope stays
+// well under the Cloudflare Workers ~1 MiB WebSocket message limit, while
+// keeping the chunk count for a 25 MiB file in the low hundreds.
+export const FILE_CHUNK_BYTES = 64 * 1024;
 
 export type RoomStatus = "open" | "expired" | "destroyed";
 

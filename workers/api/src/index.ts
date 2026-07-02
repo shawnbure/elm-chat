@@ -16,6 +16,7 @@ type Env = {
   ROOM_OBJECT: DurableObjectNamespace<RoomDurableObject>;
   TURN_SECRET?: string;
   TURN_URLS?: string;
+  TURNSTILE_SECRET?: string;
 };
 
 function json(payload: unknown, status = 200): Response {
@@ -95,10 +96,51 @@ function buildRoomUrl(request: Request, roomId: string): string {
   return `${url.origin}/c/${roomId}`;
 }
 
+async function verifyTurnstile(
+  secret: string,
+  token: string | undefined,
+  remoteIp: string | null
+): Promise<boolean> {
+  if (!token) {
+    return false;
+  }
+  const form = new FormData();
+  form.append("secret", secret);
+  form.append("response", token);
+  if (remoteIp) {
+    form.append("remoteip", remoteIp);
+  }
+  try {
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body: form
+    });
+    if (!response.ok) {
+      return false;
+    }
+    const outcome = (await response.json()) as { success?: boolean };
+    return outcome.success === true;
+  } catch {
+    return false;
+  }
+}
+
 async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
   const body = await safeJson<CreateRoomRequest>(request).catch(() => ({} as CreateRoomRequest));
 
-  // Abuse-prevention hook: verify Turnstile token here.
+  // Abuse prevention: when a Turnstile secret is configured, require a valid
+  // token. Without a secret (e.g. local dev) creation stays open.
+  if (env.TURNSTILE_SECRET) {
+    const passed = await verifyTurnstile(
+      env.TURNSTILE_SECRET,
+      body.turnstileToken,
+      request.headers.get("CF-Connecting-IP")
+    );
+    if (!passed) {
+      return json({ error: "Bot verification failed. Please try again." }, 403);
+    }
+  }
+
   const now = Date.now();
   const roomId = randomRoomId();
   const creatorToken = randomToken();

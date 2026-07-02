@@ -30,6 +30,7 @@ Inside a room, people see:
 - single-use invite links instead of a permanent reusable room invite
 - creator ability to revoke invites and remove participants
 - a single composer for fast message entry
+- encrypted file sharing that streams peer-to-peer over the relay and vanishes on the same policy as messages
 - a room that is meant to disappear instead of becoming a permanent archive
 
 The interface is meant to feel immediate, readable, and disposable. It should communicate privacy without turning the user experience into a configuration maze.
@@ -147,7 +148,7 @@ That matches the philosophy of the project anyway.
 
 The app runs as two processes in development:
 
-- the Cloudflare Worker + Durable Object under `wrangler dev` on `http://localhost:8787`
+- the Cloudflare Worker + Durable Object under `wrangler dev` on `http://localhost:8799` (a dedicated port set in `workers/api/wrangler.jsonc` so it never collides with other Cloudflare projects that default to `8787`)
 - the Vite dev server (React app, hot reload) on `http://localhost:3000`
 
 Vite proxies `/api` (including the room WebSocket) to the Worker, so the app behaves exactly like production, where a single Worker serves both the static assets and the API.
@@ -171,6 +172,21 @@ Two entry points are provided in `.vscode/`:
 
 - **Run without a debugger** — open the Command Palette → `Tasks: Run Task` → `dev` (also bound to the default build task, `Cmd/Ctrl+Shift+B`). This starts both servers and opens elm.chat in your **default browser**.
 - **Run with the debugger** — press `F5` and pick `Debug: elm.chat (Chrome)` or `Debug: elm.chat (Edge)`. This starts both servers and launches the chosen browser attached to the VS Code debugger, so breakpoints in the React/TypeScript source work. (VS Code's JavaScript debugger supports Chrome and Edge only; for other browsers use the no-debugger task above.)
+
+## Abuse Prevention (Turnstile)
+
+Room creation can be gated by [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/), a privacy-preserving bot check with no cookies, no cross-site tracking, and no persistent user identity. It is optional and stays off until you configure keys, so local dev and unconfigured deploys keep working.
+
+To enable it:
+
+1. In the Cloudflare dashboard, create a Turnstile widget (Managed or Invisible mode) for your domain. You get a **site key** (public) and a **secret key** (private).
+2. Give the web build the site key:
+   `VITE_TURNSTILE_SITE_KEY=<site-key> npm run build`
+   (or add it to a `.env` file under `apps/web`).
+3. Give the Worker the secret:
+   `cd workers/api && npx wrangler secret put TURNSTILE_SECRET`
+
+With both set, the landing page runs an invisible challenge before creating a room, and the Worker rejects room creation unless the token verifies. With neither set, creation is open.
 
 ## Durable Object Lifecycle
 

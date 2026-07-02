@@ -1,7 +1,9 @@
 import {
   createIdentityKeyPair,
+  decryptBytes,
   decryptText,
   deriveRoomKey,
+  encryptBytes,
   encryptText,
   exportIdentityPublicKey,
   generateMessageId,
@@ -10,12 +12,15 @@ import {
 } from "@elm-chat/crypto";
 import {
   DEFAULT_STUN_ICE_SERVERS,
+  FILE_CHUNK_BYTES,
+  MAX_FILE_BYTES,
   MAX_TRANSCRIPT_SYNC_MESSAGES,
   type CreateRoomRequest,
   type CreateRoomResponse,
   type EncryptedMessageEnvelope,
   type PeerDataEvent,
   type PeerDescriptor,
+  type PeerFileChunk,
   type PeerSignal,
   type PresenceSnapshot,
   type RoomInvite,
@@ -26,12 +31,43 @@ import { startTransition, useEffect, useRef, useState, type CSSProperties } from
 
 type View = "landing" | "room";
 
+type FileTransferState =
+  | "offered"
+  | "requesting"
+  | "transferring"
+  | "ready"
+  | "sent"
+  | "error";
+
+type UiFile = {
+  fileId: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  state: FileTransferState;
+  progress: number;
+  url?: string;
+  outgoing: boolean;
+};
+
 type UiMessage = {
   id: string;
   senderSessionId: string;
-  plaintext: string;
   sentAt: number;
   expiresAt?: number;
+  kind: "text" | "file";
+  plaintext?: string;
+  file?: UiFile;
+};
+
+type IncomingFile = {
+  name: string;
+  mimeType: string;
+  size: number;
+  totalChunks: number;
+  received: number;
+  chunks: (Uint8Array | undefined)[];
+  senderSessionId: string;
 };
 
 type PeerLink = {
@@ -99,6 +135,20 @@ function formatStaticDuration(totalSeconds: number): string {
   }
 
   return parts.join(" ");
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
 function creatorTokenKey(roomId: string): string {
@@ -200,6 +250,85 @@ function toggleIndefiniteDuration(
   };
 }
 
+let turnstileScriptPromise: Promise<void> | null = null;
+let turnstileWidgetId: string | undefined;
+let turnstilePendingResolve: ((token: string | undefined) => void) | null = null;
+
+function resolveTurnstile(token: string | undefined): void {
+  const resolve = turnstilePendingResolve;
+  turnstilePendingResolve = null;
+  resolve?.(token);
+}
+
+function loadTurnstileScript(): Promise<void> {
+  if (window.turnstile) {
+    return Promise.resolve();
+  }
+  if (!turnstileScriptPromise) {
+    turnstileScriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("challenge script failed to load"));
+      document.head.appendChild(script);
+    });
+  }
+  return turnstileScriptPromise;
+}
+
+// Runs an invisible Turnstile challenge when a site key is configured. Returns
+// the token, or undefined when Turnstile is not configured (local dev) or the
+// challenge could not run — the server decides whether a token is required.
+async function getTurnstileToken(): Promise<string | undefined> {
+  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+  if (!siteKey) {
+    return undefined;
+  }
+  try {
+    await loadTurnstileScript();
+  } catch {
+    return undefined;
+  }
+  const turnstile = window.turnstile;
+  if (!turnstile) {
+    return undefined;
+  }
+  return new Promise<string | undefined>((resolve) => {
+    turnstilePendingResolve = resolve;
+    let container = document.getElementById("turnstile-holder");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "turnstile-holder";
+      container.style.position = "fixed";
+      container.style.bottom = "-9999px";
+      container.style.left = "-9999px";
+      document.body.appendChild(container);
+    }
+    try {
+      if (turnstileWidgetId === undefined) {
+        turnstileWidgetId = turnstile.render(container, {
+          sitekey: siteKey,
+          execution: "execute",
+          appearance: "interaction-only",
+          callback: (token: string) => resolveTurnstile(token),
+          "error-callback": () => resolveTurnstile(undefined),
+          "timeout-callback": () => resolveTurnstile(undefined),
+          "expired-callback": () => resolveTurnstile(undefined)
+        });
+      } else {
+        turnstile.reset(turnstileWidgetId);
+      }
+      turnstile.execute(turnstileWidgetId, { sitekey: siteKey });
+    } catch {
+      resolveTurnstile(undefined);
+    }
+    // Never let a stuck challenge block room creation indefinitely.
+    window.setTimeout(() => resolveTurnstile(undefined), 8000);
+  });
+}
+
 async function createRoom(body: CreateRoomRequest): Promise<CreateRoomResponse> {
   const response = await fetch("/api/rooms", {
     method: "POST",
@@ -209,7 +338,8 @@ async function createRoom(body: CreateRoomRequest): Promise<CreateRoomResponse> 
     body: JSON.stringify(body)
   });
   if (!response.ok) {
-    throw new Error("Failed to create room.");
+    const detail = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(detail?.error ?? "Failed to create room.");
   }
   return response.json();
 }
@@ -394,6 +524,43 @@ function RemovedFromRoomScreen() {
   );
 }
 
+function FileCard({ file, onDownload }: { file: UiFile; onDownload: () => void }) {
+  const percent = Math.round((file.progress ?? 0) * 100);
+  return (
+    <div className="file-card">
+      <div className="file-card-head">
+        <span className="file-icon" aria-hidden="true">
+          &#128206;
+        </span>
+        <div className="file-meta">
+          <span className="file-name">{file.name}</span>
+          <span className="file-size">{formatBytes(file.size)}</span>
+        </div>
+      </div>
+      {file.outgoing ? (
+        <span className="file-status">Shared &mdash; peers can download</span>
+      ) : file.state === "offered" ? (
+        <button className="secondary-button file-action" onClick={onDownload} type="button">
+          Download
+        </button>
+      ) : file.state === "requesting" || file.state === "transferring" ? (
+        <div className="file-progress">
+          <div className="file-progress-track">
+            <div className="file-progress-bar" style={{ width: `${percent}%` }} />
+          </div>
+          <span className="file-progress-label">{percent}%</span>
+        </div>
+      ) : file.state === "ready" && file.url ? (
+        <a className="secondary-button file-action" download={file.name} href={file.url}>
+          Save file
+        </a>
+      ) : file.state === "error" ? (
+        <span className="file-status file-status-error">Transfer failed &mdash; ask for a re-share</span>
+      ) : null}
+    </div>
+  );
+}
+
 function InviteCheckingScreen() {
   return (
     <main className="room-shell room-shell-centered">
@@ -446,6 +613,7 @@ function LandingPage() {
       setCreating(true);
       setError(null);
       const secret = generateRoomSecret();
+      const turnstileToken = await getTurnstileToken();
       const room = await createRoom({
         disappearAfterReadSeconds: parseDurationDraft(
           messageDuration,
@@ -454,7 +622,8 @@ function LandingPage() {
           "seconds"
         ),
         inactivityTimeoutMs: parseDurationDraft(roomDuration, 10, "minutes", "milliseconds"),
-        maxAgeMs: null
+        maxAgeMs: null,
+        turnstileToken
       });
       safeStorageSet("local", creatorTokenKey(room.roomId), room.creatorToken);
       window.location.assign(`${room.roomUrl}#${secret}`);
@@ -658,16 +827,28 @@ function RoomPage({ roomId }: { roomId: string }) {
   const roomKeyRef = useRef<CryptoKey | null>(null);
   const identityKeyRef = useRef<string>("");
   const joinedRef = useRef(false);
+  // Mirror of the latest room status so the socket close handler (captured once
+  // by the connection effect) can distinguish a live-room drop from an
+  // already-closed room without reading a stale `room` value.
+  const roomStatusRef = useRef<RoomMetadata["status"] | null>(null);
   const chatLogRef = useRef<HTMLElement | null>(null);
   const peersRef = useRef(new Map<string, PeerLink>());
   const messageRef = useRef(new Map<string, EncryptedMessageEnvelope>());
   const shouldRequestSyncRef = useRef(false);
+  // Files being served by this client (we are the sender), kept in memory so we
+  // can stream chunks on demand when a peer requests them.
+  const outgoingFilesRef = useRef(new Map<string, File>());
+  // Files being received by this client, accumulating decrypted chunks.
+  const incomingFilesRef = useRef(new Map<string, IncomingFile>());
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Object URLs created for received files, revoked on expiry/unmount.
+  const objectUrlsRef = useRef(new Set<string>());
   const peerTransportEnabled = false;
 
-  function sendPeerData(payload: PeerDataEvent) {
+  function sendPeerData(payload: PeerDataEvent, toSessionId?: string) {
     const socket = socketRef.current;
     if (socket?.readyState === WebSocket.OPEN && joinedRef.current) {
-      socket.send(JSON.stringify({ type: "peer_data", data: payload }));
+      socket.send(JSON.stringify({ type: "peer_data", toSessionId, data: payload }));
       return true;
     }
     return false;
@@ -682,6 +863,178 @@ function RoomPage({ roomId }: { roomId: string }) {
       setInvites(nextInvites);
     } catch {
       // Keep the last known invite state if the refresh fails.
+    }
+  }
+
+  function updateFileMessage(fileId: string, patch: Partial<UiFile>) {
+    startTransition(() => {
+      setMessages((current) =>
+        current.map((message) =>
+          message.kind === "file" && message.file?.fileId === fileId
+            ? { ...message, file: { ...message.file, ...patch } }
+            : message
+        )
+      );
+    });
+  }
+
+  async function waitForSocketDrain() {
+    const socket = socketRef.current;
+    if (!socket) {
+      return;
+    }
+    const maxBuffer = 4 * 1024 * 1024;
+    while (socket.bufferedAmount > maxBuffer && socket.readyState === WebSocket.OPEN) {
+      await new Promise((resolve) => window.setTimeout(resolve, 25));
+    }
+  }
+
+  // Sender side: stream an outgoing file to the requesting peer as encrypted chunks.
+  async function serveFile(fileId: string, requesterSessionId: string) {
+    const file = outgoingFilesRef.current.get(fileId);
+    const key = roomKeyRef.current;
+    if (!file || !key) {
+      return;
+    }
+    const buffer = new Uint8Array(await file.arrayBuffer());
+    const totalChunks = Math.max(1, Math.ceil(buffer.byteLength / FILE_CHUNK_BYTES));
+    for (let index = 0; index < totalChunks; index += 1) {
+      const start = index * FILE_CHUNK_BYTES;
+      const slice = buffer.subarray(start, Math.min(start + FILE_CHUNK_BYTES, buffer.byteLength));
+      const { ciphertext, nonce } = await encryptBytes(key, slice);
+      await waitForSocketDrain();
+      const delivered = sendPeerData(
+        { type: "file_chunk", fileId, chunkIndex: index, totalChunks, ciphertext, nonce },
+        requesterSessionId
+      );
+      if (!delivered) {
+        return;
+      }
+    }
+    sendPeerData({ type: "file_complete", fileId }, requesterSessionId);
+  }
+
+  // Receiver side: decrypt and store an incoming chunk, updating transfer progress.
+  async function receiveChunk(payload: PeerFileChunk) {
+    const key = roomKeyRef.current;
+    if (!key) {
+      return;
+    }
+    let entry = incomingFilesRef.current.get(payload.fileId);
+    if (!entry) {
+      entry = {
+        name: "file",
+        mimeType: "application/octet-stream",
+        size: 0,
+        totalChunks: payload.totalChunks,
+        received: 0,
+        chunks: [],
+        senderSessionId: ""
+      };
+      incomingFilesRef.current.set(payload.fileId, entry);
+    }
+    if (entry.chunks.length !== payload.totalChunks) {
+      entry.chunks = new Array<Uint8Array | undefined>(payload.totalChunks);
+      entry.received = 0;
+      entry.totalChunks = payload.totalChunks;
+    }
+    if (!entry.chunks[payload.chunkIndex]) {
+      try {
+        entry.chunks[payload.chunkIndex] = await decryptBytes(key, payload.ciphertext, payload.nonce);
+        entry.received += 1;
+      } catch {
+        updateFileMessage(payload.fileId, { state: "error" });
+        return;
+      }
+    }
+    updateFileMessage(payload.fileId, {
+      state: "transferring",
+      progress: entry.totalChunks ? entry.received / entry.totalChunks : 0
+    });
+  }
+
+  // Receiver side: reassemble a completed file into a downloadable blob URL.
+  function finalizeIncoming(fileId: string) {
+    const entry = incomingFilesRef.current.get(fileId);
+    if (!entry) {
+      return;
+    }
+    if (entry.totalChunks === 0 || entry.received < entry.totalChunks) {
+      updateFileMessage(fileId, { state: "error" });
+      return;
+    }
+    const parts = entry.chunks.filter((chunk): chunk is Uint8Array => Boolean(chunk));
+    const blob = new Blob(parts as BlobPart[], { type: entry.mimeType });
+    const url = URL.createObjectURL(blob);
+    objectUrlsRef.current.add(url);
+    incomingFilesRef.current.delete(fileId);
+    updateFileMessage(fileId, { state: "ready", progress: 1, url });
+  }
+
+  async function handleAttachFiles(fileList: FileList | null) {
+    if (!fileList || !room || room.status !== "open") {
+      return;
+    }
+    for (const file of Array.from(fileList)) {
+      if (file.size > MAX_FILE_BYTES) {
+        setError(`"${file.name}" is larger than the ${formatBytes(MAX_FILE_BYTES)} limit.`);
+        continue;
+      }
+      const fileId = generateMessageId();
+      const sentAt = Date.now();
+      const mimeType = file.type || "application/octet-stream";
+      const expiresAfterReadSeconds = room.disappearAfterReadSeconds ?? null;
+      const expiresAt =
+        typeof expiresAfterReadSeconds === "number"
+          ? sentAt + expiresAfterReadSeconds * 1000
+          : undefined;
+      outgoingFilesRef.current.set(fileId, file);
+      setError(null);
+      startTransition(() => {
+        setMessages((current) =>
+          upsertMessage(current, {
+            id: fileId,
+            senderSessionId: sessionId,
+            sentAt,
+            expiresAt,
+            kind: "file",
+            file: {
+              fileId,
+              name: file.name,
+              mimeType,
+              size: file.size,
+              state: "sent",
+              progress: 1,
+              outgoing: true
+            }
+          })
+        );
+      });
+      const delivered = sendPeerData({
+        type: "file_offer",
+        fileId,
+        senderSessionId: sessionId,
+        name: file.name,
+        mimeType,
+        size: file.size,
+        sentAt,
+        expiresAfterReadSeconds
+      });
+      if (!delivered) {
+        setError("File shared locally, but delivery to other participants is not ready yet.");
+      }
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  function handleRequestFile(fileId: string, senderSessionId: string) {
+    updateFileMessage(fileId, { state: "transferring", progress: 0 });
+    const requested = sendPeerData({ type: "file_request", fileId }, senderSessionId);
+    if (!requested) {
+      updateFileMessage(fileId, { state: "error" });
+      setError("Could not reach the sender to start the download.");
     }
   }
 
@@ -741,7 +1094,7 @@ function RoomPage({ roomId }: { roomId: string }) {
             setReady(true);
             return;
           }
-          setConnection((current) => (room?.status === "open" ? "Disconnected" : "Closed"));
+          setConnection(roomStatusRef.current === "open" ? "Disconnected" : "Closed");
           closeAllPeerLinks();
         });
 
@@ -1032,7 +1385,8 @@ function RoomPage({ roomId }: { roomId: string }) {
               senderSessionId: envelope.senderSessionId,
               plaintext,
               sentAt: envelope.sentAt,
-              expiresAt
+              expiresAt,
+              kind: "text"
             })
           );
         });
@@ -1067,6 +1421,61 @@ function RoomPage({ roomId }: { roomId: string }) {
         for (const envelope of payload.messages) {
           await addEnvelope(envelope);
         }
+        return;
+      }
+
+      if (payload.type === "file_offer") {
+        const expiresAt =
+          typeof payload.expiresAfterReadSeconds === "number"
+            ? payload.sentAt + payload.expiresAfterReadSeconds * 1000
+            : undefined;
+        if (typeof expiresAt === "number" && expiresAt <= Date.now()) {
+          return;
+        }
+        incomingFilesRef.current.set(payload.fileId, {
+          name: payload.name,
+          mimeType: payload.mimeType || "application/octet-stream",
+          size: payload.size,
+          totalChunks: 0,
+          received: 0,
+          chunks: [],
+          senderSessionId: payload.senderSessionId
+        });
+        startTransition(() => {
+          setMessages((current) =>
+            upsertMessage(current, {
+              id: payload.fileId,
+              senderSessionId: payload.senderSessionId,
+              sentAt: payload.sentAt,
+              expiresAt,
+              kind: "file",
+              file: {
+                fileId: payload.fileId,
+                name: payload.name,
+                mimeType: payload.mimeType || "application/octet-stream",
+                size: payload.size,
+                state: "offered",
+                progress: 0,
+                outgoing: false
+              }
+            })
+          );
+        });
+        return;
+      }
+
+      if (payload.type === "file_request") {
+        void serveFile(payload.fileId, peerId);
+        return;
+      }
+
+      if (payload.type === "file_chunk") {
+        await receiveChunk(payload);
+        return;
+      }
+
+      if (payload.type === "file_complete") {
+        finalizeIncoming(payload.fileId);
         return;
       }
 
@@ -1133,7 +1542,20 @@ function RoomPage({ roomId }: { roomId: string }) {
 
   useEffect(() => {
     startTransition(() => {
-      setMessages((current) => current.filter((message) => !message.expiresAt || message.expiresAt > now));
+      setMessages((current) =>
+        current.filter((message) => {
+          const keep = !message.expiresAt || message.expiresAt > now;
+          if (!keep && message.kind === "file") {
+            if (message.file?.url) {
+              URL.revokeObjectURL(message.file.url);
+              objectUrlsRef.current.delete(message.file.url);
+            }
+            outgoingFilesRef.current.delete(message.id);
+            incomingFilesRef.current.delete(message.id);
+          }
+          return keep;
+        })
+      );
     });
     for (const [messageId, envelope] of messageRef.current.entries()) {
       const expiresAt =
@@ -1149,6 +1571,20 @@ function RoomPage({ roomId }: { roomId: string }) {
   useEffect(() => {
     void refreshInvites();
   }, [creatorToken, roomId]);
+
+  useEffect(() => {
+    roomStatusRef.current = room?.status ?? null;
+  }, [room?.status]);
+
+  useEffect(() => {
+    const urls = objectUrlsRef.current;
+    return () => {
+      for (const url of urls) {
+        URL.revokeObjectURL(url);
+      }
+      urls.clear();
+    };
+  }, []);
 
   async function handleSend(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1182,7 +1618,8 @@ function RoomPage({ roomId }: { roomId: string }) {
           senderSessionId: sessionId,
           plaintext: trimmed,
           sentAt,
-          expiresAt
+          expiresAt,
+          kind: "text"
         })
       );
     });
@@ -1446,7 +1883,16 @@ function RoomPage({ roomId }: { roomId: string }) {
                 style={bubbleStyle(message.senderSessionId, mine)}
               >
                 <span className="bubble-author">{mine ? "You" : "Guest"}</span>
-                <p>{message.plaintext}</p>
+                {message.kind === "file" && message.file ? (
+                  <FileCard
+                    file={message.file}
+                    onDownload={() =>
+                      handleRequestFile(message.file!.fileId, message.senderSessionId)
+                    }
+                  />
+                ) : (
+                  <p>{message.plaintext}</p>
+                )}
                 <footer>
                   <span>{formatClock(message.sentAt)}</span>
                   <span>{messageStatus(message)}</span>
@@ -1459,6 +1905,23 @@ function RoomPage({ roomId }: { roomId: string }) {
       </section>
 
       <form className="composer" onSubmit={handleSend}>
+        <button
+          aria-label="Attach file"
+          className="secondary-button composer-attach"
+          disabled={room?.status !== "open"}
+          onClick={() => fileInputRef.current?.click()}
+          title="Attach an encrypted file"
+          type="button"
+        >
+          &#128206;
+        </button>
+        <input
+          hidden
+          multiple
+          onChange={(event) => void handleAttachFiles(event.target.files)}
+          ref={fileInputRef}
+          type="file"
+        />
         <textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
