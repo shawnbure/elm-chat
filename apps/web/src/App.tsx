@@ -594,6 +594,25 @@ function InviteCheckingScreen() {
         <p className="eyebrow">elm chat</p>
         <h1 className="access-title">Checking invite</h1>
         <p className="access-copy">Verifying this one-time invite and joining the room.</p>
+        <MakeYourOwnCallout />
+      </section>
+    </main>
+  );
+}
+
+function RoomGoneScreen({ reason }: { reason?: string }) {
+  return (
+    <main className="room-shell room-shell-centered">
+      <section className="access-screen" aria-live="polite">
+        <p className="eyebrow">elm chat</p>
+        <h1 className="access-title">Room gone</h1>
+        <p className="access-copy">
+          {reason ?? "This conversation self-destructed. Nothing was kept."}
+        </p>
+        <a className="primary-button access-home-link" href="/">
+          Start a new one &rarr;
+        </a>
+        <MakeYourOwnCallout />
       </section>
     </main>
   );
@@ -645,6 +664,22 @@ function LandingPage() {
     return () => {
       active = false;
     };
+  }, []);
+
+  // Cookieless Cloudflare Web Analytics, loaded on the landing surface only.
+  // Room pages never render LandingPage, so they stay free of any third-party
+  // beacon. Inert until VITE_CF_ANALYTICS_TOKEN is configured at build time.
+  useEffect(() => {
+    const token = import.meta.env.VITE_CF_ANALYTICS_TOKEN;
+    if (!token || document.getElementById("cf-analytics-beacon")) {
+      return;
+    }
+    const script = document.createElement("script");
+    script.id = "cf-analytics-beacon";
+    script.defer = true;
+    script.src = "https://static.cloudflareinsights.com/beacon.min.js";
+    script.setAttribute("data-cf-beacon", JSON.stringify({ token }));
+    document.head.appendChild(script);
   }, []);
 
   function updateDurationIndefinite(kind: DurationKind, checked: boolean) {
@@ -884,6 +919,7 @@ function RoomPage({ roomId }: { roomId: string }) {
   const [presence, setPresence] = useState<PresenceSnapshot>({ count: 0, connectedSessionIds: [] });
   const [now, setNow] = useState(Date.now());
   const [roomNotice, setRoomNotice] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState<ActionFeedback>("idle");
   const [destroyFeedback, setDestroyFeedback] = useState<ActionFeedback>("idle");
   const [inviteFeedback, setInviteFeedback] = useState<ActionFeedback>("idle");
@@ -1309,7 +1345,13 @@ function RoomPage({ roomId }: { roomId: string }) {
           }
         });
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Failed to join room.");
+        const message = cause instanceof Error ? cause.message : "Failed to join room.";
+        if (message === "Room not found.") {
+          setNotFound(true);
+          setReady(true);
+          return;
+        }
+        setError(message);
       }
     }
 
@@ -1683,8 +1725,8 @@ function RoomPage({ roomId }: { roomId: string }) {
       setDestroyFeedback("idle");
       const next = await destroyRoom(roomId, creatorToken);
       sendPeerData({ type: "peer_destroy" });
+      setRoomNotice(null);
       setRoom(next);
-      setRoomNotice("Destroying room for everyone...");
     } catch (cause) {
       setDestroying(false);
       setError(cause instanceof Error ? cause.message : "Failed to destroy room.");
@@ -1711,6 +1753,14 @@ function RoomPage({ roomId }: { roomId: string }) {
 
   if (inviteAccess === "invalid") {
     return <InvalidInviteScreen />;
+  }
+
+  if (notFound) {
+    return <RoomGoneScreen reason="This room no longer exists. It may have already self-destructed." />;
+  }
+
+  if (ready && room && room.status !== "open") {
+    return <RoomGoneScreen reason={roomNotice ?? roomStateMessage(room.status)} />;
   }
 
   if (isInviteGuest && (inviteAccess !== "granted" || !room || !ready)) {
