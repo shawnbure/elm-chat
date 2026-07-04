@@ -6,11 +6,6 @@ interface ImportMetaEnv {
    * Turnstile challenge before creating a room. Leave unset for local dev.
    */
   readonly VITE_TURNSTILE_SITE_KEY?: string;
-  /**
-   * Cloudflare Web Analytics token. When set, the landing page (only — never
-   * room pages) loads the cookieless analytics beacon. Leave unset for local dev.
-   */
-  readonly VITE_CF_ANALYTICS_TOKEN?: string;
 }
 
 interface ImportMeta {

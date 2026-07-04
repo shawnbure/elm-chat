@@ -259,19 +259,9 @@ To enable it:
 
 With both set, the landing page runs an invisible challenge before creating a room, and the Worker rejects room creation unless the token verifies. With neither set, creation is open.
 
-## Analytics (optional, landing only)
+## No Tracking
 
-Aggregate, cookieless [Cloudflare Web Analytics](https://developers.cloudflare.com/web-analytics/) can be enabled on the **landing page only**. Room pages (`/c/*`) deliberately keep a strict `script-src 'self'` and never load any third-party beacon — consistent with the [threat model](docs/threat-model.md)'s promise of no third-party analytics on room pages. It stays off until you add a token.
-
-To enable it:
-
-1. In the Cloudflare dashboard, create a **Web Analytics** site and copy its **token**.
-2. Build the web app with the token:
-   `VITE_CF_ANALYTICS_TOKEN=<token> npm run build`
-   (or add it to `apps/web/.env`).
-3. Deploy. The landing page then loads the cookieless beacon; room pages remain untouched.
-
-The Worker automatically relaxes the landing page's CSP to permit the beacon while keeping room pages strict. This measures marketing-surface traffic (landing views); it does not see any room, message, or file activity.
+elm.chat ships with **no analytics, no beacons, and no third-party scripts** on any page. A strict `Content-Security-Policy` with `script-src 'self'` is applied to every route, so the browser cannot load an external tracker even if one were added by mistake. The only network calls a visitor's browser makes are to elm.chat's own origin. (The GitHub star count on the landing is fetched server-side by the Worker, so visitors' browsers never contact GitHub.)
 
 ## Durable Object Lifecycle
 

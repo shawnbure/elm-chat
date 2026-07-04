@@ -666,22 +666,6 @@ function LandingPage() {
     };
   }, []);
 
-  // Cookieless Cloudflare Web Analytics, loaded on the landing surface only.
-  // Room pages never render LandingPage, so they stay free of any third-party
-  // beacon. Inert until VITE_CF_ANALYTICS_TOKEN is configured at build time.
-  useEffect(() => {
-    const token = import.meta.env.VITE_CF_ANALYTICS_TOKEN;
-    if (!token || document.getElementById("cf-analytics-beacon")) {
-      return;
-    }
-    const script = document.createElement("script");
-    script.id = "cf-analytics-beacon";
-    script.defer = true;
-    script.src = "https://static.cloudflareinsights.com/beacon.min.js";
-    script.setAttribute("data-cf-beacon", JSON.stringify({ token }));
-    document.head.appendChild(script);
-  }, []);
-
   function updateDurationIndefinite(kind: DurationKind, checked: boolean) {
     if (kind === "message") {
       setMessageDuration((current) => toggleIndefiniteDuration(current, checked, "7"));
