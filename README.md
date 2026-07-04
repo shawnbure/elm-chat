@@ -7,6 +7,10 @@
 
 > **Instant chat. Private, secure, fast and disposable.** End-to-end encrypted rooms that self-destruct. No accounts, no archive, no trace.
 
+![elm.chat two-user demo — create a room, share a single-use invite, chat end-to-end encrypted, watch messages vanish, then destroy the room](gtm/assets/elm-chat-demo.gif)
+
+*A real two-person session: spin up a room, share a single-use invite, exchange an encrypted message, and watch it vanish before the room self-destructs.*
+
 `elm.chat` is an open effort to build a messaging system for people who need privacy by default, operational simplicity, and as little server trust as possible.
 
 This repository is for builders, reviewers, security researchers, and contributors who want to help push the project toward a genuinely minimal-footprint private communication model.

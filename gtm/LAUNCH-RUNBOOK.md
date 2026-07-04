@@ -2,6 +2,15 @@
 
 A coordinated launch beats a scattered one. This is the hour-by-hour. Assets live in `LAUNCH-KIT.md`.
 
+## Locked schedule — launch Tuesday, July 7, 2026
+
+Chosen over July 4 because the 4th is a Saturday + US holiday (dead for Show HN / Product Hunt). Full coordinated launch moves to the peak Tue-morning window.
+
+- **Fri Jul 3 (today):** finalize the Launch Kit copy; confirm the invite-footer + analytics changes have landed and are deployed; file the ~10 good-first-issues; record the 20–30s demo GIF; line up 5–10 friends who will genuinely try it launch morning.
+- **Sat–Sun Jul 4–5:** load-test the free-tier Worker and confirm the Cloudflare upgrade path is one click away; pre-write every post from the Kit into a drafts doc.
+- **Mon Jul 6:** final dry run of create → invite → chat → self-destruct on mobile + desktop; clear the Tuesday calendar; do NOT schedule anything to auto-post.
+- **Tue Jul 7 (launch):** run the hour-by-hour below, all times ET.
+
 ## T-minus 1 week (prep)
 - [ ] Repo is public and presentable: LICENSE, README with Deploy button + demo GIF, CONTRIBUTING, SECURITY, good-first-issues, ~10 open "good first issue" tickets filed.
 - [ ] Live app tested on mobile + desktop; create → invite → chat → self-destruct all work.
