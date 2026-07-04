@@ -27,18 +27,16 @@ function json(payload: unknown, status = 200): Response {
   });
 }
 
-function withSecurityHeaders(response: Response, allowAnalytics = false): Response {
+function withSecurityHeaders(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set("Referrer-Policy", "no-referrer");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-Frame-Options", "DENY");
-  // The Cloudflare Web Analytics beacon is permitted only on the marketing
-  // surface (landing). Room pages keep a strict `script-src 'self'` so they
-  // never load third-party scripts.
-  const scriptSrc = allowAnalytics ? "'self' https://static.cloudflareinsights.com" : "'self'";
+  // Strict, third-party-free policy on every route: no external scripts, no
+  // analytics beacons, no trackers anywhere in the app.
   headers.set(
     "Content-Security-Policy",
-    `default-src 'self'; connect-src 'self' https: wss:; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src ${scriptSrc}; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`
+    "default-src 'self'; connect-src 'self' https: wss:; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
   );
   return new Response(response.body, {
     status: response.status,
@@ -296,8 +294,8 @@ export default {
       }
     }
 
-    // Room pages (/c/*) stay strict; the landing may load the analytics beacon.
-    const allowAnalytics = !url.pathname.startsWith("/c/");
-    return withSecurityHeaders(await env.ASSETS.fetch(request), allowAnalytics);
+    // Every route runs through the Worker (run_worker_first) so security
+    // headers apply consistently, including the landing page.
+    return withSecurityHeaders(await env.ASSETS.fetch(request));
   }
 };
