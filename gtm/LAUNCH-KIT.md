@@ -54,7 +54,7 @@ Copy-paste-ready assets for the coordinated launch. Order of operations and timi
 
 **Gallery shot list** (reuse `docs/images/`): 1) landing page with the vanish/self-destruct controls, 2) a live room with color-identity chips, 3) the "share invite" flow, 4) the "room self-destructed" screen, 5) a slide reading "no accounts · no archive · no trace."
 
-**Hero asset — lead with this:** the two-user demo GIF at `gtm/assets/elm-chat-demo.gif` (already embedded at the top of the README). Use it as the first PH gallery item, in the Show HN first comment if a visual is allowed, and in the build-in-public thread. It shows create → single-use invite → join → encrypted chat → messages vanish → self-destruct + "make your own" footer in one loop. *Note: it contains a demo password on screen — fake, but confirm you're comfortable with the wording before posting.*
+**Hero asset — lead with this:** the two-user demo GIF at `docs/images/elm-chat-demo.gif` (already embedded at the top of the README). Use it as the first PH gallery item, in the Show HN first comment if a visual is allowed, and in the build-in-public thread. It shows create → single-use invite → join → encrypted chat → messages vanish → self-destruct + "make your own" footer in one loop. *Note: it contains a demo password on screen — fake, but confirm you're comfortable with the wording before posting.*
 
 **Alt platforms to hit the same week:** Peerlist, Uneed, Fazier, Tiny Startups, DevHunt (dev-tool focused). Multi-platform launches convert meaningfully better than PH alone.
 

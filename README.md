@@ -7,7 +7,7 @@
 
 > **Instant chat. Private, secure, fast and disposable.** End-to-end encrypted rooms that self-destruct. No accounts, no archive, no trace.
 
-![elm.chat two-user demo — create a room, share a single-use invite, chat end-to-end encrypted, watch messages vanish, then destroy the room](gtm/assets/elm-chat-demo.gif)
+![elm.chat two-user demo — create a room, share a single-use invite, chat end-to-end encrypted, watch messages vanish, then destroy the room](docs/images/elm-chat-demo.gif)
 
 *A real two-person session: spin up a room, share a single-use invite, exchange an encrypted message, and watch it vanish before the room self-destructs.*
 
