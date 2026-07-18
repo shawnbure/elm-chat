@@ -17,7 +17,7 @@
     "vite": "^6.3.2"
   },
   "scripts": {
-    "build": "vite build",
+    "build": "vite build && node scripts/gen-sitemap.mjs",
     "dev": "vite",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }

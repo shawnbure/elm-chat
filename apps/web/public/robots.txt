@@ -1,0 +1,7 @@
+User-agent: *
+# Private, secret, ephemeral room pages must never be crawled or indexed.
+Disallow: /c/
+# API endpoints are not content.
+Disallow: /api/
+
+Sitemap: https://elm.chat/sitemap.xml
