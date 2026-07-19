@@ -150,8 +150,18 @@ No paid add-ons are required. SQLite-backed Durable Objects (what this project u
 
 1. Click **[Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/shawnbure/elm-chat)**.
 2. Authorize Cloudflare to create a fork in your GitHub account and connect it to Workers Builds.
-3. When prompted for build settings, set the **build command** to `npm install && npm run build` and leave the Wrangler config path as `workers/api/wrangler.jsonc`. (The build step compiles the React app into `apps/web/dist`, which the Worker serves.)
+3. Set the build settings (see below). The build step compiles the React app into `apps/web/dist`, which the Worker serves.
 4. Deploy. Cloudflare provisions the Worker and the Durable Object namespace for you.
+
+#### Workers Builds settings (important for this monorepo)
+
+This is an npm-workspaces monorepo, so the deploy command **must target the Worker's config** — otherwise Wrangler errors with *"application detection logic has been run in the root of a workspace."* In **Workers & Pages → your Worker → Settings → Build**, set:
+
+- **Build command:** `npm install && npm run build`
+- **Deploy command:** `npx wrangler deploy -c workers/api/wrangler.jsonc`
+- **Root directory:** `/` (repo root)
+
+The `-c workers/api/wrangler.jsonc` flag points Wrangler at the specific project instead of the workspace root.
 
 If the hosted build fails for any reason, use Option B — it is the fully tested path.
 
