@@ -650,6 +650,7 @@ function LandingPage() {
     unit: "minutes",
     indefinite: false
   });
+  const [antiAbuseCheck, setAntiAbuseCheck] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -691,6 +692,7 @@ function LandingPage() {
         ),
         inactivityTimeoutMs: parseDurationDraft(roomDuration, 10, "minutes", "milliseconds"),
         maxAgeMs: null,
+        antiAbuseCheck,
         turnstileToken
       });
       safeStorageSet("local", creatorTokenKey(room.roomId), room.creatorToken);
@@ -821,6 +823,23 @@ function LandingPage() {
                 </label>
               </div>
             </div>
+            <label className="setting-row optional-service-row">
+              <div>
+                <span className="setting-label">Optional anti-abuse check</span>
+                <p className="setting-note">
+                  If this instance configured the separate service, ask it to review room-creation
+                  metadata before opening. It never sees the room secret, messages, files, or invites.
+                </p>
+              </div>
+              <span className="toggle-pill">
+                <input
+                  checked={antiAbuseCheck}
+                  onChange={(event) => setAntiAbuseCheck(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>{antiAbuseCheck ? "On" : "Off"}</span>
+              </span>
+            </label>
           </div>
           <div className="hero-actions">
             <button className="primary-button" disabled={creating} onClick={handleCreate}>
@@ -864,11 +883,15 @@ function LandingPage() {
                 <a className="github-mini" href={`${GITHUB_URL}/blob/main/apps/web/src/App.tsx`} rel="noreferrer" target="_blank">
                   Read my code
                 </a>
+                <a className="github-mini" href={antiAbuseUrl} rel="noreferrer" target="_blank">
+                  Anti-abuse docs
+                </a>
               </div>
               <a className="operator-note" href={antiAbuseUrl} rel="noreferrer" target="_blank">
                 <strong>Optional anti-abuse service</strong>
                 <span>
-                  Self-hosters can add a separate metadata-only room-creation gate.
+                  A separate self-hosted Worker can rate-limit room creation when a creator
+                  enables the check or an operator requires it. It is off unless configured.
                 </span>
               </a>
             </div>

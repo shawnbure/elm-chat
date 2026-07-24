@@ -33,6 +33,7 @@ export type AntiAbuseEnv = {
   ANTI_ABUSE_SHARED_SECRET?: string;
   ANTI_ABUSE_TIMEOUT_MS?: string;
   ANTI_ABUSE_FAIL_CLOSED?: string;
+  ANTI_ABUSE_REQUIRED?: string;
 };
 
 const DEFAULT_SERVICE_TIMEOUT_MS = 1500;
@@ -91,6 +92,11 @@ export async function reviewRoomCreation(
   body: CreateRoomRequest,
   env: AntiAbuseEnv
 ): Promise<AntiAbuseDecision> {
+  const checkRequested = body.antiAbuseCheck === true || env.ANTI_ABUSE_REQUIRED === "true";
+  if (!checkRequested) {
+    return { allowed: true };
+  }
+
   if (!env.ANTI_ABUSE_SERVICE_URL) {
     return { allowed: true };
   }

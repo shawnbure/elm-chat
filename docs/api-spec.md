@@ -13,13 +13,14 @@ Request body (all fields optional):
   "disappearAfterReadSeconds": 420,
   "inactivityTimeoutMs": 600000,
   "maxAgeMs": null,
+  "antiAbuseCheck": false,
   "turnstileToken": "optional-turnstile-token"
 }
 ```
 
 - A `null` duration means "indefinite" (no message expiry / no idle timeout).
 - If the Worker has `TURNSTILE_SECRET` configured, `turnstileToken` is required and verified; otherwise it is ignored.
-- If the Worker has `ANTI_ABUSE_SERVICE_URL` configured, the Worker calls the optional anti-abuse service before creating the room. See [Optional Anti-Abuse Service](anti-abuse-service.md).
+- If `antiAbuseCheck` is `true` and the Worker has `ANTI_ABUSE_SERVICE_URL` configured, the Worker calls the optional anti-abuse service before creating the room. Operators can also force the check for every room with `ANTI_ABUSE_REQUIRED=true`. See [Optional Anti-Abuse Service](anti-abuse-service.md).
 
 Response `201`:
 
