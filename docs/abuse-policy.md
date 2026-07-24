@@ -21,7 +21,7 @@ By design, elm.chat minimizes what the server can observe:
 - the **room secret lives in the URL fragment** and does not normally reach the server;
 - rooms are **short-lived and self-destruct**; there is no persistent transcript archive on the server.
 
-This means that for most reports we **cannot** read message content or reconstruct a conversation, even if asked — that is the point of the tool. What we can act on are abuse vectors we control: bot-driven room creation (mitigated by Cloudflare Turnstile and, when an operator enables it, the separate optional anti-abuse service), and publicly advertised rooms or invite links that are reported to us.
+This means that for most reports we **cannot** read message content or reconstruct a conversation, even if asked — that is the point of the tool. What we can act on are abuse vectors we control: bot-driven room creation (mitigated by Cloudflare Turnstile), and publicly advertised rooms or invite links that are reported to us.
 
 ## Reporting abuse
 
@@ -32,7 +32,7 @@ If you encounter content or behavior that violates this policy:
 
 ## For self-hosters
 
-If you deploy your own instance (via the Deploy to Cloudflare button or a fork), **you are the operator** and are responsible for its acceptable use, abuse handling, and compliance with local law. We strongly recommend: keep Turnstile enabled, deploy the optional anti-abuse service if your public instance attracts automated room creation, keep room/message lifetimes short, publish your own contact for reports, and do not advertise the instance for illegal use.
+If you deploy your own instance (via the Deploy to Cloudflare button or a fork), **you are the operator** and are responsible for its acceptable use, abuse handling, and compliance with local law. We strongly recommend: keep Turnstile enabled, keep room/message lifetimes short, publish your own contact for reports, and do not advertise the instance for illegal use.
 
 ## Enforcement
 

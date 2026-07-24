@@ -6,7 +6,6 @@ import {
   type CreateRoomResponse
 } from "@elm-chat/shared";
 import { RoomDurableObject } from "../../../durable-objects/room/src/room";
-import { reviewRoomCreation, type AntiAbuseEnv } from "./anti-abuse";
 
 export { RoomDurableObject };
 
@@ -14,17 +13,17 @@ type Env = {
   ASSETS: Fetcher;
   ROOM_OBJECT: DurableObjectNamespace<RoomDurableObject>;
   TURNSTILE_SECRET?: string;
-} & AntiAbuseEnv;
+};
 
-function json(payload: unknown, status = 200, extraHeaders?: HeadersInit): Response {
-  const headers = new Headers(extraHeaders);
-  headers.set("content-type", "application/json; charset=utf-8");
-  headers.set("cache-control", "no-store");
-  headers.set("referrer-policy", "no-referrer");
-  headers.set("x-content-type-options", "nosniff");
+function json(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     status,
-    headers
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "referrer-policy": "no-referrer",
+      "x-content-type-options": "nosniff"
+    }
   });
 }
 
@@ -119,19 +118,6 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
     if (!passed) {
       return json({ error: "Bot verification failed. Please try again." }, 403);
     }
-  }
-
-  const antiAbuseDecision = await reviewRoomCreation(request, body, env);
-  if (!antiAbuseDecision.allowed) {
-    const headers = new Headers();
-    if (antiAbuseDecision.retryAfterSeconds) {
-      headers.set("retry-after", String(antiAbuseDecision.retryAfterSeconds));
-    }
-    return json(
-      { error: antiAbuseDecision.message ?? "Room creation was blocked." },
-      antiAbuseDecision.status ?? 403,
-      headers
-    );
   }
 
   const now = Date.now();

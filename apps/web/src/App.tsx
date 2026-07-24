@@ -638,8 +638,6 @@ function LandingPage() {
     "https://github.com/shawnbure/elm-chat/blob/main/docs/why-use-elm-chat.md";
   const articleUrl =
     "https://github.com/shawnbure/elm-chat/blob/main/docs/truly-private-messaging.md";
-  const antiAbuseUrl =
-    "https://github.com/shawnbure/elm-chat/blob/main/docs/anti-abuse-service.md";
   const [messageDuration, setMessageDuration] = useState<DurationDraft>({
     amount: "7",
     unit: "minutes",
@@ -831,48 +829,42 @@ function LandingPage() {
             </p>
           </div>
           {error ? <p className="error-text">{error}</p> : null}
+        </div>
+        <div className="hero-panel">
+          <div className="signal-grid" />
+          <div className="hero-panel-top">
+          <a className="github-cta" href={GITHUB_URL} rel="noreferrer" target="_blank">
+            <GithubMark size={22} />
+            <span className="github-cta-copy">
+              <strong>Star us on GitHub</strong>
+              <span>Open source. Audit the code, fork it, run your own.</span>
+            </span>
+            <span className="github-cta-stats" aria-label="GitHub stars and forks">
+              {ghStats.stars !== null ? (
+                <span className="github-stat">
+                  <span aria-hidden="true">★</span> {formatCount(ghStats.stars)}
+                </span>
+              ) : null}
+              {ghStats.forks !== null ? (
+                <span className="github-stat">
+                  <span aria-hidden="true">⑂</span> {formatCount(ghStats.forks)}
+                </span>
+              ) : null}
+            </span>
+          </a>
+          <div className="github-links" aria-label="Project source">
+            <a className="github-mini" href={GITHUB_URL} rel="noreferrer" target="_blank">
+              <GithubMark size={13} /> View source
+            </a>
+            <a className="github-mini" href={`${GITHUB_URL}/fork`} rel="noreferrer" target="_blank">
+              Fork me
+            </a>
+            <a className="github-mini" href={`${GITHUB_URL}/blob/main/apps/web/src/App.tsx`} rel="noreferrer" target="_blank">
+              Read my code
+            </a>
           </div>
-          <div className="hero-panel">
-            <div className="signal-grid" />
-            <div className="hero-panel-top">
-              <a className="github-cta" href={GITHUB_URL} rel="noreferrer" target="_blank">
-                <GithubMark size={22} />
-                <span className="github-cta-copy">
-                  <strong>Star us on GitHub</strong>
-                  <span>Open source. Audit the code, fork it, run your own.</span>
-                </span>
-                <span className="github-cta-stats" aria-label="GitHub stars and forks">
-                  {ghStats.stars !== null ? (
-                    <span className="github-stat">
-                      <span aria-hidden="true">★</span> {formatCount(ghStats.stars)}
-                    </span>
-                  ) : null}
-                  {ghStats.forks !== null ? (
-                    <span className="github-stat">
-                      <span aria-hidden="true">⑂</span> {formatCount(ghStats.forks)}
-                    </span>
-                  ) : null}
-                </span>
-              </a>
-              <div className="github-links" aria-label="Project source">
-                <a className="github-mini" href={GITHUB_URL} rel="noreferrer" target="_blank">
-                  <GithubMark size={13} /> View source
-                </a>
-                <a className="github-mini" href={`${GITHUB_URL}/fork`} rel="noreferrer" target="_blank">
-                  Fork me
-                </a>
-                <a className="github-mini" href={`${GITHUB_URL}/blob/main/apps/web/src/App.tsx`} rel="noreferrer" target="_blank">
-                  Read my code
-                </a>
-              </div>
-              <a className="operator-note" href={antiAbuseUrl} rel="noreferrer" target="_blank">
-                <strong>Optional anti-abuse service</strong>
-                <span>
-                  Self-hosters can add a separate metadata-only room-creation gate.
-                </span>
-              </a>
-            </div>
-            <div className="hero-metrics">
+          </div>
+          <div className="hero-metrics">
             <div>
               <span>Access</span>
               <strong>Secret link only</strong>

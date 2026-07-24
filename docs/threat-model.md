@@ -71,9 +71,7 @@ An adversary observing the relay or network can infer room activity, presence, a
 
 ### Availability / abuse
 
-Optional invisible Turnstile on room creation limits automated room-creation spam. Operators can also deploy the separate optional anti-abuse service to rate-limit room creation by a keyed client fingerprint before a room Durable Object is bootstrapped. The service receives no room secret, plaintext, ciphertext, invite token, or transcript.
-
-There is no content-aware server-side moderation and no per-message rate limiting beyond room capacity and expiry.
+Optional invisible Turnstile on room creation limits automated room-creation spam. There is no per-message rate limiting or DoS protection beyond room capacity and expiry.
 
 ## Non-Goals In Current Build
 

@@ -356,34 +356,6 @@ select {
   text-decoration: underline;
 }
 
-.operator-note {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 4px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(13, 107, 97, 0.18);
-  background: rgba(232, 247, 241, 0.72);
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.operator-note:hover {
-  background: rgba(232, 247, 241, 0.9);
-  border-color: rgba(13, 107, 97, 0.3);
-}
-
-.operator-note strong {
-  font-size: 0.88rem;
-}
-
-.operator-note span {
-  color: var(--muted);
-  font-size: 0.8rem;
-  line-height: 1.35;
-}
-
 .signal-grid {
   position: absolute;
   inset: 0;

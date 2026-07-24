@@ -6,7 +6,6 @@
 
 - `apps/web`: React SPA — room creation, browser crypto, chat + file UI, transport client.
 - `workers/api`: Cloudflare Worker — serves the SPA, room + invite APIs, Turnstile verification, and WebSocket routing.
-- `workers/anti-abuse`: optional separate Cloudflare Worker — metadata-only room-creation checks for operators who enable `ANTI_ABUSE_SERVICE_URL`.
 - `durable-objects/room`: one Durable Object per room — membership, presence, encrypted-payload relay, invites, expiry, and destroy state.
 - `packages/shared`: shared protocol contracts for room lifecycle, transport events, and peer data events.
 - `packages/crypto`: browser-side HKDF + AES-GCM + ECDSA helpers over Web Crypto.
@@ -16,7 +15,7 @@
 Content is end-to-end encrypted in the browser and **relayed — never stored —** through the room's Durable Object over a single WebSocket. The server forwards ciphertext and cannot read it.
 
 1. The landing page generates a random 256-bit `room_secret` in the browser.
-2. `POST /api/rooms` creates room metadata plus the per-room Durable Object. Room creation can be optionally gated by an invisible Turnstile challenge and, if configured by the operator, the separate anti-abuse service.
+2. `POST /api/rooms` creates room metadata plus the per-room Durable Object (optionally gated by an invisible Turnstile challenge).
 3. The browser navigates to `/c/:roomId#<room_secret>`.
 4. The client derives `K_room` locally from the fragment secret with HKDF-SHA-256.
 5. The client opens one WebSocket to the room Durable Object, used for:
@@ -84,7 +83,6 @@ Each connected participant keeps the current encrypted transcript in memory and 
 ## Abuse Prevention
 
 - Optional Cloudflare Turnstile (invisible) on room creation. The client runs the challenge when a site key is configured; the Worker verifies the token when `TURNSTILE_SECRET` is set. It stays fully inert (open creation) when unconfigured, so local dev and unconfigured deploys keep working.
-- Optional separate anti-abuse Worker on room creation. The main Worker calls it only when `ANTI_ABUSE_SERVICE_URL` is configured. It receives a signed metadata-only event and can deny room creation before a room Durable Object is bootstrapped. It receives no room secret, invite token, plaintext, ciphertext, file content, or transcript. See [Optional Anti-Abuse Service](anti-abuse-service.md).
 
 ## Safety Constraints
 

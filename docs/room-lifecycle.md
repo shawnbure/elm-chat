@@ -3,7 +3,7 @@
 ## Creation
 
 - the browser generates a random 256-bit room secret
-- the Worker creates a room ID and creator token (optionally after an invisible Turnstile check and/or the separate anti-abuse service)
+- the Worker creates a room ID and creator token (optionally after an invisible Turnstile check)
 - the Worker bootstraps the room's Durable Object
 - the client navigates to `/c/:roomId#<room_secret>` and stores the creator token in `localStorage`
 
