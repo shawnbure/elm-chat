@@ -1,6 +1,6 @@
 # Optional Anti-Abuse Service
 
-elm-chat can call a separate anti-abuse service before creating a room. This is optional and disabled unless the main Worker is configured with `ANTI_ABUSE_SERVICE_URL` and either the room creator enables the anti-abuse check or the operator sets `ANTI_ABUSE_REQUIRED=true`.
+elm-chat can call a separate anti-abuse service before creating a room. This is optional and disabled unless the main Worker is configured with `ANTI_ABUSE_SERVICE_URL`.
 
 The service is intentionally separate from the encrypted chat relay:
 
@@ -39,7 +39,6 @@ Then set:
 - `ANTI_ABUSE_SERVICE_URL` — for example `https://elm-chat-anti-abuse.example.workers.dev/room-creation`.
 - `ANTI_ABUSE_TIMEOUT_MS` — optional timeout; defaults to `1500`.
 - `ANTI_ABUSE_FAIL_CLOSED` — set to `true` if room creation should fail when the service is unavailable. By default, elm-chat fails open so a broken optional service does not break chat creation.
-- `ANTI_ABUSE_REQUIRED` — set to `true` to run the anti-abuse service for every room creation. Leave unset to let room creators opt into the check from the create form.
 
 `ANTI_ABUSE_SHARED_SECRET` in the main Worker must match `SHARED_SECRET` in the anti-abuse Worker.
 

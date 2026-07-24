@@ -361,7 +361,6 @@ select {
   z-index: 1;
   display: grid;
   gap: 4px;
-  margin-top: 22px;
   padding: 12px 14px;
   border-radius: 16px;
   border: 1px solid rgba(13, 107, 97, 0.18);
@@ -801,16 +800,6 @@ select {
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.48);
   border: 1px solid var(--line);
-}
-
-.optional-service-row {
-  align-items: flex-start;
-  cursor: pointer;
-}
-
-.optional-service-row .setting-note {
-  max-width: 44rem;
-  line-height: 1.4;
 }
 
 .setting-label {

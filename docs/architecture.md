@@ -84,7 +84,7 @@ Each connected participant keeps the current encrypted transcript in memory and 
 ## Abuse Prevention
 
 - Optional Cloudflare Turnstile (invisible) on room creation. The client runs the challenge when a site key is configured; the Worker verifies the token when `TURNSTILE_SECRET` is set. It stays fully inert (open creation) when unconfigured, so local dev and unconfigured deploys keep working.
-- Optional separate anti-abuse Worker on room creation. The main Worker calls it only when `ANTI_ABUSE_SERVICE_URL` is configured and the room creator enables the check, or when the operator sets `ANTI_ABUSE_REQUIRED=true`. It receives a signed metadata-only event and can deny room creation before a room Durable Object is bootstrapped. It receives no room secret, invite token, plaintext, ciphertext, file content, or transcript. See [Optional Anti-Abuse Service](anti-abuse-service.md).
+- Optional separate anti-abuse Worker on room creation. The main Worker calls it only when `ANTI_ABUSE_SERVICE_URL` is configured. It receives a signed metadata-only event and can deny room creation before a room Durable Object is bootstrapped. It receives no room secret, invite token, plaintext, ciphertext, file content, or transcript. See [Optional Anti-Abuse Service](anti-abuse-service.md).
 
 ## Safety Constraints
 

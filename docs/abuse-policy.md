@@ -21,7 +21,7 @@ By design, elm.chat minimizes what the server can observe:
 - the **room secret lives in the URL fragment** and does not normally reach the server;
 - rooms are **short-lived and self-destruct**; there is no persistent transcript archive on the server.
 
-This means that for most reports we **cannot** read message content or reconstruct a conversation, even if asked — that is the point of the tool. What we can act on are abuse vectors we control: bot-driven room creation (mitigated by Cloudflare Turnstile and, when configured, the separate optional anti-abuse service), and publicly advertised rooms or invite links that are reported to us.
+This means that for most reports we **cannot** read message content or reconstruct a conversation, even if asked — that is the point of the tool. What we can act on are abuse vectors we control: bot-driven room creation (mitigated by Cloudflare Turnstile and, when an operator enables it, the separate optional anti-abuse service), and publicly advertised rooms or invite links that are reported to us.
 
 ## Reporting abuse
 

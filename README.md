@@ -274,7 +274,7 @@ To enable it:
 
 With both set, the landing page runs an invisible challenge before creating a room, and the Worker rejects room creation unless the token verifies. With neither set, creation is open.
 
-For public instances that need stronger room-creation abuse controls, elm-chat also includes a separate optional anti-abuse Worker in `workers/anti-abuse`. It is disabled by default and is not part of the encrypted chat relay. When configured, room creators can request the check from the create form, and operators can require it for every room. The main Worker sends it a signed metadata-only event before room creation: a keyed client fingerprint, coarse Cloudflare location metadata, user-agent family, and requested room lifetime policy. It receives no room secret, message content, ciphertext, invite token, or transcript.
+For public instances that need stronger room-creation abuse controls, elm-chat also includes a separate optional anti-abuse Worker in `workers/anti-abuse`. It is disabled by default and is not part of the encrypted chat relay. When enabled, the main Worker sends it a signed metadata-only event before room creation: a keyed client fingerprint, coarse Cloudflare location metadata, user-agent family, and requested room lifetime policy. It receives no room secret, message content, ciphertext, invite token, or transcript.
 
 See [docs/anti-abuse-service.md](docs/anti-abuse-service.md) for deployment and configuration.
 

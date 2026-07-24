@@ -21,7 +21,6 @@ export interface CreateRoomRequest {
   inactivityTimeoutMs?: number | null;
   maxAgeMs?: number | null;
   turnstileToken?: string;
-  antiAbuseCheck?: boolean;
 }
 
 export interface CreateRoomResponse {
