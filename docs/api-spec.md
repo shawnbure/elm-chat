@@ -19,6 +19,7 @@ Request body (all fields optional):
 
 - A `null` duration means "indefinite" (no message expiry / no idle timeout).
 - If the Worker has `TURNSTILE_SECRET` configured, `turnstileToken` is required and verified; otherwise it is ignored.
+- If the Worker has `ANTI_ABUSE_SERVICE_URL` configured, the Worker calls the optional anti-abuse service before creating the room. See [Optional Anti-Abuse Service](anti-abuse-service.md).
 
 Response `201`:
 
@@ -40,6 +41,12 @@ Response `403` when Turnstile is enabled and verification fails:
 
 ```json
 { "error": "Bot verification failed. Please try again." }
+```
+
+Response `403` or `429` when the optional anti-abuse service denies room creation:
+
+```json
+{ "error": "Room creation was blocked by the anti-abuse service." }
 ```
 
 ## `GET /api/rooms/:roomId`

@@ -86,6 +86,7 @@ The shipping implementation is built around:
 - end-to-end encrypted, chunked file sharing over that same relay
 - creator-issued single-use invite links, invite revocation, and participant removal
 - optional invisible Cloudflare Turnstile on room creation (inert until keys are configured)
+- optional separate anti-abuse service for room-creation rate limiting (inert until configured)
 - a disposable room lifecycle (idle + max-age self-destruct, manual destroy) instead of permanent storage
 
 ### Why relay instead of peer-to-peer
@@ -272,6 +273,10 @@ To enable it:
    `cd workers/api && npx wrangler secret put TURNSTILE_SECRET`
 
 With both set, the landing page runs an invisible challenge before creating a room, and the Worker rejects room creation unless the token verifies. With neither set, creation is open.
+
+For public instances that need stronger room-creation abuse controls, elm-chat also includes a separate optional anti-abuse Worker in `workers/anti-abuse`. It is disabled by default and is not part of the encrypted chat relay. When enabled, the main Worker sends it a signed metadata-only event before room creation: a keyed client fingerprint, coarse Cloudflare location metadata, user-agent family, and requested room lifetime policy. It receives no room secret, message content, ciphertext, invite token, or transcript.
+
+See [docs/anti-abuse-service.md](docs/anti-abuse-service.md) for deployment and configuration.
 
 ## No Tracking
 
