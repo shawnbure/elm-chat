@@ -19,6 +19,7 @@ type Env = {
 
 type GrowthEvent =
   | "make_your_own_clicked"
+  | "marketing_page_viewed"
   | "marketing_cta_clicked"
   | "room_created"
   | "invite_created";
@@ -276,11 +277,9 @@ function routeApi(request: Request, env: Env): Promise<Response> {
           recordGrowth(env, event);
           return new Response(null, { status: 204 });
         }
-        if (
-          event !== "marketing_cta_clicked" ||
-          !isAcquisitionSource(source) ||
-          source === "invite"
-        ) {
+        const isMarketingEvent =
+          event === "marketing_page_viewed" || event === "marketing_cta_clicked";
+        if (!isMarketingEvent || !isAcquisitionSource(source) || source === "invite") {
           return json({ error: "Unsupported event." }, 400);
         }
         recordGrowth(env, event, source);

@@ -1,6 +1,9 @@
 import type { MarketingAcquisitionSource } from "@elm-chat/shared";
 
-type ClientGrowthEvent = "make_your_own_clicked" | "marketing_cta_clicked";
+type ClientGrowthEvent =
+  | "make_your_own_clicked"
+  | "marketing_page_viewed"
+  | "marketing_cta_clicked";
 
 export function recordGrowthEvent(
   event: ClientGrowthEvent,
