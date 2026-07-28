@@ -16,11 +16,29 @@ export const FILE_CHUNK_BYTES = 64 * 1024;
 
 export type RoomStatus = "open" | "expired" | "destroyed";
 
+export const ACQUISITION_SOURCES = [
+  "invite",
+  "self-destructing-chat",
+  "send-a-password-securely",
+  "one-time-secret-chat",
+  "building-ephemeral-chat-cloudflare"
+] as const;
+
+export type AcquisitionSource = (typeof ACQUISITION_SOURCES)[number];
+export type MarketingAcquisitionSource = Exclude<AcquisitionSource, "invite">;
+
+export function isAcquisitionSource(value: unknown): value is AcquisitionSource {
+  return (
+    typeof value === "string" &&
+    (ACQUISITION_SOURCES as readonly string[]).includes(value)
+  );
+}
+
 export interface CreateRoomRequest {
   disappearAfterReadSeconds?: number | null;
   inactivityTimeoutMs?: number | null;
   maxAgeMs?: number | null;
-  acquisitionSource?: "invite";
+  acquisitionSource?: AcquisitionSource;
   turnstileToken?: string;
 }
 

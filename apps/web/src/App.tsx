@@ -12,6 +12,7 @@ import {
 } from "@elm-chat/crypto";
 import {
   FILE_CHUNK_BYTES,
+  isAcquisitionSource,
   MAX_FILE_BYTES,
   MAX_TRANSCRIPT_SYNC_MESSAGES,
   type CreateRoomRequest,
@@ -25,6 +26,7 @@ import {
   type ServerEvent,
 } from "@elm-chat/shared";
 import { startTransition, useEffect, useRef, useState, type CSSProperties } from "react";
+import { recordGrowthEvent } from "./growth";
 import { MarketingPage, type MarketingSlug } from "./MarketingPage";
 
 type View = "landing" | "marketing" | "room";
@@ -505,17 +507,7 @@ function roomStateMessage(status: RoomMetadata["status"], reason?: string): stri
 }
 
 function recordMakeYourOwnClick() {
-  const body = JSON.stringify({ event: "make_your_own_clicked" });
-  if (navigator.sendBeacon) {
-    navigator.sendBeacon("/api/growth", new Blob([body], { type: "application/json" }));
-    return;
-  }
-  void fetch("/api/growth", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body,
-    keepalive: true
-  });
+  recordGrowthEvent("make_your_own_clicked");
 }
 
 // Privacy-safe growth callout for an invite recipient. The aggregate event
@@ -721,11 +713,9 @@ function LandingPage() {
       setError(null);
       const secret = generateRoomSecret();
       const turnstileToken = await getTurnstileToken();
+      const source = new URLSearchParams(window.location.search).get("source");
       const room = await createRoom({
-        acquisitionSource:
-          new URLSearchParams(window.location.search).get("source") === "invite"
-            ? "invite"
-            : undefined,
+        acquisitionSource: isAcquisitionSource(source) ? source : undefined,
         disappearAfterReadSeconds: parseDurationDraft(
           messageDuration,
           7,
