@@ -267,6 +267,7 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
     const previousDescription = description?.content ?? "";
 
+    recordGrowthEvent("marketing_page_viewed", slug);
     document.title = `${page.title} | elm.chat`;
     if (description) {
       description.content = page.description;
@@ -278,7 +279,7 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
         description.content = previousDescription;
       }
     };
-  }, [page]);
+  }, [page, slug]);
 
   return (
     <main className="marketing-shell">
