@@ -213,6 +213,11 @@ async function handleRevokeInvite(request: Request, roomId: string, env: Env): P
 
 const GITHUB_REPO = "shawnbure/elm-chat";
 const GITHUB_STATS_TTL_MS = 60 * 60 * 1000;
+const MARKETING_PATHS = new Set([
+  "/self-destructing-chat",
+  "/send-a-password-securely",
+  "/one-time-secret-chat"
+]);
 
 // Cached in the isolate so repeated visitors don't each trigger a GitHub call.
 let githubStatsCache: { at: number; stars: number | null; forks: number | null } | null = null;
@@ -324,6 +329,14 @@ export default {
 
     // Every route runs through the Worker (run_worker_first) so security
     // headers apply consistently, including the landing page.
+    // Cloudflare Assets resolves prerendered directory indexes at `/slug/`.
+    // Fetch that asset internally for canonical slashless marketing URLs so a
+    // crawler cannot receive the generic SPA fallback from a cold edge cache.
+    if (MARKETING_PATHS.has(url.pathname)) {
+      const assetUrl = new URL(request.url);
+      assetUrl.pathname += "/";
+      return withSecurityHeaders(await env.ASSETS.fetch(new Request(assetUrl, request)));
+    }
     return withSecurityHeaders(await env.ASSETS.fetch(request));
   }
 };
