@@ -3,12 +3,16 @@
 //
 // Only public, indexable URLs belong here. Room pages (/c/:id) are private,
 // secret, and ephemeral, so they are deliberately excluded (and blocked in
-// robots.txt). If real marketing/SEO routes are added later, list them below.
+// robots.txt).
 import { writeFileSync, existsSync, mkdirSync } from "node:fs";
 
 const ORIGIN = process.env.SITE_ORIGIN ?? "https://elm.chat";
 
-const urls = [{ path: "/", changefreq: "weekly", priority: "1.0" }];
+const urls = [
+  { path: "/", changefreq: "weekly", priority: "1.0" },
+  { path: "/self-destructing-chat", changefreq: "monthly", priority: "0.8" },
+  { path: "/send-a-password-securely", changefreq: "monthly", priority: "0.8" }
+];
 
 const lastmod = new Date().toISOString().slice(0, 10);
 

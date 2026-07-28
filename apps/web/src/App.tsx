@@ -25,8 +25,9 @@ import {
   type ServerEvent,
 } from "@elm-chat/shared";
 import { startTransition, useEffect, useRef, useState, type CSSProperties } from "react";
+import { MarketingPage, type MarketingSlug } from "./MarketingPage";
 
-type View = "landing" | "room";
+type View = "landing" | "marketing" | "room";
 
 type FileTransferState =
   | "offered"
@@ -77,10 +78,17 @@ type DurationDraft = {
 
 type DurationKind = "message" | "room";
 
-function roomPathname(): { view: View; roomId?: string } {
+function roomPathname(): { view: View; roomId?: string; marketingSlug?: MarketingSlug } {
   const match = window.location.pathname.match(/^\/c\/([^/]+)$/);
   if (match) {
     return { view: "room", roomId: match[1] };
+  }
+  const marketingSlug = window.location.pathname.replace(/^\/|\/$/g, "") as MarketingSlug;
+  if (
+    marketingSlug === "self-destructing-chat" ||
+    marketingSlug === "send-a-password-securely"
+  ) {
+    return { view: "marketing", marketingSlug };
   }
   return { view: "landing" };
 }
@@ -620,11 +628,13 @@ function RoomGoneScreen({ reason }: { reason?: string }) {
 
 export function App() {
   const route = roomPathname();
-  return route.view === "room" && route.roomId ? (
-    <RoomPage roomId={route.roomId} />
-  ) : (
-    <LandingPage />
-  );
+  if (route.view === "room" && route.roomId) {
+    return <RoomPage roomId={route.roomId} />;
+  }
+  if (route.view === "marketing" && route.marketingSlug) {
+    return <MarketingPage slug={route.marketingSlug} />;
+  }
+  return <LandingPage />;
 }
 
 function LandingPage() {
