@@ -86,7 +86,8 @@ function roomPathname(): { view: View; roomId?: string; marketingSlug?: Marketin
   const marketingSlug = window.location.pathname.replace(/^\/|\/$/g, "") as MarketingSlug;
   if (
     marketingSlug === "self-destructing-chat" ||
-    marketingSlug === "send-a-password-securely"
+    marketingSlug === "send-a-password-securely" ||
+    marketingSlug === "one-time-secret-chat"
   ) {
     return { view: "marketing", marketingSlug };
   }
