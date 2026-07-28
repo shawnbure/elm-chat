@@ -1044,6 +1044,34 @@ select {
   padding-left: 1.4rem;
 }
 
+.marketing-body code {
+  padding: 0.12em 0.34em;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+}
+
+.marketing-body pre {
+  max-width: 100%;
+  margin: 0;
+  padding: 18px 20px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(8, 18, 16, 0.94);
+  color: #eff8f5;
+  line-height: 1.55;
+}
+
+.marketing-body pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
 .marketing-caveat {
   padding: 22px 24px;
   border-radius: 20px;

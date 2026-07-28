@@ -7,7 +7,8 @@ const urlList = [
   `https://${host}/send-a-password-securely`,
   `https://${host}/one-time-secret-chat`,
   `https://${host}/temporary-private-chat`,
-  `https://${host}/building-ephemeral-chat-cloudflare`
+  `https://${host}/building-ephemeral-chat-cloudflare`,
+  `https://${host}/durable-objects-websocket-hibernation`
 ];
 
 const response = await fetch("https://api.indexnow.org/indexnow", {

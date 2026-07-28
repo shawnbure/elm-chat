@@ -22,7 +22,8 @@ export const ACQUISITION_SOURCES = [
   "send-a-password-securely",
   "one-time-secret-chat",
   "temporary-private-chat",
-  "building-ephemeral-chat-cloudflare"
+  "building-ephemeral-chat-cloudflare",
+  "durable-objects-websocket-hibernation"
 ] as const;
 
 export type AcquisitionSource = (typeof ACQUISITION_SOURCES)[number];

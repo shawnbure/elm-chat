@@ -147,6 +147,62 @@ const pages = {
         <p>The complete TypeScript project is AGPL-3.0 licensed. The repository includes the architecture, threat model, deployment instructions, contributor guide, and a one-click Cloudflare deploy path.</p>
         <p><a href="https://github.com/shawnbure/elm-chat">Read the source and deployment guide</a>.</p>
       </section>`
+  },
+  "durable-objects-websocket-hibernation": {
+    title: "Durable Objects WebSocket hibernation without a chat database",
+    description:
+      "How elm.chat uses Cloudflare Durable Objects WebSocket hibernation, serialized socket attachments, client-held encrypted history, and peer sync without storing a server transcript.",
+    eyebrow: "Durable Objects deep dive",
+    intro:
+      "WebSocket hibernation can keep a room reachable while its Durable Object sleeps. It does not preserve ordinary JavaScript memory, so elm.chat separates durable room state, live connection identity, and disposable message history.",
+    body: `
+      <section>
+        <h2>Three kinds of state, three different homes</h2>
+        <ul>
+          <li><strong>Durable room state:</strong> expiry policy, creator capability, room status, and one-time invite records live in Durable Object storage.</li>
+          <li><strong>Live connection state:</strong> session ID, creator role, identity key, and connection time live in each WebSocket's serialized attachment.</li>
+          <li><strong>Conversation history:</strong> encrypted message envelopes remain in connected browsers and are not written to Durable Object storage.</li>
+        </ul>
+        <p>This split is the core design choice. Hibernation can discard the object's process-local memory, but the object can reload durable metadata and enumerate accepted sockets when it wakes.</p>
+      </section>
+      <section>
+        <h2>Make socket attachments the membership source of truth</h2>
+        <p>The room accepts a socket with <code>acceptWebSocket</code>, then writes a small attachment with <code>serializeAttachment</code>. After a wake-up, routing code calls <code>getWebSockets</code> and <code>deserializeAttachment</code> instead of trusting an in-memory participant map.</p>
+        <pre><code>this.ctx.acceptWebSocket(server);
+server.serializeAttachment({
+  sessionId: "",
+  creator: false,
+  identityKey: "",
+  connectedAt: 0
+});</code></pre>
+        <p>The empty session ID marks an accepted socket that has not completed its authenticated join. Once the creator capability or one-time invite is validated, the attachment is replaced with the joined session record.</p>
+      </section>
+      <section>
+        <h2>Rebuild presence by enumerating live sockets</h2>
+        <p>Presence, targeted relay, participant removal, and room capacity all derive from the current socket set. Duplicate session IDs are collapsed before the room announces its membership count.</p>
+        <p>Durable storage still records public room metadata, but it is not treated as the authority for who is connected at this instant. That avoids restoring a stale participant map after hibernation.</p>
+      </section>
+      <section>
+        <h2>Let clients supply encrypted history</h2>
+        <p>A joining browser sends a <code>sync_request</code> through the relay. Connected peers answer with at most the latest 200 encrypted message envelopes. The Durable Object routes that payload but never commits it to storage.</p>
+        <p>This deliberately gives up server-backed recovery. If every browser that held an item disconnects, a later participant cannot retrieve it. A malicious peer can also omit or reorder sync data, and message authentication is not implemented yet.</p>
+      </section>
+      <section>
+        <h2>What hibernation does—and does not—buy</h2>
+        <ul>
+          <li>The object can sleep while accepted WebSockets remain attached to the room.</li>
+          <li>Connection identity survives through serialized attachments, not class fields.</li>
+          <li>Room policy survives because it is stored and reloaded during initialization.</li>
+          <li>Message history stays disposable because connected clients, not storage, hold it.</li>
+          <li>Cloudflare still observes normal connection metadata and relayed payload sizes.</li>
+        </ul>
+        <p>This is not a general recipe for durable chat. It is a tradeoff for a room where losing history is preferable to turning the relay into an archive.</p>
+      </section>
+      <section>
+        <h2>Inspect the implementation</h2>
+        <p>The complete TypeScript implementation, room protocol, tests, threat model, and Cloudflare deployment path are available under AGPL-3.0.</p>
+        <p><a href="https://github.com/shawnbure/elm-chat/blob/main/durable-objects/room/src/room.ts">Read the Durable Object source</a>.</p>
+      </section>`
   }
 };
 
@@ -156,7 +212,8 @@ const guideLabels = {
   "send-a-password-securely": "How to send a password securely",
   "one-time-secret-chat": "One-time secret vs disposable chat",
   "temporary-private-chat": "Temporary private chat without signup",
-  "building-ephemeral-chat-cloudflare": "How elm.chat works on Cloudflare"
+  "building-ephemeral-chat-cloudflare": "How elm.chat works on Cloudflare",
+  "durable-objects-websocket-hibernation": "WebSocket hibernation without a chat database"
 };
 
 for (const [slug, page] of Object.entries(pages)) {

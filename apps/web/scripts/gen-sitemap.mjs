@@ -14,7 +14,8 @@ const urls = [
   { path: "/send-a-password-securely", changefreq: "monthly", priority: "0.8" },
   { path: "/one-time-secret-chat", changefreq: "monthly", priority: "0.8" },
   { path: "/temporary-private-chat", changefreq: "monthly", priority: "0.8" },
-  { path: "/building-ephemeral-chat-cloudflare", changefreq: "monthly", priority: "0.8" }
+  { path: "/building-ephemeral-chat-cloudflare", changefreq: "monthly", priority: "0.8" },
+  { path: "/durable-objects-websocket-hibernation", changefreq: "monthly", priority: "0.8" }
 ];
 
 const lastmod = new Date().toISOString().slice(0, 10);
