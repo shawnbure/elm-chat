@@ -16,7 +16,7 @@
 
 This repository is for builders, reviewers, security researchers, and contributors who want to help push the project toward a genuinely minimal-footprint private communication model.
 
-Try [elm.chat](https://elm.chat), read what [self-destructing chat should actually mean](https://elm.chat/self-destructing-chat), follow the practical guide to [sending a password without leaving it in chat history](https://elm.chat/send-a-password-securely), compare a [one-time secret with a disposable chat](https://elm.chat/one-time-secret-chat), or explore the [Cloudflare Durable Objects architecture](https://elm.chat/building-ephemeral-chat-cloudflare).
+Try [elm.chat](https://elm.chat), read what [self-destructing chat should actually mean](https://elm.chat/self-destructing-chat), follow the practical guide to [sending a password without leaving it in chat history](https://elm.chat/send-a-password-securely), compare a [one-time secret with a disposable chat](https://elm.chat/one-time-secret-chat), create a [temporary private chat without signup](https://elm.chat/temporary-private-chat), or explore the [Cloudflare Durable Objects architecture](https://elm.chat/building-ephemeral-chat-cloudflare).
 
 ## Run your own in one click
 

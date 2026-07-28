@@ -227,6 +227,7 @@ const MARKETING_PATHS = new Set([
   "/self-destructing-chat",
   "/send-a-password-securely",
   "/one-time-secret-chat",
+  "/temporary-private-chat",
   "/building-ephemeral-chat-cloudflare"
 ]);
 

@@ -21,6 +21,7 @@ export const ACQUISITION_SOURCES = [
   "self-destructing-chat",
   "send-a-password-securely",
   "one-time-secret-chat",
+  "temporary-private-chat",
   "building-ephemeral-chat-cloudflare"
 ] as const;
 
