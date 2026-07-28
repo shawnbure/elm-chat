@@ -70,6 +70,54 @@ const pages = {
         <p>A live room fits when the recipient needs to confirm access, request a second value, clarify which environment to use, or exchange an encrypted file. The creator can issue a single-use invite and destroy the room when the exchange is finished.</p>
         <p>elm.chat encrypts message and file content in the browser and does not persist a server-side transcript. Its relay still observes connection metadata such as timing, sizes, IP addresses, and presence.</p>
       </section>`
+  },
+  "building-ephemeral-chat-cloudflare": {
+    title: "Building ephemeral encrypted chat with Cloudflare Durable Objects",
+    description:
+      "A technical walkthrough of elm.chat's React, Web Crypto, Cloudflare Worker, Durable Object, WebSocket, encryption, and disposable-room architecture.",
+    eyebrow: "Architecture walkthrough",
+    intro:
+      "elm.chat uses one Cloudflare Worker and one Durable Object per room to coordinate a live encrypted conversation without turning the server into a transcript database.",
+    body: `
+      <section>
+        <h2>The shape of the system</h2>
+        <p>The React client creates rooms, derives keys with Web Crypto, encrypts messages and files, and maintains the current transcript in memory. A single Cloudflare Worker serves that app and routes the room API. One Durable Object per room owns membership, presence, one-time invites, expiry, and a live WebSocket relay.</p>
+        <p>The Durable Object persists room metadata and invite state. It relays encrypted message envelopes, encrypted file chunks, and peer-supplied transcript sync payloads without persisting those payloads as a server-side transcript.</p>
+      </section>
+      <section>
+        <h2>From room creation to encrypted relay</h2>
+        <ol>
+          <li>The browser generates a random 256-bit room secret.</li>
+          <li>The Worker creates room metadata and addresses a Durable Object by room ID.</li>
+          <li>The secret stays in the URL fragment during normal navigation.</li>
+          <li>The browser derives an AES-GCM-256 room key with HKDF-SHA-256.</li>
+          <li>Participants join through creator-issued, single-use invite links.</li>
+          <li>A single WebSocket carries encrypted chat, file, presence, and sync events.</li>
+          <li>The room expires after its policy or is destroyed by the creator.</li>
+        </ol>
+        <p>Newly connected participants request transcript sync from clients that are already in the room. If no connected client still has an item, the server cannot reconstruct it. That loss is part of the disposable model rather than a durability bug.</p>
+      </section>
+      <section>
+        <h2>Why an encrypted relay instead of WebRTC</h2>
+        <p>Direct WebRTC is attractive, but ICE negotiation can reveal participant IP addresses to other room members, and reliable connectivity often requires a TURN relay anyway. elm.chat deliberately sends ciphertext through the Durable Object so participants never connect directly and the flow works on restrictive networks.</p>
+        <p>This is a tradeoff, not magic. Cloudflare can still observe IP addresses, connection timing, payload sizes, and presence. The relay cannot read message or file plaintext, but elm.chat does not claim to hide metadata from its infrastructure.</p>
+      </section>
+      <section>
+        <h2>What is encrypted—and what is not</h2>
+        <ul>
+          <li>Messages use AES-GCM with a fresh random nonce per message.</li>
+          <li>Files are split into 64 KiB chunks and encrypted chunk by chunk.</li>
+          <li>The browser holds the room key and current transcript in memory.</li>
+          <li>The server stores room policy, status, creator capability, and invite state.</li>
+          <li>Ephemeral identity keys exist, but message authentication is not implemented yet.</li>
+        </ul>
+        <p>The current design does not solve device compromise, screenshots, malicious recipients, traffic analysis, denial of service, or strong anonymous routing. It has not had an independent security audit.</p>
+      </section>
+      <section>
+        <h2>Fork it, inspect it, or run your own</h2>
+        <p>The complete TypeScript project is AGPL-3.0 licensed. The repository includes the architecture, threat model, deployment instructions, contributor guide, and a one-click Cloudflare deploy path.</p>
+        <p><a href="https://github.com/shawnbure/elm-chat">Read the source and deployment guide</a>.</p>
+      </section>`
   }
 };
 
@@ -77,7 +125,8 @@ const shell = readFileSync("dist/index.html", "utf8");
 const guideLabels = {
   "self-destructing-chat": "What self-destructing chat should mean",
   "send-a-password-securely": "How to send a password securely",
-  "one-time-secret-chat": "One-time secret vs disposable chat"
+  "one-time-secret-chat": "One-time secret vs disposable chat",
+  "building-ephemeral-chat-cloudflare": "How elm.chat works on Cloudflare"
 };
 
 for (const [slug, page] of Object.entries(pages)) {
