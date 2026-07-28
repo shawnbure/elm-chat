@@ -161,6 +161,36 @@ const guideLabels = {
 
 for (const [slug, page] of Object.entries(pages)) {
   const canonical = `${ORIGIN}/${slug}`;
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: page.title,
+    description: page.description,
+    image: [`${ORIGIN}/elm-chat-social.png`],
+    datePublished: "2026-07-28",
+    dateModified: "2026-07-28",
+    author: {
+      "@type": "Organization",
+      name: "elm.chat",
+      url: `${ORIGIN}/`
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "elm.chat",
+      url: `${ORIGIN}/`
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": canonical
+    },
+    isPartOf: {
+      "@type": "WebSite",
+      "@id": `${ORIGIN}/#website`,
+      name: "elm.chat",
+      url: `${ORIGIN}/`
+    }
+  };
+  const structuredDataScript = `<script id="structured-data" type="application/ld+json">${JSON.stringify(structuredData).replace(/</g, "\\u003c")}</script>`;
   const content = `
     <main class="marketing-shell">
       <nav class="marketing-nav" aria-label="elm.chat">
@@ -227,6 +257,10 @@ for (const [slug, page] of Object.entries(pages)) {
     .replace(
       /<meta property="og:url" content="[^"]*" \/>/,
       `<meta property="og:url" content="${canonical}" />`
+    )
+    .replace(
+      /<script id="structured-data" type="application\/ld\+json">[\s\S]*?<\/script>/,
+      structuredDataScript
     )
     .replace('<div id="root"></div>', `<div id="root">${content}</div>`);
 
