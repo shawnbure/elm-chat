@@ -1,13 +1,11 @@
+import type { MarketingAcquisitionSource } from "@elm-chat/shared";
 import { useEffect, type ReactNode } from "react";
+import { recordGrowthEvent } from "./growth";
 
 const GITHUB_URL = "https://github.com/shawnbure/elm-chat";
 const THREAT_MODEL_URL = `${GITHUB_URL}/blob/main/docs/threat-model.md`;
 
-export type MarketingSlug =
-  | "self-destructing-chat"
-  | "send-a-password-securely"
-  | "one-time-secret-chat"
-  | "building-ephemeral-chat-cloudflare";
+export type MarketingSlug = MarketingAcquisitionSource;
 
 type MarketingPageContent = {
   description: string;
@@ -262,6 +260,7 @@ function Limitations() {
 
 export function MarketingPage({ slug }: { slug: MarketingSlug }) {
   const page = pages[slug];
+  const roomHref = `/?source=${slug}`;
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -302,7 +301,11 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
           <p className="eyebrow">{page.eyebrow}</p>
           <h1>{page.title}</h1>
           <p className="marketing-intro">{page.intro}</p>
-          <a className="primary-button marketing-primary-cta" href="/">
+          <a
+            className="primary-button marketing-primary-cta"
+            href={roomHref}
+            onClick={() => recordGrowthEvent("marketing_cta_clicked", slug)}
+          >
             Create a disposable room
           </a>
         </header>
@@ -317,7 +320,11 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
             Set the message and room lifetime, issue a single-use invite, and destroy the room when
             you are finished.
           </p>
-          <a className="primary-button marketing-primary-cta" href="/">
+          <a
+            className="primary-button marketing-primary-cta"
+            href={roomHref}
+            onClick={() => recordGrowthEvent("marketing_cta_clicked", slug)}
+          >
             Open elm.chat
           </a>
         </footer>

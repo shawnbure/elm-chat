@@ -1,6 +1,7 @@
 import {
   DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
   DEFAULT_INACTIVITY_TIMEOUT_MS,
+  isAcquisitionSource,
   ROOM_ID_BYTES,
   type CreateRoomRequest,
   type CreateRoomResponse
@@ -16,7 +17,11 @@ type Env = {
   TURNSTILE_SECRET?: string;
 };
 
-type GrowthEvent = "make_your_own_clicked" | "room_created" | "invite_created";
+type GrowthEvent =
+  | "make_your_own_clicked"
+  | "marketing_cta_clicked"
+  | "room_created"
+  | "invite_created";
 
 function recordGrowth(env: Env, event: GrowthEvent, source = ""): void {
   env.GROWTH?.writeDataPoint({
@@ -160,7 +165,11 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
     body: JSON.stringify(response)
   });
 
-  recordGrowth(env, "room_created", body.acquisitionSource === "invite" ? "invite" : "direct");
+  recordGrowth(
+    env,
+    "room_created",
+    isAcquisitionSource(body.acquisitionSource) ? body.acquisitionSource : "direct"
+  );
   return json(response, 201);
 }
 
@@ -261,12 +270,20 @@ function routeApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
 
   if (request.method === "POST" && url.pathname === "/api/growth") {
-    return safeJson<{ event?: string }>(request)
-      .then(({ event }) => {
-        if (event !== "make_your_own_clicked") {
+    return safeJson<{ event?: string; source?: string }>(request)
+      .then(({ event, source }) => {
+        if (event === "make_your_own_clicked") {
+          recordGrowth(env, event);
+          return new Response(null, { status: 204 });
+        }
+        if (
+          event !== "marketing_cta_clicked" ||
+          !isAcquisitionSource(source) ||
+          source === "invite"
+        ) {
           return json({ error: "Unsupported event." }, 400);
         }
-        recordGrowth(env, event);
+        recordGrowth(env, event, source);
         return new Response(null, { status: 204 });
       })
       .catch(() => json({ error: "Invalid event." }, 400));

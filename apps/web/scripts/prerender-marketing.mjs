@@ -145,7 +145,7 @@ for (const [slug, page] of Object.entries(pages)) {
           <p class="eyebrow">${page.eyebrow}</p>
           <h1>${page.title}</h1>
           <p class="marketing-intro">${page.intro}</p>
-          <a class="primary-button marketing-primary-cta" href="/">Create a disposable room</a>
+          <a class="primary-button marketing-primary-cta" href="/?source=${slug}">Create a disposable room</a>
         </header>
         <div class="marketing-body">
           ${page.body}
@@ -167,7 +167,7 @@ for (const [slug, page] of Object.entries(pages)) {
           <p class="eyebrow">One conversation. Then gone.</p>
           <h2>Create a room without an account</h2>
           <p>Set the message and room lifetime, issue a single-use invite, and destroy the room when you are finished.</p>
-          <a class="primary-button marketing-primary-cta" href="/">Open elm.chat</a>
+          <a class="primary-button marketing-primary-cta" href="/?source=${slug}">Open elm.chat</a>
         </footer>
       </article>
     </main>`;
