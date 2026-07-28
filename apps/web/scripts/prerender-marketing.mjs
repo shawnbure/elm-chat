@@ -130,14 +130,24 @@ for (const [slug, page] of Object.entries(pages)) {
       `<meta name="description" content="${page.description}" />`
     )
     .replace(
-      "</head>",
-      `    <link rel="canonical" href="${canonical}" />\n` +
-        `    <meta property="og:type" content="article" />\n` +
-        `    <meta property="og:site_name" content="elm.chat" />\n` +
-        `    <meta property="og:title" content="${page.title}" />\n` +
-        `    <meta property="og:description" content="${page.description}" />\n` +
-        `    <meta property="og:url" content="${canonical}" />\n` +
-        `  </head>`
+      /<link rel="canonical" href="[^"]*" \/>/,
+      `<link rel="canonical" href="${canonical}" />`
+    )
+    .replace(
+      '<meta property="og:type" content="website" />',
+      '<meta property="og:type" content="article" />'
+    )
+    .replace(
+      /<meta property="og:title" content="[^"]*" \/>/,
+      `<meta property="og:title" content="${page.title}" />`
+    )
+    .replace(
+      /<meta\s+property="og:description"\s+content="[^"]*"\s*\/>/,
+      `<meta property="og:description" content="${page.description}" />`
+    )
+    .replace(
+      /<meta property="og:url" content="[^"]*" \/>/,
+      `<meta property="og:url" content="${canonical}" />`
     )
     .replace('<div id="root"></div>', `<div id="root">${content}</div>`);
 
