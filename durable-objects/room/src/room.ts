@@ -49,6 +49,7 @@ type RoomBootstrap = Pick<
 >;
 
 export interface Env {
+  GROWTH?: AnalyticsEngineDataset;
   ROOM_OBJECT: DurableObjectNamespace<RoomDurableObject>;
 }
 
@@ -306,6 +307,11 @@ export class RoomDurableObject extends DurableObject<Env> {
         invite.consumedBySessionId = payload.sessionId;
         this.invites.set(invite.token, invite);
         await this.persistInvites();
+        this.env.GROWTH?.writeDataPoint({
+          indexes: ["invite_redeemed"],
+          blobs: [""],
+          doubles: [1]
+        });
       }
     }
 

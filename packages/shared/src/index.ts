@@ -20,6 +20,7 @@ export interface CreateRoomRequest {
   disappearAfterReadSeconds?: number | null;
   inactivityTimeoutMs?: number | null;
   maxAgeMs?: number | null;
+  acquisitionSource?: "invite";
   turnstileToken?: string;
 }
 
