@@ -228,7 +228,8 @@ const MARKETING_PATHS = new Set([
   "/send-a-password-securely",
   "/one-time-secret-chat",
   "/temporary-private-chat",
-  "/building-ephemeral-chat-cloudflare"
+  "/building-ephemeral-chat-cloudflare",
+  "/durable-objects-websocket-hibernation"
 ]);
 
 // Cached in the isolate so repeated visitors don't each trigger a GitHub call.
