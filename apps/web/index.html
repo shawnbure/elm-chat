@@ -23,6 +23,41 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="elm.chat — One conversation. Then gone." />
     <meta name="twitter:card" content="summary_large_image" />
+    <script id="structured-data" type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://elm.chat/#website",
+            "url": "https://elm.chat/",
+            "name": "elm.chat",
+            "alternateName": "elm chat",
+            "description": "Disposable encrypted chat rooms with no accounts, single-use invites, and no server-side transcript."
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://elm.chat/#application",
+            "url": "https://elm.chat/",
+            "name": "elm.chat",
+            "description": "Create a disposable encrypted chat room with no account, single-use invites, and no server-side transcript.",
+            "applicationCategory": "CommunicationApplication",
+            "operatingSystem": "Any modern web browser",
+            "browserRequirements": "JavaScript and Web Crypto support",
+            "isAccessibleForFree": true,
+            "offers": {
+              "@type": "Offer",
+              "price": 0,
+              "priceCurrency": "USD"
+            },
+            "image": "https://elm.chat/elm-chat-social.png",
+            "codeRepository": "https://github.com/shawnbure/elm-chat",
+            "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+            "sameAs": ["https://github.com/shawnbure/elm-chat"]
+          }
+        ]
+      }
+    </script>
     <title>elm chat</title>
   </head>
   <body>
