@@ -6,6 +6,7 @@ const urlList = [
   `https://${host}/self-destructing-chat`,
   `https://${host}/send-a-password-securely`,
   `https://${host}/one-time-secret-chat`,
+  `https://${host}/temporary-private-chat`,
   `https://${host}/building-ephemeral-chat-cloudflare`
 ];
 

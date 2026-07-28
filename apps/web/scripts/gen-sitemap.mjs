@@ -13,6 +13,7 @@ const urls = [
   { path: "/self-destructing-chat", changefreq: "monthly", priority: "0.8" },
   { path: "/send-a-password-securely", changefreq: "monthly", priority: "0.8" },
   { path: "/one-time-secret-chat", changefreq: "monthly", priority: "0.8" },
+  { path: "/temporary-private-chat", changefreq: "monthly", priority: "0.8" },
   { path: "/building-ephemeral-chat-cloudflare", changefreq: "monthly", priority: "0.8" }
 ];
 

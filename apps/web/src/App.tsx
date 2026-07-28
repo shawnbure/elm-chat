@@ -90,6 +90,7 @@ function roomPathname(): { view: View; roomId?: string; marketingSlug?: Marketin
     marketingSlug === "self-destructing-chat" ||
     marketingSlug === "send-a-password-securely" ||
     marketingSlug === "one-time-secret-chat" ||
+    marketingSlug === "temporary-private-chat" ||
     marketingSlug === "building-ephemeral-chat-cloudflare"
   ) {
     return { view: "marketing", marketingSlug };

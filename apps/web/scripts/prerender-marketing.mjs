@@ -71,6 +71,35 @@ const pages = {
         <p>elm.chat encrypts message and file content in the browser and does not persist a server-side transcript. Its relay still observes connection metadata such as timing, sizes, IP addresses, and presence.</p>
       </section>`
   },
+  "temporary-private-chat": {
+    title: "Temporary private chat room without signup",
+    description:
+      "Create a short-lived private chat room in your browser, share a single-use invite, and end the conversation without an account or server-side transcript.",
+    eyebrow: "Temporary private chat",
+    intro:
+      "Sometimes you already know who you need to talk to—you just do not want to create an account, install an app, or leave the conversation in permanent history.",
+    body: `
+      <section>
+        <h2>A private link, not a room full of strangers</h2>
+        <p>Temporary chat can mean two very different things. Random chat services match you with unknown people. A private temporary room is created for people who already intend to talk and is reached through an invite you share directly.</p>
+        <p>elm.chat uses creator-issued, single-use invites. There is no public room directory, contact discovery, phone number, email address, or account profile.</p>
+      </section>
+      <section>
+        <h2>What happens to the conversation</h2>
+        <ul>
+          <li>Message and file content is encrypted in each participant's browser.</li>
+          <li>The relay coordinates the live room without persisting a server-side transcript.</li>
+          <li>The creator can set expiry rules, revoke unused invites, or destroy the room.</li>
+          <li>Participants can still copy, photograph, or otherwise retain what they receive.</li>
+        </ul>
+        <p>The relay can observe connection metadata such as IP addresses, timing, sizes, and presence. Temporary does not mean anonymous, and encryption does not protect a compromised device.</p>
+      </section>
+      <section>
+        <h2>When a temporary room is the right tool</h2>
+        <p>Use one for a one-off credential handoff, short client coordination, an event or marketplace meetup, or another conversation that needs live back-and-forth but not a permanent group.</p>
+        <p>For an ongoing relationship, a mature encrypted messenger is usually the better fit. For a single one-way value, a purpose-built one-time secret can be simpler.</p>
+      </section>`
+  },
   "building-ephemeral-chat-cloudflare": {
     title: "Building ephemeral encrypted chat with Cloudflare Durable Objects",
     description:
@@ -126,6 +155,7 @@ const guideLabels = {
   "self-destructing-chat": "What self-destructing chat should mean",
   "send-a-password-securely": "How to send a password securely",
   "one-time-secret-chat": "One-time secret vs disposable chat",
+  "temporary-private-chat": "Temporary private chat without signup",
   "building-ephemeral-chat-cloudflare": "How elm.chat works on Cloudflare"
 };
 
