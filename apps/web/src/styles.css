@@ -513,6 +513,16 @@ select {
   color: var(--muted);
 }
 
+.make-your-own-compact {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 6px 12px;
+  text-align: center;
+  font-size: 0.78rem;
+}
+
 .make-your-own-link {
   color: var(--accent);
   text-decoration: none;
