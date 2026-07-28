@@ -506,10 +506,24 @@ function roomStateMessage(status: RoomMetadata["status"], reason?: string): stri
 // recipient reaches. No tracking, no telemetry — just a way for a first-time
 // visitor to learn they can spin up their own room. elm.chat's main organic loop.
 function MakeYourOwnCallout() {
+  function recordClick() {
+    const body = JSON.stringify({ event: "make_your_own_clicked" });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon("/api/growth", new Blob([body], { type: "application/json" }));
+      return;
+    }
+    void fetch("/api/growth", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+      keepalive: true
+    });
+  }
+
   return (
     <p className="make-your-own">
       This secure room was made with elm.chat.{" "}
-      <a className="make-your-own-link" href="/">
+      <a className="make-your-own-link" href="/?source=invite" onClick={recordClick}>
         Create your own &mdash; free, no signup.
       </a>
     </p>
@@ -691,6 +705,10 @@ function LandingPage() {
       const secret = generateRoomSecret();
       const turnstileToken = await getTurnstileToken();
       const room = await createRoom({
+        acquisitionSource:
+          new URLSearchParams(window.location.search).get("source") === "invite"
+            ? "invite"
+            : undefined,
         disappearAfterReadSeconds: parseDurationDraft(
           messageDuration,
           7,

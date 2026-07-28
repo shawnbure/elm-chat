@@ -11,9 +11,20 @@ export { RoomDurableObject };
 
 type Env = {
   ASSETS: Fetcher;
+  GROWTH?: AnalyticsEngineDataset;
   ROOM_OBJECT: DurableObjectNamespace<RoomDurableObject>;
   TURNSTILE_SECRET?: string;
 };
+
+type GrowthEvent = "make_your_own_clicked" | "room_created" | "invite_created";
+
+function recordGrowth(env: Env, event: GrowthEvent, source = ""): void {
+  env.GROWTH?.writeDataPoint({
+    indexes: [event],
+    blobs: [source],
+    doubles: [1]
+  });
+}
 
 function json(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -32,8 +43,8 @@ function withSecurityHeaders(response: Response): Response {
   headers.set("Referrer-Policy", "no-referrer");
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-Frame-Options", "DENY");
-  // Strict, third-party-free policy on every route: no external scripts, no
-  // analytics beacons, no trackers anywhere in the app.
+  // Strict, third-party-free policy on every route. Growth counters are written
+  // server-side to Cloudflare Analytics Engine and never load tracking scripts.
   headers.set(
     "Content-Security-Policy",
     "default-src 'self'; connect-src 'self' https: wss:; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
@@ -149,6 +160,7 @@ async function handleCreateRoom(request: Request, env: Env): Promise<Response> {
     body: JSON.stringify(response)
   });
 
+  recordGrowth(env, "room_created", body.acquisitionSource === "invite" ? "invite" : "direct");
   return json(response, 201);
 }
 
@@ -174,10 +186,14 @@ async function handleRoomWebSocket(request: Request, roomId: string, env: Env): 
 async function handleCreateInvite(request: Request, roomId: string, env: Env): Promise<Response> {
   const payload = await safeJson<{ creatorToken: string; ttlMs?: number }>(request);
   const stub = env.ROOM_OBJECT.getByName(roomId);
-  return stub.fetch("https://room/internal/invites/create", {
+  const response = await stub.fetch("https://room/internal/invites/create", {
     method: "POST",
     body: JSON.stringify(payload)
   });
+  if (response.ok) {
+    recordGrowth(env, "invite_created");
+  }
+  return response;
 }
 
 async function handleListInvites(request: Request, roomId: string, env: Env): Promise<Response> {
@@ -237,6 +253,18 @@ async function handleGithubStats(): Promise<Response> {
 
 function routeApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
+
+  if (request.method === "POST" && url.pathname === "/api/growth") {
+    return safeJson<{ event?: string }>(request)
+      .then(({ event }) => {
+        if (event !== "make_your_own_clicked") {
+          return json({ error: "Unsupported event." }, 400);
+        }
+        recordGrowth(env, event);
+        return new Response(null, { status: 204 });
+      })
+      .catch(() => json({ error: "Invalid event." }, 400));
+  }
 
   if (request.method === "POST" && url.pathname === "/api/rooms") {
     return handleCreateRoom(request, env);
