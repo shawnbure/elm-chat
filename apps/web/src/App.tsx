@@ -503,28 +503,31 @@ function roomStateMessage(status: RoomMetadata["status"], reason?: string): stri
   }
 }
 
-// Privacy-safe growth callout: shown on the end-of-room screens a link
-// recipient reaches. No tracking, no telemetry — just a way for a first-time
-// visitor to learn they can spin up their own room. elm.chat's main organic loop.
-function MakeYourOwnCallout() {
-  function recordClick() {
-    const body = JSON.stringify({ event: "make_your_own_clicked" });
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon("/api/growth", new Blob([body], { type: "application/json" }));
-      return;
-    }
-    void fetch("/api/growth", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body,
-      keepalive: true
-    });
+function recordMakeYourOwnClick() {
+  const body = JSON.stringify({ event: "make_your_own_clicked" });
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon("/api/growth", new Blob([body], { type: "application/json" }));
+    return;
   }
+  void fetch("/api/growth", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+    keepalive: true
+  });
+}
 
+// Privacy-safe growth callout for an invite recipient. The aggregate event
+// records no room, invite, participant, or message identifier.
+function MakeYourOwnCallout({ compact = false }: { compact?: boolean }) {
   return (
-    <p className="make-your-own">
-      This secure room was made with elm.chat.{" "}
-      <a className="make-your-own-link" href="/?source=invite" onClick={recordClick}>
+    <p className={`make-your-own ${compact ? "make-your-own-compact" : ""}`}>
+      {compact ? "Want a disposable room of your own? " : "This secure room was made with elm.chat. "}
+      <a
+        className="make-your-own-link"
+        href="/?source=invite"
+        onClick={recordMakeYourOwnClick}
+      >
         Create your own &mdash; free, no signup.
       </a>
     </p>
@@ -540,7 +543,11 @@ function InvalidInviteScreen() {
         <p className="access-copy">
           This one-time invite has already been used, expired, or is no longer available.
         </p>
-        <a className="secondary-button access-home-link" href="/">
+        <a
+          className="secondary-button access-home-link"
+          href="/?source=invite"
+          onClick={recordMakeYourOwnClick}
+        >
           Back to home
         </a>
         <MakeYourOwnCallout />
@@ -556,7 +563,11 @@ function RemovedFromRoomScreen() {
         <p className="eyebrow">elm chat</p>
         <h1 className="access-title">You were removed from this room</h1>
         <p className="access-copy">The room creator ended your access to this conversation.</p>
-        <a className="secondary-button access-home-link" href="/">
+        <a
+          className="secondary-button access-home-link"
+          href="/?source=invite"
+          onClick={recordMakeYourOwnClick}
+        >
           Back to home
         </a>
         <MakeYourOwnCallout />
@@ -623,7 +634,7 @@ function InviteCheckingScreen() {
   );
 }
 
-function RoomGoneScreen({ reason }: { reason?: string }) {
+function RoomGoneScreen({ fromInvite, reason }: { fromInvite: boolean; reason?: string }) {
   return (
     <main className="room-shell room-shell-centered">
       <section className="access-screen" aria-live="polite">
@@ -632,10 +643,14 @@ function RoomGoneScreen({ reason }: { reason?: string }) {
         <p className="access-copy">
           {reason ?? "This conversation self-destructed. Nothing was kept."}
         </p>
-        <a className="primary-button access-home-link" href="/">
+        <a
+          className="primary-button access-home-link"
+          href={fromInvite ? "/?source=invite" : "/"}
+          onClick={fromInvite ? recordMakeYourOwnClick : undefined}
+        >
           Start a new one &rarr;
         </a>
-        <MakeYourOwnCallout />
+        {fromInvite ? <MakeYourOwnCallout /> : null}
       </section>
     </main>
   );
@@ -1769,11 +1784,21 @@ function RoomPage({ roomId }: { roomId: string }) {
   }
 
   if (notFound) {
-    return <RoomGoneScreen reason="This room no longer exists. It may have already self-destructed." />;
+    return (
+      <RoomGoneScreen
+        fromInvite={isInviteGuest}
+        reason="This room no longer exists. It may have already self-destructed."
+      />
+    );
   }
 
   if (ready && room && room.status !== "open") {
-    return <RoomGoneScreen reason={roomNotice ?? roomStateMessage(room.status)} />;
+    return (
+      <RoomGoneScreen
+        fromInvite={isInviteGuest}
+        reason={roomNotice ?? roomStateMessage(room.status)}
+      />
+    );
   }
 
   if (isInviteGuest && (inviteAccess !== "granted" || !room || !ready)) {
@@ -1853,6 +1878,7 @@ function RoomPage({ roomId }: { roomId: string }) {
         </div>
       </section>
 
+      {isInviteGuest ? <MakeYourOwnCallout compact /> : null}
       {roomNotice ? <p className="room-notice">{roomNotice}</p> : null}
       {error ? <p className="error-text room-error">{error}</p> : null}
       {isCreator && invites.length > 0 ? (
