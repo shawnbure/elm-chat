@@ -87,7 +87,8 @@ function roomPathname(): { view: View; roomId?: string; marketingSlug?: Marketin
   if (
     marketingSlug === "self-destructing-chat" ||
     marketingSlug === "send-a-password-securely" ||
-    marketingSlug === "one-time-secret-chat"
+    marketingSlug === "one-time-secret-chat" ||
+    marketingSlug === "building-ephemeral-chat-cloudflare"
   ) {
     return { view: "marketing", marketingSlug };
   }

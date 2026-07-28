@@ -216,7 +216,8 @@ const GITHUB_STATS_TTL_MS = 60 * 60 * 1000;
 const MARKETING_PATHS = new Set([
   "/self-destructing-chat",
   "/send-a-password-securely",
-  "/one-time-secret-chat"
+  "/one-time-secret-chat",
+  "/building-ephemeral-chat-cloudflare"
 ]);
 
 // Cached in the isolate so repeated visitors don't each trigger a GitHub call.
