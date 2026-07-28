@@ -4,7 +4,8 @@ const keyLocation = `https://${host}/${key}.txt`;
 const urlList = [
   `https://${host}/`,
   `https://${host}/self-destructing-chat`,
-  `https://${host}/send-a-password-securely`
+  `https://${host}/send-a-password-securely`,
+  `https://${host}/one-time-secret-chat`
 ];
 
 const response = await fetch("https://api.indexnow.org/indexnow", {

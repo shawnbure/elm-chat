@@ -51,10 +51,34 @@ const pages = {
         <p>There is no account or contact list. The room secret stays in the URL fragment during normal use, message and file content is encrypted in the browser, and the relay does not persist a server-side transcript. Invites are single-use and revocable.</p>
         <p>This reduces durable copies; it cannot protect a credential from a compromised device, clipboard manager, screenshot, malicious recipient, or failure to rotate it afterward.</p>
       </section>`
+  },
+  "one-time-secret-chat": {
+    title: "One-time secret or disposable chat? Choose the right handoff",
+    description:
+      "Compare a one-time secret link with a disposable encrypted chat room for passwords, API keys, files, and sensitive live coordination.",
+    eyebrow: "One-time secret alternative",
+    intro:
+      "A one-time secret link is excellent when one person needs to reveal one value once. Some handoffs become a conversation, and that changes what the tool needs to do.",
+    body: `
+      <section>
+        <h2>Use a one-time secret for a one-way reveal</h2>
+        <p>If the entire task is “open this value once,” a purpose-built one-time secret service is the simpler choice. It minimizes interaction and gives the recipient one clear action.</p>
+        <p>Rotate the credential afterward when practical. A disappearing link cannot undo a screenshot, clipboard capture, compromised browser, or malicious recipient.</p>
+      </section>
+      <section>
+        <h2>Use a disposable room when the handoff talks back</h2>
+        <p>A live room fits when the recipient needs to confirm access, request a second value, clarify which environment to use, or exchange an encrypted file. The creator can issue a single-use invite and destroy the room when the exchange is finished.</p>
+        <p>elm.chat encrypts message and file content in the browser and does not persist a server-side transcript. Its relay still observes connection metadata such as timing, sizes, IP addresses, and presence.</p>
+      </section>`
   }
 };
 
 const shell = readFileSync("dist/index.html", "utf8");
+const guideLabels = {
+  "self-destructing-chat": "What self-destructing chat should mean",
+  "send-a-password-securely": "How to send a password securely",
+  "one-time-secret-chat": "One-time secret vs disposable chat"
+};
 
 for (const [slug, page] of Object.entries(pages)) {
   const canonical = `${ORIGIN}/${slug}`;
@@ -81,6 +105,15 @@ for (const [slug, page] of Object.entries(pages)) {
             <p>elm.chat has not had an independent security audit. Review the <a href="https://github.com/shawnbure/elm-chat/blob/main/docs/threat-model.md">public threat model</a> before using it for a sensitive situation.</p>
           </aside>
         </div>
+        <aside class="marketing-related" aria-label="More guides">
+          <p class="eyebrow">More guides</p>
+          <ul>
+            ${Object.entries(guideLabels)
+              .filter(([guideSlug]) => guideSlug !== slug)
+              .map(([guideSlug, label]) => `<li><a href="/${guideSlug}">${label}</a></li>`)
+              .join("")}
+          </ul>
+        </aside>
         <footer class="marketing-footer-cta">
           <p class="eyebrow">One conversation. Then gone.</p>
           <h2>Create a room without an account</h2>

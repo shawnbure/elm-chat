@@ -11,7 +11,8 @@ const ORIGIN = process.env.SITE_ORIGIN ?? "https://elm.chat";
 const urls = [
   { path: "/", changefreq: "weekly", priority: "1.0" },
   { path: "/self-destructing-chat", changefreq: "monthly", priority: "0.8" },
-  { path: "/send-a-password-securely", changefreq: "monthly", priority: "0.8" }
+  { path: "/send-a-password-securely", changefreq: "monthly", priority: "0.8" },
+  { path: "/one-time-secret-chat", changefreq: "monthly", priority: "0.8" }
 ];
 
 const lastmod = new Date().toISOString().slice(0, 10);

@@ -3,7 +3,10 @@ import { useEffect, type ReactNode } from "react";
 const GITHUB_URL = "https://github.com/shawnbure/elm-chat";
 const THREAT_MODEL_URL = `${GITHUB_URL}/blob/main/docs/threat-model.md`;
 
-export type MarketingSlug = "self-destructing-chat" | "send-a-password-securely";
+export type MarketingSlug =
+  | "self-destructing-chat"
+  | "send-a-password-securely"
+  | "one-time-secret-chat";
 
 type MarketingPageContent = {
   description: string;
@@ -106,6 +109,46 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
         <Limitations />
       </>
     )
+  },
+  "one-time-secret-chat": {
+    title: "One-time secret or disposable chat? Choose the right handoff",
+    description:
+      "Compare a one-time secret link with a disposable encrypted chat room for passwords, API keys, files, and sensitive live coordination.",
+    eyebrow: "One-time secret alternative",
+    intro:
+      "A one-time secret link is excellent when one person needs to reveal one value once. Some handoffs become a conversation, and that changes what the tool needs to do.",
+    body: (
+      <>
+        <section>
+          <h2>Use a one-time secret for a one-way reveal</h2>
+          <p>
+            If the entire task is “open this value once,” a purpose-built one-time secret service
+            is the simpler choice. It minimizes interaction and gives the recipient one clear
+            action.
+          </p>
+          <p>
+            Rotate the credential afterward when practical. A disappearing link cannot undo a
+            screenshot, clipboard capture, compromised browser, or malicious recipient.
+          </p>
+        </section>
+
+        <section>
+          <h2>Use a disposable room when the handoff talks back</h2>
+          <p>
+            A live room fits when the recipient needs to confirm access, request a second value,
+            clarify which environment to use, or exchange an encrypted file. The creator can issue
+            a single-use invite and destroy the room when the exchange is finished.
+          </p>
+          <p>
+            elm.chat encrypts message and file content in the browser and does not persist a
+            server-side transcript. Its relay still observes connection metadata such as timing,
+            sizes, IP addresses, and presence.
+          </p>
+        </section>
+
+        <Limitations />
+      </>
+    )
   }
 };
 
@@ -172,6 +215,7 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
         </header>
 
         <div className="marketing-body">{page.body}</div>
+        <RelatedGuides current={slug} />
 
         <footer className="marketing-footer-cta">
           <p className="eyebrow">One conversation. Then gone.</p>
@@ -186,5 +230,28 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
         </footer>
       </article>
     </main>
+  );
+}
+
+function RelatedGuides({ current }: { current: MarketingSlug }) {
+  const guides: Array<{ slug: MarketingSlug; label: string }> = [
+    { slug: "self-destructing-chat", label: "What self-destructing chat should mean" },
+    { slug: "send-a-password-securely", label: "How to send a password securely" },
+    { slug: "one-time-secret-chat", label: "One-time secret vs disposable chat" }
+  ];
+
+  return (
+    <aside className="marketing-related" aria-label="More guides">
+      <p className="eyebrow">More guides</p>
+      <ul>
+        {guides
+          .filter((guide) => guide.slug !== current)
+          .map((guide) => (
+            <li key={guide.slug}>
+              <a href={`/${guide.slug}`}>{guide.label}</a>
+            </li>
+          ))}
+      </ul>
+    </aside>
   );
 }
