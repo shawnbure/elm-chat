@@ -62,6 +62,25 @@ function withSecurityHeaders(response: Response): Response {
   });
 }
 
+function canonicalOriginRedirect(request: Request): Response | null {
+  const url = new URL(request.url);
+  const isElmChatHost = url.hostname === "elm.chat" || url.hostname === "www.elm.chat";
+  if (!isElmChatHost || (url.protocol === "https:" && url.hostname === "elm.chat")) {
+    return null;
+  }
+
+  url.protocol = "https:";
+  url.hostname = "elm.chat";
+  url.port = "";
+  return new Response(null, {
+    status: 308,
+    headers: {
+      location: url.toString(),
+      "cache-control": "public, max-age=86400"
+    }
+  });
+}
+
 function isWebSocketUpgrade(request: Request): boolean {
   return request.headers.get("Upgrade")?.toLowerCase() === "websocket";
 }
@@ -336,6 +355,10 @@ function routeApi(request: Request, env: Env): Promise<Response> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    const redirect = canonicalOriginRedirect(request);
+    if (redirect) {
+      return withSecurityHeaders(redirect);
+    }
 
     if (url.pathname.startsWith("/api/")) {
       try {
