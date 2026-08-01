@@ -64,8 +64,16 @@ function withSecurityHeaders(response: Response): Response {
 
 function canonicalOriginRedirect(request: Request): Response | null {
   const url = new URL(request.url);
-  const isElmChatHost = url.hostname === "elm.chat" || url.hostname === "www.elm.chat";
-  if (!isElmChatHost || (url.protocol === "https:" && url.hostname === "elm.chat")) {
+  const requestHost = (request.headers.get("host") ?? url.hostname)
+    .split(":", 1)[0]
+    .toLowerCase();
+  const forwardedProtocol = request.headers.get("x-forwarded-proto")?.toLowerCase();
+  const requestProtocol =
+    forwardedProtocol === "http" || forwardedProtocol === "https"
+      ? forwardedProtocol
+      : url.protocol.slice(0, -1);
+  const isElmChatHost = requestHost === "elm.chat" || requestHost === "www.elm.chat";
+  if (!isElmChatHost || (requestProtocol === "https" && requestHost === "elm.chat")) {
     return null;
   }
 
