@@ -634,13 +634,24 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
           <h1>{page.title}</h1>
           {page.byline ? <p className="marketing-byline">{page.byline}</p> : null}
           <p className="marketing-intro">{page.intro}</p>
-          <a
-            className="primary-button marketing-primary-cta"
-            href={roomHref}
-            onClick={() => recordGrowthEvent("marketing_cta_clicked", slug)}
-          >
-            Create a disposable room
-          </a>
+          <div className="marketing-header-actions">
+            <a
+              className="primary-button marketing-primary-cta"
+              href={roomHref}
+              onClick={() => recordGrowthEvent("marketing_cta_clicked", slug)}
+            >
+              Create a disposable room
+            </a>
+            <a
+              className="secondary-button marketing-source-cta"
+              href={GITHUB_URL}
+              rel="noreferrer"
+              target="_blank"
+              onClick={() => recordGrowthEvent("marketing_source_clicked", slug)}
+            >
+              Inspect the source
+            </a>
+          </div>
         </header>
 
         <div className="marketing-body">{page.body}</div>

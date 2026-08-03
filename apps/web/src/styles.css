@@ -1012,6 +1012,20 @@ select {
   text-decoration: none;
 }
 
+.marketing-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.marketing-header-actions .marketing-primary-cta,
+.marketing-source-cta {
+  margin-top: 0;
+  text-decoration: none;
+}
+
 .marketing-body {
   display: grid;
   gap: 42px;
