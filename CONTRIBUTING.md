@@ -15,12 +15,16 @@ You don't have to write code to help:
 - **Bug reports** — file precise, reproducible issues.
 
 See [good first issues](docs/GOOD-FIRST-ISSUES.md) for scoped starting points.
+For design questions, self-hosting reports, and ideas that are not yet actionable bugs,
+use [GitHub Discussions](https://github.com/shawnbure/elm-chat/discussions). The
+[start-here discussion](https://github.com/shawnbure/elm-chat/discussions/42)
+collects the live demo, architecture, threat model, and current newcomer tasks.
 
 ## Ground rules
 
 1. **Privacy is the product.** If a change improves convenience but expands retention, logging, observability, or recoverable history, it will be challenged hard. Justify any new data that touches the server.
 2. **No new telemetry on room contents.** Aggregate, content-free counters on public surfaces (landing/invite pages) are fine; anything that could deanonymize participants or reconstruct a transcript is not.
-3. **Small, reviewable PRs.** One concern per pull request. Large refactors should start as an issue for discussion.
+3. **Small, reviewable PRs.** One concern per pull request. Large refactors should start in [Discussions](https://github.com/shawnbure/elm-chat/discussions) before becoming an issue or pull request.
 4. **Explain the security implications.** Every PR description should answer: does this change what the server can see, retain, or reconstruct?
 
 ## Development setup
