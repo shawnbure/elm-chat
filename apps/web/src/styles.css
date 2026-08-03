@@ -997,6 +997,13 @@ select {
   line-height: 1.6;
 }
 
+.marketing-byline {
+  margin: 18px 0 -8px;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
 .marketing-primary-cta {
   display: inline-flex;
   align-items: center;
