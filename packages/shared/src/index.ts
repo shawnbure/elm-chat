@@ -32,7 +32,11 @@ export const MARKETING_ACQUISITION_SOURCES = [
   "durable-objects-websocket-hibernation"
 ] as const;
 
-export const EXTERNAL_ACQUISITION_SOURCES = ["freshcode"] as const;
+export const EXTERNAL_ACQUISITION_SOURCES = [
+  "dev-community",
+  "freshcode",
+  "hashnode"
+] as const;
 
 export const ACQUISITION_SOURCES = [
   "invite",
