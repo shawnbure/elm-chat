@@ -33,6 +33,7 @@ export const MARKETING_ACQUISITION_SOURCES = [
 ] as const;
 
 export const EXTERNAL_ACQUISITION_SOURCES = [
+  "awesome-cloudflare",
   "dev-community",
   "freshcode",
   "hashnode",
