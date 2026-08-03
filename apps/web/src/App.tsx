@@ -530,8 +530,10 @@ function MakeYourOwnCallout({ compact = false }: { compact?: boolean }) {
         className="make-your-own-link"
         href="/?source=invite"
         onClick={recordMakeYourOwnClick}
+        rel={compact ? "noreferrer" : undefined}
+        target={compact ? "_blank" : undefined}
       >
-        Create your own &mdash; free, no signup.
+        {compact ? "Open your own in a new tab" : "Create your own"} &mdash; free, no signup.
       </a>
     </p>
   );
