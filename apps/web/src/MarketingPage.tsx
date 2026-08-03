@@ -738,6 +738,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
             <li><a href="/journalist-source-communication">Journalist and source channel guide</a></li>
             <li><a href="/temporary-financial-handoff">Financial data-minimization essay</a></li>
             <li><a href="/the-internet-needs-places-that-forget">Public-interest essay on technology that forgets</a></li>
+            <li><a href="/feed.xml">RSS feed for articles and technical notes</a></li>
             <li><a href="https://github.com/shawnbure/elm-chat/releases/tag/v0.1.0" rel="noreferrer" target="_blank">Current public release</a></li>
           </ul>
         </section>
@@ -1237,6 +1238,7 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
         </a>
         <div>
           <a href="/press">Press kit</a>
+          <a href="/feed.xml">RSS</a>
           <a href="/security-and-limitations">Security</a>
           <a href={GITHUB_URL} rel="noreferrer" target="_blank">
             Source

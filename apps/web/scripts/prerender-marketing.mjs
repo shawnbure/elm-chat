@@ -447,6 +447,7 @@ const pages = {
           <li><a href="/building-ephemeral-chat-cloudflare">Architecture walkthrough</a></li>
           <li><a href="/journalist-source-communication">Journalist and source channel guide</a></li>
           <li><a href="/temporary-financial-handoff">Financial data-minimization essay</a></li>
+          <li><a href="/feed.xml">RSS feed for articles and technical notes</a></li>
           <li><a href="https://github.com/shawnbure/elm-chat/releases/tag/v0.1.0">Current public release</a></li>
         </ul>
       </section>
@@ -758,6 +759,7 @@ for (const [slug, page] of Object.entries(pages)) {
         <a class="marketing-brand" href="/">elm.chat</a>
         <div>
           <a href="/press">Press kit</a>
+          <a href="/feed.xml">RSS</a>
           <a href="/security-and-limitations">Security</a>
           <a href="https://github.com/shawnbure/elm-chat">Source</a>
           <a href="https://github.com/shawnbure/elm-chat/blob/main/docs/threat-model.md">Threat model</a>

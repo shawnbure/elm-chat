@@ -21,6 +21,8 @@ New here? Start with the public [try, review, or contribute guide](https://githu
 
 Try [elm.chat](https://elm.chat), review its [public security status and limitations](https://elm.chat/security-and-limitations), open the [press and media kit](https://elm.chat/press), read why [the internet needs places that are allowed to forget](https://elm.chat/the-internet-needs-places-that-forget) or [why I built a messenger designed to disappear](https://elm.chat/why-i-built-elm-chat), learn what [self-destructing chat should actually mean](https://elm.chat/self-destructing-chat), follow the practical guides to [sending a password without leaving it in chat history](https://elm.chat/send-a-password-securely) and [sending a file without creating another attachment archive](https://elm.chat/send-a-file-securely), compare a [one-time secret with a disposable chat](https://elm.chat/one-time-secret-chat), create a [temporary private chat without signup](https://elm.chat/temporary-private-chat), choose a [communication channel for a journalist and source](https://elm.chat/journalist-source-communication), explore the [Cloudflare Durable Objects architecture](https://elm.chat/building-ephemeral-chat-cloudflare), or see how [WebSocket hibernation works without a chat database](https://elm.chat/durable-objects-websocket-hibernation).
 
+Subscribe to the [RSS feed](https://elm.chat/feed.xml) for new articles and technical notes.
+
 ## Run your own in one click
 
 elm.chat is Cloudflare-native, so you can fork and self-host a full private instance in about a minute — Cloudflare clones the repo into your account and provisions the Durable Objects for you:
