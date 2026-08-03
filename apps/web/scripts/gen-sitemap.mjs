@@ -17,6 +17,7 @@ const urls = [
   { path: "/journalist-source-communication", changefreq: "monthly", priority: "0.8" },
   { path: "/temporary-financial-handoff", changefreq: "monthly", priority: "0.8" },
   { path: "/press", changefreq: "monthly", priority: "0.6" },
+  { path: "/internet-needs-places-that-forget", changefreq: "monthly", priority: "0.8" },
   { path: "/why-i-built-elm-chat", changefreq: "monthly", priority: "0.7" },
   { path: "/building-ephemeral-chat-cloudflare", changefreq: "monthly", priority: "0.8" },
   { path: "/durable-objects-websocket-hibernation", changefreq: "monthly", priority: "0.8" }

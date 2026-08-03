@@ -589,6 +589,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
             <li><a href="/building-ephemeral-chat-cloudflare">Architecture walkthrough</a></li>
             <li><a href="/journalist-source-communication">Journalist and source channel guide</a></li>
             <li><a href="/temporary-financial-handoff">Financial data-minimization essay</a></li>
+            <li><a href="/internet-needs-places-that-forget">Public-interest essay on technology that forgets</a></li>
             <li><a href="https://github.com/shawnbure/elm-chat/releases/tag/v0.1.0" rel="noreferrer" target="_blank">Current public release</a></li>
           </ul>
         </section>
@@ -610,6 +611,116 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
           <h2>Media inquiries</h2>
           <p>
             Reach Shawn through his <a href="https://github.com/shawnbure" rel="noreferrer" target="_blank">GitHub profile</a> or start a public question in <a href="https://github.com/shawnbure/elm-chat/discussions" rel="noreferrer" target="_blank">elm.chat Discussions</a>.
+          </p>
+        </section>
+
+        <Limitations />
+      </>
+    )
+  },
+  "internet-needs-places-that-forget": {
+    title: "The internet needs places that are allowed to forget",
+    description:
+      "Shawn Bure makes the public-interest case for deliberate digital forgetting: preserve accountable records while minimizing temporary human conversations.",
+    eyebrow: "Technology and society",
+    byline: "By Shawn Bure — founder of Workrr AI and Workrr One",
+    intro:
+      "The internet learned to remember almost everything. A healthier digital world would also know when a conversation has completed its purpose and should be allowed to end.",
+    body: (
+      <>
+        <section>
+          <h2>Permanent memory is not a neutral default</h2>
+          <p>
+            Digital systems preserve information because storage is inexpensive and history is
+            useful. Records can make decisions reviewable, protect customers, expose wrongdoing,
+            and help organizations learn. But a useful capability became a nearly universal default:
+            every message, draft, clarification, attachment, and moment of uncertainty is invited
+            to become permanent.
+          </p>
+          <p>
+            That changes the way people speak. A passing question becomes searchable evidence. A
+            private family moment becomes platform inventory. A ten-second credential handoff is
+            copied into inboxes, tickets, backups, and devices. The cost is not only a future breach.
+            It is the quiet pressure people feel when every imperfect thought may outlive its purpose.
+          </p>
+        </section>
+
+        <section>
+          <h2>Accountability and minimization belong together</h2>
+          <p>
+            The answer is not to erase every record. Financial transactions, public decisions,
+            safety reports, consent, and other accountable acts may need durable evidence. The
+            better question is narrower: which fact must remain, and which temporary conversation
+            merely helped people reach it?
+          </p>
+          <p>
+            A bank may need to preserve an authorization without keeping every password or draft
+            exchanged around it. A company may need the final decision without retaining years of
+            exploratory chat. A person may want an enduring photograph without a permanent archive
+            of the private coordination that produced it. Responsible retention preserves what has
+            continuing value and stops collecting the rest by reflex.
+          </p>
+        </section>
+
+        <section>
+          <h2>Forgetting must be designed, not promised</h2>
+          <p>
+            A disappearing animation is not deletion. Honest ephemeral software has to define the
+            whole lifecycle: whether an identity is required, where encryption keys live, whether
+            the service stores a transcript, how invitations expire, who can destroy the room, what
+            metadata remains, and which copies exist beyond the service&apos;s control.
+          </p>
+          <p>
+            Those limits matter. A recipient can take a screenshot or photograph. A compromised
+            device can expose plaintext. Infrastructure can observe connection metadata even when
+            it cannot read encrypted content. Backups and logs may outlive the interface. Technology
+            cannot make another person forget; it can only decline to create an unnecessary archive
+            of its own.
+          </p>
+        </section>
+
+        <section>
+          <h2>Why I built elm.chat in public</h2>
+          <p>
+            I am an AI professional and technologist with decades of operating and software
+            experience across payments, recovery operations, telephony, CRM, integrations, cloud
+            systems, and production AI. I lead Workrr AI and Workrr One. Much of that work depends
+            on good records and accountable automation. elm.chat explores the complementary idea:
+            sometimes responsible software should create less evidence in the first place.
+          </p>
+          <p>
+            elm.chat creates an account-free room, encrypts messages and files in participants&apos;
+            browsers, relays ciphertext without persisting a server-side transcript, uses single-use
+            invitations, and lets the creator destroy the room. The project is AGPL-3.0 so people can
+            inspect, challenge, fork, and run it themselves.
+          </p>
+          <p>
+            It is also early. It has not completed an independent security audit. Message
+            authentication is unfinished. Cloudflare can observe ordinary connection metadata such
+            as IP addresses, timing, sizes, and presence. Participant devices can retain everything
+            they receive. elm.chat is not an anonymity network or a high-risk source-protection tool.
+            Publishing those boundaries is part of the experiment, not an apology hidden after the
+            slogan.
+          </p>
+        </section>
+
+        <section>
+          <h2>A healthier internet would offer more than one kind of memory</h2>
+          <p>
+            We need durable systems that preserve public accountability. We need mature encrypted
+            messengers for relationships that continue. We need anonymous submission systems built
+            for high-risk sources. We also need small, understandable places for ordinary people who
+            already know one another and simply do not need another permanent thread.
+          </p>
+          <p>
+            The larger goal is choice. People should be able to select a channel whose memory matches
+            the purpose of the interaction. Designers should justify retention with the same care
+            they apply to collection. Product teams should treat destruction as a real state, not a
+            cosmetic button. And builders should publish what their systems cannot forget.
+          </p>
+          <p>
+            Software has become extraordinarily good at recording human life. Helping the world now
+            means learning when restraint is the more responsible feature.
           </p>
         </section>
 
@@ -1088,6 +1199,7 @@ function RelatedGuides({ current }: { current: MarketingSlug }) {
     { slug: "temporary-private-chat", label: "Temporary private chat without signup" },
     { slug: "journalist-source-communication", label: "Choosing a channel for journalists and sources" },
     { slug: "temporary-financial-handoff", label: "Temporary financial handoffs" },
+    { slug: "internet-needs-places-that-forget", label: "Why the internet needs places that forget" },
     { slug: "why-i-built-elm-chat", label: "Why I built elm.chat" },
     {
       slug: "building-ephemeral-chat-cloudflare",
