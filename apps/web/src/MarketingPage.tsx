@@ -4,6 +4,9 @@ import { recordGrowthEvent } from "./growth";
 
 const GITHUB_URL = "https://github.com/shawnbure/elm-chat";
 const THREAT_MODEL_URL = `${GITHUB_URL}/blob/main/docs/threat-model.md`;
+const SECURITY_POLICY_URL = `${GITHUB_URL}/blob/main/SECURITY.md`;
+const PRIVATE_REPORT_URL = `${GITHUB_URL}/security/advisories/new`;
+const REVIEW_REQUEST_URL = `${GITHUB_URL}/issues/56`;
 const DEPLOY_URL = `https://deploy.workers.cloudflare.com/?url=${GITHUB_URL}`;
 
 export type MarketingSlug = MarketingAcquisitionSource;
@@ -19,6 +22,77 @@ type MarketingPageContent = {
 };
 
 const pages: Record<MarketingSlug, MarketingPageContent> = {
+  "security-and-limitations": {
+    title: "elm.chat security status and limitations",
+    description:
+      "The public security status of elm.chat: what is encrypted, what metadata remains visible, known protocol gaps, destruction limits, and how to review or report issues.",
+    eyebrow: "Public security status",
+    intro:
+      "elm.chat is an early-stage encrypted messenger, not an audited high-assurance security product. This page puts its current guarantees, known gaps, and review routes in one place.",
+    body: (
+      <>
+        <section>
+          <h2>Current status</h2>
+          <ul>
+            <li><strong>No independent security audit has been completed.</strong></li>
+            <li>Message and file content is encrypted and decrypted in participant browsers.</li>
+            <li>The room secret is carried in the URL fragment during normal use, so it is not sent to the server in an HTTP request.</li>
+            <li>The Cloudflare relay handles ciphertext and does not persist a server-side transcript.</li>
+            <li><strong>Message authentication and replay/duplicate protections are not implemented yet.</strong></li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>What the relay and participants can still know</h2>
+          <p>
+            The hosted relay can observe ordinary network and room metadata, including IP addresses,
+            connection timing, presence, and encrypted payload sizes. Encryption does not make the
+            service anonymous.
+          </p>
+          <p>
+            A participant can save, copy, screenshot, photograph, forward, or back up plaintext and
+            files. Room destruction ends elm.chat&apos;s server-side room lifecycle; it cannot erase
+            copies on participant devices or from other software.
+          </p>
+        </section>
+
+        <section>
+          <h2>Where it does—and does not—fit</h2>
+          <p>
+            elm.chat is being built for temporary communication between known participants who want
+            fewer durable server-side copies. It should not currently be treated as an anonymous
+            drop box, an audited high-risk communications system, a compliance product, or a
+            production financial-control system.
+          </p>
+          <p>
+            Use a purpose-built, independently reviewed system when anonymity, severe-repression
+            resistance, regulated recordkeeping, or high-assurance identity verification is required.
+          </p>
+        </section>
+
+        <section>
+          <h2>Inspect and challenge the claims</h2>
+          <ul>
+            <li><a href={THREAT_MODEL_URL} rel="noreferrer" target="_blank">Read the threat model</a></li>
+            <li><a href={`${GITHUB_URL}/blob/main/docs/architecture.md`} rel="noreferrer" target="_blank">Inspect the architecture</a></li>
+            <li><a href={GITHUB_URL} rel="noreferrer" target="_blank">Review the complete AGPL-3.0 source</a></li>
+            <li><a href={REVIEW_REQUEST_URL} rel="noreferrer" target="_blank">Join the public independent-review request</a> for coordination and non-sensitive design observations</li>
+          </ul>
+          <p>
+            No independent reviewer is currently committed. The public request is an invitation to
+            scrutiny, not a claim that an audit is underway.
+          </p>
+        </section>
+
+        <section>
+          <h2>Report a suspected vulnerability privately</h2>
+          <p>
+            Do not publish exploitable details in the review issue. Follow the <a href={SECURITY_POLICY_URL} rel="noreferrer" target="_blank">security policy</a> and use <a href={PRIVATE_REPORT_URL} rel="noreferrer" target="_blank">GitHub private vulnerability reporting</a>.
+          </p>
+        </section>
+      </>
+    )
+  },
   "self-destructing-chat": {
     title: "Self-destructing chat: what disappearing should actually mean",
     description:
@@ -1125,9 +1199,7 @@ function Limitations() {
       <strong>Security status</strong>
       <p>
         elm.chat has not had an independent security audit. Review the{" "}
-        <a href={THREAT_MODEL_URL} rel="noreferrer" target="_blank">
-          public threat model
-        </a>{" "}
+        <a href="/security-and-limitations">public security status</a>{" "}
         before using it for a sensitive situation.
       </p>
     </aside>
@@ -1165,6 +1237,7 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
         </a>
         <div>
           <a href="/press">Press kit</a>
+          <a href="/security-and-limitations">Security</a>
           <a href={GITHUB_URL} rel="noreferrer" target="_blank">
             Source
           </a>
@@ -1274,6 +1347,7 @@ function RelatedGuides({ current }: { current: MarketingSlug }) {
     { slug: "temporary-private-chat", label: "Temporary private chat without signup" },
     { slug: "journalist-source-communication", label: "Choosing a channel for journalists and sources" },
     { slug: "temporary-financial-handoff", label: "Temporary financial handoffs" },
+    { slug: "security-and-limitations", label: "Security status and limitations" },
     { slug: "the-internet-needs-places-that-forget", label: "Why the internet needs places that forget" },
     { slug: "why-i-built-elm-chat", label: "Why I built elm.chat" },
     {

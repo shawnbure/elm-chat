@@ -10,6 +10,7 @@ const urlList = [
   `https://${host}/temporary-private-chat`,
   `https://${host}/journalist-source-communication`,
   `https://${host}/temporary-financial-handoff`,
+  `https://${host}/security-and-limitations`,
   `https://${host}/press`,
   `https://${host}/the-internet-needs-places-that-forget`,
   `https://${host}/why-i-built-elm-chat`,
