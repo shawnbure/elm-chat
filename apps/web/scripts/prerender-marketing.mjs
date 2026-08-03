@@ -179,6 +179,9 @@ const pages = {
     datePublished: "2026-07-28",
     dateModified: "2026-08-03",
     schemaType: "TechArticle",
+    socialImage: "elm-chat-architecture-social.png",
+    socialImageAlt:
+      "elm.chat architecture walkthrough — WebSockets, Durable Objects, and browser encryption",
     keywords: [
       "Cloudflare Workers",
       "Cloudflare Durable Objects",
@@ -242,6 +245,9 @@ const pages = {
     datePublished: "2026-07-28",
     dateModified: "2026-08-03",
     schemaType: "TechArticle",
+    socialImage: "elm-chat-architecture-social.png",
+    socialImageAlt:
+      "elm.chat architecture walkthrough — WebSockets, Durable Objects, and browser encryption",
     keywords: [
       "Cloudflare Durable Objects",
       "WebSocket hibernation",
@@ -316,12 +322,15 @@ const guideLabels = {
 
 for (const [slug, page] of Object.entries(pages)) {
   const canonical = `${ORIGIN}/${slug}`;
+  const socialImage = page.socialImage ?? "elm-chat-social.png";
+  const socialImageAlt =
+    page.socialImageAlt ?? "elm.chat — One conversation. Then gone.";
   const structuredData = {
     "@context": "https://schema.org",
     "@type": page.schemaType ?? "Article",
     headline: page.title,
     description: page.description,
-    image: [`${ORIGIN}/elm-chat-social.png`],
+    image: [`${ORIGIN}/${socialImage}`],
     datePublished: page.datePublished ?? "2026-07-28",
     dateModified: page.dateModified ?? "2026-07-28",
     ...(page.keywords ? { keywords: page.keywords } : {}),
@@ -436,6 +445,14 @@ for (const [slug, page] of Object.entries(pages)) {
     .replace(
       /<meta property="og:url" content="[^"]*" \/>/,
       `<meta property="og:url" content="${canonical}" />`
+    )
+    .replace(
+      /<meta property="og:image" content="[^"]*" \/>/,
+      `<meta property="og:image" content="${ORIGIN}/${socialImage}" />`
+    )
+    .replace(
+      /<meta property="og:image:alt" content="[^"]*" \/>/,
+      `<meta property="og:image:alt" content="${socialImageAlt}" />`
     )
     .replace(
       /<script id="structured-data" type="application\/ld\+json">[\s\S]*?<\/script>/,
