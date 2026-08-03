@@ -909,11 +909,19 @@ function LandingPage() {
         <div className="hero-panel">
           <div className="signal-grid" />
           <div className="hero-panel-top">
-          <a className="github-cta" href={GITHUB_URL} rel="noreferrer" target="_blank">
+          <a
+            className="github-cta"
+            href={GITHUB_URL}
+            onClick={() =>
+              recordGrowthEvent("github_star_clicked", externalSource ?? undefined)
+            }
+            rel="noreferrer"
+            target="_blank"
+          >
             <GithubMark size={22} />
             <span className="github-cta-copy">
-              <strong>Star us on GitHub</strong>
-              <span>Open source. Audit the code, fork it, run your own.</span>
+              <strong>Star or inspect on GitHub</strong>
+              <span>Open source. Review every claim, fork it, or help build it.</span>
             </span>
             <span className="github-cta-stats" aria-label="GitHub stars and forks">
               {ghStats.stars !== null ? (
@@ -935,8 +943,16 @@ function LandingPage() {
             <a className="github-mini" href={`${GITHUB_URL}/fork`} rel="noreferrer" target="_blank">
               Fork me
             </a>
-            <a className="github-mini" href={`${GITHUB_URL}/blob/main/apps/web/src/App.tsx`} rel="noreferrer" target="_blank">
-              Read my code
+            <a
+              className="github-mini"
+              href={`${GITHUB_URL}/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22`}
+              onClick={() =>
+                recordGrowthEvent("good_first_issue_clicked", externalSource ?? undefined)
+              }
+              rel="noreferrer"
+              target="_blank"
+            >
+              Pick 1 of 8 starter issues
             </a>
           </div>
           </div>

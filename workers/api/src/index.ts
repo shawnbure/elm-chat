@@ -27,6 +27,8 @@ type GrowthEvent =
   | "external_referral_viewed"
   | "external_source_clicked"
   | "external_deploy_clicked"
+  | "github_star_clicked"
+  | "good_first_issue_clicked"
   | "room_created"
   | "invite_created";
 
@@ -312,6 +314,14 @@ function routeApi(request: Request, env: Env): Promise<Response> {
       .then(({ event, source }) => {
         if (event === "make_your_own_clicked") {
           recordGrowth(env, event);
+          return new Response(null, { status: 204 });
+        }
+        if (event === "github_star_clicked" || event === "good_first_issue_clicked") {
+          recordGrowth(
+            env,
+            event,
+            isAcquisitionSource(source) && source !== "invite" ? source : "direct"
+          );
           return new Response(null, { status: 204 });
         }
         const isExternalEvent =

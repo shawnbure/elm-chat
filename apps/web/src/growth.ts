@@ -8,7 +8,9 @@ type ClientGrowthEvent =
   | "marketing_deploy_clicked"
   | "external_referral_viewed"
   | "external_source_clicked"
-  | "external_deploy_clicked";
+  | "external_deploy_clicked"
+  | "github_star_clicked"
+  | "good_first_issue_clicked";
 
 export function recordGrowthEvent(
   event: ClientGrowthEvent,
