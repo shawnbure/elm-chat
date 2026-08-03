@@ -263,6 +263,121 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
       </>
     )
   },
+  "temporary-financial-handoff": {
+    title: "Stop putting one-time financial handoffs in permanent inboxes",
+    description:
+      "A practical framework for separating accountable financial records from temporary credential, document, and exception-handling conversations.",
+    eyebrow: "Financial data minimization",
+    byline: "By Shawn Bure — founder of Workrr AI and Workrr One",
+    intro:
+      "A financial transaction may need a durable record. The temporary conversation used to resolve an exception, exchange a credential, or collect one missing document often does not need to become another permanent archive.",
+    body: (
+      <>
+        <section>
+          <h2>The record and the conversation are different systems</h2>
+          <p>
+            Banks, fintechs, accountants, and operations teams need evidence. A payment
+            authorization, customer consent, approval, account change, or case outcome may belong
+            in a governed system of record with a defined retention policy. That does not mean
+            every password, recovery code, screenshot, draft document, and troubleshooting exchange
+            should live forever beside it.
+          </p>
+          <p>
+            In practice, one-time handoffs are often pushed into email, SMS, workplace chat,
+            support tickets, or shared drives because those tools are already open. A short
+            operational moment becomes searchable in several accounts, forwarded into another
+            system, included in backups, and accessible to people who were never part of the
+            original exchange.
+          </p>
+        </section>
+
+        <section>
+          <h2>Start with four retention questions</h2>
+          <ol>
+            <li><strong>What fact must remain?</strong> Record the decision, authorization, receipt, or case outcome in the proper system.</li>
+            <li><strong>What material is merely in transit?</strong> Treat a temporary credential, draft, or clarification as a handoff rather than a new record category.</li>
+            <li><strong>Who can end the exchange?</strong> Define expiry, revocation, and destruction authority before the conversation begins.</li>
+            <li><strong>What cannot be erased?</strong> State the metadata, participant copies, screenshots, device artifacts, and regulatory records outside the channel&apos;s control.</li>
+          </ol>
+          <p>
+            This separation is not a way to evade legal retention, supervision, discovery, fraud
+            controls, or audit obligations. It is a way to stop creating extra copies that serve no
+            continuing operational purpose.
+          </p>
+        </section>
+
+        <section>
+          <h2>Use the narrowest tool that completes the handoff</h2>
+          <div className="marketing-table-wrap">
+            <table>
+              <thead><tr><th scope="col">Need</th><th scope="col">Usually the better fit</th></tr></thead>
+              <tbody>
+                <tr><td>Preserve an authorization, transaction, or final decision</td><td>The governed financial system of record</td></tr>
+                <tr><td>Reveal one value once with no discussion</td><td>A purpose-built one-time secret service</td></tr>
+                <tr><td>Clarify, confirm, or exchange several temporary items live</td><td>A short-lived room with an explicit end</td></tr>
+                <tr><td>Collaborate over days or maintain a client relationship</td><td>An approved mature messaging or case-management platform</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            The goal is not to make every financial conversation disappear. It is to match each
+            exchange to the smallest defensible retention footprint.
+          </p>
+        </section>
+
+        <section>
+          <h2>A disposable room is an experiment, not a compliance shortcut</h2>
+          <p>
+            I built elm.chat to explore this boundary. It creates a no-account room, encrypts
+            message and file content in participants&apos; browsers, uses a single-use invite, and
+            relays ciphertext without persisting a server-side transcript. The creator can destroy
+            the room when the handoff is complete.
+          </p>
+          <p>
+            That architecture reduces one category of durable copy. It does not decide what a
+            financial institution is legally required to retain, integrate with supervision
+            systems, prevent a recipient from saving content, hide ordinary relay metadata, or
+            protect a compromised endpoint.
+          </p>
+        </section>
+
+        <section>
+          <h2>What a production financial workflow would still need</h2>
+          <ul>
+            <li>A documented record-classification and retention decision.</li>
+            <li>Approved identity, authorization, access, and endpoint controls.</li>
+            <li>A clear way to preserve the required outcome without preserving every transient input.</li>
+            <li>Independent security review, abuse testing, incident response, and vendor-risk evaluation.</li>
+            <li>Plain-language disclosure of deletion scope, metadata, participant copies, and failure states.</li>
+          </ul>
+          <p>
+            elm.chat is early-stage, has not had an independent security audit, and does not yet
+            implement message authentication. It should not be presented as production-ready
+            financial infrastructure or used for high-risk financial information on the strength
+            of this article.
+          </p>
+        </section>
+
+        <section>
+          <h2>The useful design question is smaller</h2>
+          <p>
+            When a financial workflow creates a new piece of data, ask whether the institution
+            needs the fact, the entire conversation, or neither after the task is done. Keep the
+            accountable record. Minimize the temporary material around it. Make expiry and
+            destruction visible. Then test the technical system against the promise the interface
+            makes.
+          </p>
+          <p>
+            That is a more honest goal than calling every channel secure. It gives product,
+            operations, security, legal, and compliance teams a concrete boundary they can inspect
+            together.
+          </p>
+        </section>
+
+        <Limitations />
+      </>
+    )
+  },
   "why-i-built-elm-chat": {
     title: "Why I built a messenger designed to disappear",
     description:
@@ -731,6 +846,7 @@ function RelatedGuides({ current }: { current: MarketingSlug }) {
     { slug: "send-a-password-securely", label: "How to send a password securely" },
     { slug: "one-time-secret-chat", label: "One-time secret vs disposable chat" },
     { slug: "temporary-private-chat", label: "Temporary private chat without signup" },
+    { slug: "temporary-financial-handoff", label: "Temporary financial handoffs" },
     { slug: "why-i-built-elm-chat", label: "Why I built elm.chat" },
     {
       slug: "building-ephemeral-chat-cloudflare",
