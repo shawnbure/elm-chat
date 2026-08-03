@@ -135,7 +135,7 @@ const pages = {
     eyebrow: "Founder's note",
     byline: "By Shawn Bure — founder of Workrr AI and Workrr One",
     authorName: "Shawn Bure",
-    authorUrl: "https://www.workrr.ai/",
+    authorUrl: "https://shawnbure.com/",
     datePublished: "2026-08-03",
     dateModified: "2026-08-03",
     intro:
@@ -173,6 +173,21 @@ const pages = {
     description:
       "A technical walkthrough of elm.chat's React, Web Crypto, Cloudflare Worker, Durable Object, WebSocket, encryption, and disposable-room architecture.",
     eyebrow: "Architecture walkthrough",
+    byline: "By Shawn Bure — creator of elm.chat",
+    authorName: "Shawn Bure",
+    authorUrl: "https://shawnbure.com/",
+    datePublished: "2026-07-28",
+    dateModified: "2026-08-03",
+    schemaType: "TechArticle",
+    keywords: [
+      "Cloudflare Workers",
+      "Cloudflare Durable Objects",
+      "Web Crypto",
+      "WebSockets",
+      "end-to-end encryption",
+      "ephemeral messaging"
+    ],
+    developerAudience: true,
     intro:
       "elm.chat uses one Cloudflare Worker and one Durable Object per room to coordinate a live encrypted conversation without turning the server into a transcript database.",
     body: `
@@ -221,6 +236,20 @@ const pages = {
     description:
       "How elm.chat uses Cloudflare Durable Objects WebSocket hibernation, serialized socket attachments, client-held encrypted history, and peer sync without storing a server transcript.",
     eyebrow: "Durable Objects deep dive",
+    byline: "By Shawn Bure — creator of elm.chat",
+    authorName: "Shawn Bure",
+    authorUrl: "https://shawnbure.com/",
+    datePublished: "2026-07-28",
+    dateModified: "2026-08-03",
+    schemaType: "TechArticle",
+    keywords: [
+      "Cloudflare Durable Objects",
+      "WebSocket hibernation",
+      "TypeScript",
+      "ephemeral messaging",
+      "client-held history"
+    ],
+    developerAudience: true,
     intro:
       "WebSocket hibernation can keep a room reachable while its Durable Object sleeps. It does not preserve ordinary JavaScript memory, so elm.chat separates durable room state, live connection identity, and disposable message history.",
     body: `
@@ -289,12 +318,13 @@ for (const [slug, page] of Object.entries(pages)) {
   const canonical = `${ORIGIN}/${slug}`;
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "Article",
+    "@type": page.schemaType ?? "Article",
     headline: page.title,
     description: page.description,
     image: [`${ORIGIN}/elm-chat-social.png`],
     datePublished: page.datePublished ?? "2026-07-28",
     dateModified: page.dateModified ?? "2026-07-28",
+    ...(page.keywords ? { keywords: page.keywords } : {}),
     author: page.authorName
       ? {
           "@type": "Person",
@@ -338,7 +368,11 @@ for (const [slug, page] of Object.entries(pages)) {
           <h1>${page.title}</h1>
           ${page.byline ? `<p class="marketing-byline">${page.byline}</p>` : ""}
           <p class="marketing-intro">${page.intro}</p>
-          <a class="primary-button marketing-primary-cta" href="/?source=${slug}">Create a disposable room</a>
+          <div class="marketing-header-actions">
+            <a class="primary-button marketing-primary-cta" href="/?source=${slug}">${page.developerAudience ? "Try the live architecture" : "Create a disposable room"}</a>
+            <a class="secondary-button marketing-source-cta" href="https://github.com/shawnbure/elm-chat">Inspect the source</a>
+            ${page.developerAudience ? '<a class="secondary-button marketing-deploy-cta" href="https://deploy.workers.cloudflare.com/?url=https://github.com/shawnbure/elm-chat">Deploy your own</a>' : ""}
+          </div>
         </header>
         <div class="marketing-body">
           ${page.body}
@@ -357,10 +391,20 @@ for (const [slug, page] of Object.entries(pages)) {
           </ul>
         </aside>
         <footer class="marketing-footer-cta">
-          <p class="eyebrow">One conversation. Then gone.</p>
+          ${
+            page.developerAudience
+              ? `<p class="eyebrow">Fork it. Deploy it. Inspect every claim.</p>
+          <h2>Run elm.chat on your own Cloudflare account</h2>
+          <p>Deploy the complete AGPL-3.0 app as one Worker with a room-scoped Durable Object, then inspect or change the implementation yourself.</p>
+          <div class="marketing-footer-actions">
+            <a class="primary-button marketing-primary-cta" href="https://deploy.workers.cloudflare.com/?url=https://github.com/shawnbure/elm-chat">Deploy to Cloudflare</a>
+            <a class="secondary-button marketing-live-cta" href="/?source=${slug}">Open the live app</a>
+          </div>`
+              : `<p class="eyebrow">One conversation. Then gone.</p>
           <h2>Create a room without an account</h2>
           <p>Set the message and room lifetime, issue a single-use invite, and destroy the room when you are finished.</p>
-          <a class="primary-button marketing-primary-cta" href="/?source=${slug}">Open elm.chat</a>
+          <a class="primary-button marketing-primary-cta" href="/?source=${slug}">Open elm.chat</a>`
+          }
         </footer>
       </article>
     </main>`;
@@ -377,7 +421,9 @@ for (const [slug, page] of Object.entries(pages)) {
     )
     .replace(
       '<meta property="og:type" content="website" />',
-      '<meta property="og:type" content="article" />'
+      `<meta property="og:type" content="article" />
+    <meta property="article:published_time" content="${page.datePublished ?? "2026-07-28"}" />
+    <meta property="article:modified_time" content="${page.dateModified ?? "2026-07-28"}" />`
     )
     .replace(
       /<meta property="og:title" content="[^"]*" \/>/,
