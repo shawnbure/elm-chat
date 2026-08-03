@@ -266,7 +266,7 @@ const MARKETING_PATHS = new Set([
   "/journalist-source-communication",
   "/temporary-financial-handoff",
   "/press",
-  "/software-should-know-when-to-forget",
+  "/the-internet-needs-places-that-forget",
   "/why-i-built-elm-chat",
   "/building-ephemeral-chat-cloudflare",
   "/durable-objects-websocket-hibernation"
@@ -422,6 +422,22 @@ export default {
       assetUrl.pathname += "/";
       return withSecurityHeaders(await env.ASSETS.fetch(new Request(assetUrl, request)));
     }
-    return withSecurityHeaders(await env.ASSETS.fetch(request));
+    const assetResponse = await env.ASSETS.fetch(request);
+    if (url.pathname !== "/" && !url.pathname.split("/").at(-1)?.includes(".")) {
+      const headers = new Headers(assetResponse.headers);
+      // An unknown extensionless path receives the SPA fallback. Do not let a
+      // link preview or crawler cache that homepage response before a future
+      // prerendered article is deployed at the same path. This also keeps
+      // secret room routes out of shared caches.
+      headers.set("Cache-Control", "no-store");
+      return withSecurityHeaders(
+        new Response(assetResponse.body, {
+          status: assetResponse.status,
+          statusText: assetResponse.statusText,
+          headers
+        })
+      );
+    }
+    return withSecurityHeaders(assetResponse);
   }
 };

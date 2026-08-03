@@ -589,7 +589,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
             <li><a href="/building-ephemeral-chat-cloudflare">Architecture walkthrough</a></li>
             <li><a href="/journalist-source-communication">Journalist and source channel guide</a></li>
             <li><a href="/temporary-financial-handoff">Financial data-minimization essay</a></li>
-            <li><a href="/software-should-know-when-to-forget">Public-interest essay on technology that forgets</a></li>
+            <li><a href="/the-internet-needs-places-that-forget">Public-interest essay on technology that forgets</a></li>
             <li><a href="https://github.com/shawnbure/elm-chat/releases/tag/v0.1.0" rel="noreferrer" target="_blank">Current public release</a></li>
           </ul>
         </section>
@@ -618,7 +618,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
       </>
     )
   },
-  "software-should-know-when-to-forget": {
+  "the-internet-needs-places-that-forget": {
     title: "The internet needs places that are allowed to forget",
     description:
       "Shawn Bure makes the public-interest case for deliberate digital forgetting: preserve accountable records while minimizing temporary human conversations.",
@@ -1199,7 +1199,7 @@ function RelatedGuides({ current }: { current: MarketingSlug }) {
     { slug: "temporary-private-chat", label: "Temporary private chat without signup" },
     { slug: "journalist-source-communication", label: "Choosing a channel for journalists and sources" },
     { slug: "temporary-financial-handoff", label: "Temporary financial handoffs" },
-    { slug: "software-should-know-when-to-forget", label: "Why the internet needs places that forget" },
+    { slug: "the-internet-needs-places-that-forget", label: "Why the internet needs places that forget" },
     { slug: "why-i-built-elm-chat", label: "Why I built elm.chat" },
     {
       slug: "building-ephemeral-chat-cloudflare",
