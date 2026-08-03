@@ -24,7 +24,7 @@ export const MARKETING_ACQUISITION_SOURCES = [
   "journalist-source-communication",
   "temporary-financial-handoff",
   "press",
-  "software-should-know-when-to-forget",
+  "the-internet-needs-places-that-forget",
   "why-i-built-elm-chat",
   "building-ephemeral-chat-cloudflare",
   "durable-objects-websocket-hibernation"
