@@ -4,11 +4,13 @@ import { recordGrowthEvent } from "./growth";
 
 const GITHUB_URL = "https://github.com/shawnbure/elm-chat";
 const THREAT_MODEL_URL = `${GITHUB_URL}/blob/main/docs/threat-model.md`;
+const DEPLOY_URL = `https://deploy.workers.cloudflare.com/?url=${GITHUB_URL}`;
 
 export type MarketingSlug = MarketingAcquisitionSource;
 
 type MarketingPageContent = {
   byline?: string;
+  developerAudience?: boolean;
   description: string;
   eyebrow: string;
   title: string;
@@ -360,6 +362,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
     )
   },
   "building-ephemeral-chat-cloudflare": {
+    developerAudience: true,
     title: "Building ephemeral encrypted chat with Cloudflare Durable Objects",
     description:
       "A technical walkthrough of elm.chat's React, Web Crypto, Cloudflare Worker, Durable Object, WebSocket, encryption, and disposable-room architecture.",
@@ -452,6 +455,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
     )
   },
   "durable-objects-websocket-hibernation": {
+    developerAudience: true,
     title: "Durable Objects WebSocket hibernation without a chat database",
     description:
       "How elm.chat uses Cloudflare Durable Objects WebSocket hibernation, serialized socket attachments, client-held encrypted history, and peer sync without storing a server transcript.",
@@ -640,7 +644,7 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
               href={roomHref}
               onClick={() => recordGrowthEvent("marketing_cta_clicked", slug)}
             >
-              Create a disposable room
+              {page.developerAudience ? "Try the live architecture" : "Create a disposable room"}
             </a>
             <a
               className="secondary-button marketing-source-cta"
@@ -651,6 +655,17 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
             >
               Inspect the source
             </a>
+            {page.developerAudience ? (
+              <a
+                className="secondary-button marketing-deploy-cta"
+                href={DEPLOY_URL}
+                rel="noreferrer"
+                target="_blank"
+                onClick={() => recordGrowthEvent("marketing_deploy_clicked", slug)}
+              >
+                Deploy your own
+              </a>
+            ) : null}
           </div>
         </header>
 
@@ -658,19 +673,50 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
         <RelatedGuides current={slug} />
 
         <footer className="marketing-footer-cta">
-          <p className="eyebrow">One conversation. Then gone.</p>
-          <h2>Create a room without an account</h2>
-          <p>
-            Set the message and room lifetime, issue a single-use invite, and destroy the room when
-            you are finished.
-          </p>
-          <a
-            className="primary-button marketing-primary-cta"
-            href={roomHref}
-            onClick={() => recordGrowthEvent("marketing_cta_clicked", slug)}
-          >
-            Open elm.chat
-          </a>
+          {page.developerAudience ? (
+            <>
+              <p className="eyebrow">Fork it. Deploy it. Inspect every claim.</p>
+              <h2>Run elm.chat on your own Cloudflare account</h2>
+              <p>
+                Deploy the complete AGPL-3.0 app as one Worker with a room-scoped Durable Object,
+                then inspect or change the implementation yourself.
+              </p>
+              <div className="marketing-footer-actions">
+                <a
+                  className="primary-button marketing-primary-cta"
+                  href={DEPLOY_URL}
+                  rel="noreferrer"
+                  target="_blank"
+                  onClick={() => recordGrowthEvent("marketing_deploy_clicked", slug)}
+                >
+                  Deploy to Cloudflare
+                </a>
+                <a
+                  className="secondary-button marketing-live-cta"
+                  href={roomHref}
+                  onClick={() => recordGrowthEvent("marketing_cta_clicked", slug)}
+                >
+                  Open the live app
+                </a>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="eyebrow">One conversation. Then gone.</p>
+              <h2>Create a room without an account</h2>
+              <p>
+                Set the message and room lifetime, issue a single-use invite, and destroy the room
+                when you are finished.
+              </p>
+              <a
+                className="primary-button marketing-primary-cta"
+                href={roomHref}
+                onClick={() => recordGrowthEvent("marketing_cta_clicked", slug)}
+              >
+                Open elm.chat
+              </a>
+            </>
+          )}
         </footer>
       </article>
     </main>

@@ -1021,7 +1021,22 @@ select {
 }
 
 .marketing-header-actions .marketing-primary-cta,
-.marketing-source-cta {
+.marketing-source-cta,
+.marketing-deploy-cta {
+  margin-top: 0;
+  text-decoration: none;
+}
+
+.marketing-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.marketing-footer-actions .marketing-primary-cta,
+.marketing-live-cta {
   margin-top: 0;
   text-decoration: none;
 }
