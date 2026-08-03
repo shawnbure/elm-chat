@@ -25,6 +25,8 @@ type GrowthEvent =
   | "marketing_source_clicked"
   | "marketing_deploy_clicked"
   | "external_referral_viewed"
+  | "external_source_clicked"
+  | "external_deploy_clicked"
   | "room_created"
   | "invite_created";
 
@@ -311,7 +313,11 @@ function routeApi(request: Request, env: Env): Promise<Response> {
           recordGrowth(env, event);
           return new Response(null, { status: 204 });
         }
-        if (event === "external_referral_viewed") {
+        const isExternalEvent =
+          event === "external_referral_viewed" ||
+          event === "external_source_clicked" ||
+          event === "external_deploy_clicked";
+        if (isExternalEvent) {
           if (!isExternalAcquisitionSource(source)) {
             return json({ error: "Unsupported event." }, 400);
           }
