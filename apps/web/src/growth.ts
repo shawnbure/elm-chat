@@ -4,7 +4,8 @@ type ClientGrowthEvent =
   | "make_your_own_clicked"
   | "marketing_page_viewed"
   | "marketing_cta_clicked"
-  | "marketing_source_clicked";
+  | "marketing_source_clicked"
+  | "marketing_deploy_clicked";
 
 export function recordGrowthEvent(
   event: ClientGrowthEvent,
