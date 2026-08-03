@@ -35,7 +35,8 @@ export const MARKETING_ACQUISITION_SOURCES = [
 export const EXTERNAL_ACQUISITION_SOURCES = [
   "dev-community",
   "freshcode",
-  "hashnode"
+  "hashnode",
+  "reddit-selfhosted"
 ] as const;
 
 export const ACQUISITION_SOURCES = [
