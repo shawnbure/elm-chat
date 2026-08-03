@@ -14,6 +14,7 @@ const urls = [
   { path: "/send-a-password-securely", changefreq: "monthly", priority: "0.8" },
   { path: "/one-time-secret-chat", changefreq: "monthly", priority: "0.8" },
   { path: "/temporary-private-chat", changefreq: "monthly", priority: "0.8" },
+  { path: "/journalist-source-communication", changefreq: "monthly", priority: "0.8" },
   { path: "/temporary-financial-handoff", changefreq: "monthly", priority: "0.8" },
   { path: "/press", changefreq: "monthly", priority: "0.6" },
   { path: "/why-i-built-elm-chat", changefreq: "monthly", priority: "0.7" },

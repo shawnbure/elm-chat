@@ -7,6 +7,7 @@ const urlList = [
   `https://${host}/send-a-password-securely`,
   `https://${host}/one-time-secret-chat`,
   `https://${host}/temporary-private-chat`,
+  `https://${host}/journalist-source-communication`,
   `https://${host}/temporary-financial-handoff`,
   `https://${host}/press`,
   `https://${host}/why-i-built-elm-chat`,
