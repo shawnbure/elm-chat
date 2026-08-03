@@ -1044,6 +1044,39 @@ select {
   padding-left: 1.4rem;
 }
 
+.marketing-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.marketing-body table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.marketing-body th,
+.marketing-body td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.55;
+}
+
+.marketing-body th {
+  background: rgba(14, 97, 78, 0.07);
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.marketing-body tr:last-child td {
+  border-bottom: 0;
+}
+
 .marketing-body code {
   padding: 0.12em 0.34em;
   border: 1px solid var(--line);
