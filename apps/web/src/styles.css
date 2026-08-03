@@ -94,6 +94,53 @@ select {
   justify-content: flex-start;
 }
 
+.external-arrival {
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 72%);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--accent), white 94%);
+}
+
+.external-arrival-label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--accent-strong);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.external-arrival strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.external-arrival p {
+  margin: 6px 0 10px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.external-arrival-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.external-arrival-actions a {
+  color: var(--accent-strong);
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.external-arrival-actions a:hover {
+  text-decoration: underline;
+}
+
 .eyebrow {
   margin: 0 0 12px;
   text-transform: uppercase;

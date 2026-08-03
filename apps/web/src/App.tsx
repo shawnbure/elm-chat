@@ -675,6 +675,8 @@ function LandingPage() {
     "https://github.com/shawnbure/elm-chat/blob/main/docs/why-use-elm-chat.md";
   const articleUrl =
     "https://github.com/shawnbure/elm-chat/blob/main/docs/truly-private-messaging.md";
+  const sourceParam = new URLSearchParams(window.location.search).get("source");
+  const externalSource = isExternalAcquisitionSource(sourceParam) ? sourceParam : null;
   const [messageDuration, setMessageDuration] = useState<DurationDraft>({
     amount: "7",
     unit: "minutes",
@@ -704,11 +706,10 @@ function LandingPage() {
   }, []);
 
   useEffect(() => {
-    const source = new URLSearchParams(window.location.search).get("source");
-    if (isExternalAcquisitionSource(source)) {
-      recordGrowthEvent("external_referral_viewed", source);
+    if (externalSource) {
+      recordGrowthEvent("external_referral_viewed", externalSource);
     }
-  }, []);
+  }, [externalSource]);
 
   function updateDurationIndefinite(kind: DurationKind, checked: boolean) {
     if (kind === "message") {
@@ -749,6 +750,34 @@ function LandingPage() {
     <main className="landing-shell">
       <section className="hero">
         <div className="hero-copy">
+          {externalSource === "freshcode" ? (
+            <aside className="external-arrival" aria-label="elm.chat release details">
+              <span className="external-arrival-label">Found via Freshcode</span>
+              <strong>elm.chat v0.1.0 is open for inspection.</strong>
+              <p>
+                Try a short-lived room below, review the documented limits, or deploy your own
+                Cloudflare instance. This early release has not had an independent security audit.
+              </p>
+              <div className="external-arrival-actions">
+                <a
+                  href={`${GITHUB_URL}/releases/tag/v0.1.0`}
+                  onClick={() => recordGrowthEvent("external_source_clicked", externalSource)}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Inspect v0.1.0
+                </a>
+                <a
+                  href={`https://deploy.workers.cloudflare.com/?url=${GITHUB_URL}`}
+                  onClick={() => recordGrowthEvent("external_deploy_clicked", externalSource)}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Deploy your own
+                </a>
+              </div>
+            </aside>
+          ) : null}
           <div className="hero-links" aria-label="Learn about elm chat">
             <a className="hero-link" href={whyUseUrl} rel="noreferrer" target="_blank">
               Why use this?
@@ -758,7 +787,7 @@ function LandingPage() {
             </a>
           </div>
           <p className="eyebrow">elm chat</p>
-          <h1>Instant chat. Private, secure, fast and disposable.</h1>
+          <h1>Instant chat. Account-free, encrypted, fast and disposable.</h1>
           <p className="lede">
             Encrypted link-based chat with color identity, no usernames, and room rules you set before anyone joins.
           </p>
