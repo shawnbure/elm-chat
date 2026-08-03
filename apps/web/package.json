@@ -17,7 +17,7 @@
     "vite": "^6.3.2"
   },
   "scripts": {
-    "build": "vite build && node scripts/gen-sitemap.mjs && node scripts/prerender-marketing.mjs",
+    "build": "vite build && node scripts/gen-sitemap.mjs && node scripts/prerender-marketing.mjs && node scripts/gen-feed.mjs",
     "dev": "vite",
     "indexnow": "node scripts/submit-indexnow.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
