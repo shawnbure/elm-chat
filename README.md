@@ -5,7 +5,7 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shawnbure/elm-chat)
 [![Built with Cloudflare](https://workers.cloudflare.com/built-with-cloudflare.svg)](https://elm.chat/building-ephemeral-chat-cloudflare)
-![Stars](https://img.shields.io/github/stars/shawnbure/elm-chat?style=social)
+[![Stars](https://img.shields.io/github/stars/shawnbure/elm-chat?style=social)](https://github.com/shawnbure/elm-chat/stargazers)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![GitHub Discussions](https://img.shields.io/github/discussions/shawnbure/elm-chat?label=discussions)](https://github.com/shawnbure/elm-chat/discussions)
 
@@ -20,6 +20,8 @@
 This repository is for builders, reviewers, security researchers, and contributors who want to help push the project toward a genuinely minimal-footprint private communication model.
 
 New here? Start with the public [try, review, or contribute guide](https://github.com/shawnbure/elm-chat/discussions/42), ask a question in [Discussions](https://github.com/shawnbure/elm-chat/discussions), or choose a scoped [good first issue](https://github.com/shawnbure/elm-chat/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22).
+
+If elm.chat is useful to you, [star the repository](https://github.com/shawnbure/elm-chat) so other open-source users can find it. You can see the public stargazer list [here](https://github.com/shawnbure/elm-chat/stargazers).
 
 Try [elm.chat](https://elm.chat), review its [public security status and limitations](https://elm.chat/security-and-limitations), open the [press and media kit](https://elm.chat/press), read why [the internet needs places that are allowed to forget](https://elm.chat/the-internet-needs-places-that-forget) or [why I built a messenger designed to disappear](https://elm.chat/why-i-built-elm-chat), learn what [self-destructing chat should actually mean](https://elm.chat/self-destructing-chat), follow the practical guides to [sending a password without leaving it in chat history](https://elm.chat/send-a-password-securely) and [sending a file without creating another attachment archive](https://elm.chat/send-a-file-securely), compare a [one-time secret with a disposable chat](https://elm.chat/one-time-secret-chat), create a [temporary private chat without signup](https://elm.chat/temporary-private-chat), choose a [communication channel for a journalist and source](https://elm.chat/journalist-source-communication), explore the [Cloudflare Durable Objects architecture](https://elm.chat/building-ephemeral-chat-cloudflare), or see how [WebSocket hibernation works without a chat database](https://elm.chat/durable-objects-websocket-hibernation).
 
@@ -108,18 +110,18 @@ If you are contributing, treat the phrases "footprint-less", "log-less", and "no
 
 ## What This Is For
 
-`elm.chat` exists for people who want a conversation without turning that conversation into a permanent asset for a platform, an attacker, a data broker, or a hostile authority.
+`elm.chat` is an early-stage experiment for ordinary, low-risk conversations between people who already know and trust one another but do not want another permanent chat archive.
 
-That includes:
+It may be useful for:
 
-- privacy-minded people who simply do not want everything archived forever
-- people discussing personal, legal, medical, financial, or sensitive life matters
-- workers reporting abuse or misconduct
-- journalists and sources
-- organizers and activists
-- people living under surveillance, suppression, or coercion
+- a short-lived personal conversation
+- live coordination that should not become a searchable channel history
+- a temporary password or file handoff where both participants can verify one another through another channel
+- developers studying or self-hosting a small encrypted WebSocket application
 
-The point is not just to encrypt messages. The point is to reduce what can be retained, reconstructed, or stolen later.
+It is **not** an anonymity system, an independently audited high-risk communications channel, a whistleblower drop box, a compliance product, or production-ready financial infrastructure. Use purpose-built, independently reviewed systems for regulated, anonymous, adversarial, or high-risk communication.
+
+The point is not just to encrypt message content. It is to explore how much unnecessary server-side retention a small communication system can avoid while stating the remaining risks plainly.
 
 ## Why Cloudflare
 
@@ -347,6 +349,7 @@ Single-use invites are a meaningful improvement, but they do not solve every pro
 
 Risks that still remain:
 
+- message authentication and replay/duplicate protections are not implemented yet
 - if an invite is intercepted before the intended recipient redeems it, the first redeemer can still get in
 - if a device is compromised, screenshots, clipboard history, browser history, or malware can still expose the conversation
 - if a participant forwards plaintext, screenshots, or the room secret after joining, the protocol cannot stop human leakage
