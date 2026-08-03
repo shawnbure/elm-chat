@@ -59,6 +59,7 @@ const pages = {
     eyebrow: "One-time secret alternative",
     intro:
       "A one-time secret link is excellent when one person needs to reveal one value once. Some handoffs become a conversation, and that changes what the tool needs to do.",
+    dateModified: "2026-08-03",
     body: `
       <section>
         <h2>Use a one-time secret for a one-way reveal</h2>
@@ -69,6 +70,33 @@ const pages = {
         <h2>Use a disposable room when the handoff talks back</h2>
         <p>A live room fits when the recipient needs to confirm access, request a second value, clarify which environment to use, or exchange an encrypted file. The creator can issue a single-use invite and destroy the room when the exchange is finished.</p>
         <p>elm.chat encrypts message and file content in the browser and does not persist a server-side transcript. Its relay still observes connection metadata such as timing, sizes, IP addresses, and presence.</p>
+      </section>
+      <section>
+        <h2>One-time secret vs. disposable chat</h2>
+        <div class="marketing-table-wrap">
+          <table>
+            <thead><tr><th scope="col">What the handoff needs</th><th scope="col">Usually the better fit</th></tr></thead>
+            <tbody>
+              <tr><td>Reveal one value once, without a reply</td><td>A purpose-built one-time secret</td></tr>
+              <tr><td>Confirm access or answer a follow-up question</td><td>A disposable chat room</td></tr>
+              <tr><td>Exchange several values or an encrypted file</td><td>A disposable chat room</td></tr>
+              <tr><td>Leave something for a recipient who is not online</td><td>A one-time secret with a suitable expiry policy</td></tr>
+              <tr><td>Keep talking over days or weeks</td><td>A mature encrypted messenger</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>This is a workflow choice, not a universal security ranking. Check how any service handles encryption keys, ciphertext retention, expiry, logs, metadata, and independent review before trusting it with sensitive material.</p>
+      </section>
+      <section>
+        <h2>A practical live handoff</h2>
+        <ol>
+          <li>Ask the recipient to be ready before creating the room.</li>
+          <li>Create a short-lived room and send its single-use invite separately.</li>
+          <li>Exchange only the values needed for this task.</li>
+          <li>Confirm the recipient can use them, then destroy the room.</li>
+          <li>Rotate credentials afterward when the system supports it.</li>
+        </ol>
+        <p>Destroying the room prevents the relay from becoming a durable transcript. It cannot erase a participant's screenshot, clipboard, download, photograph, browser memory, or another copy outside elm.chat.</p>
       </section>`
   },
   "temporary-private-chat": {
@@ -225,7 +253,7 @@ for (const [slug, page] of Object.entries(pages)) {
     description: page.description,
     image: [`${ORIGIN}/elm-chat-social.png`],
     datePublished: "2026-07-28",
-    dateModified: "2026-07-28",
+    dateModified: page.dateModified ?? "2026-07-28",
     author: {
       "@type": "Organization",
       name: "elm.chat",
