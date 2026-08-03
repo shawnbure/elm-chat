@@ -95,7 +95,7 @@ function roomPathname(): { view: View; roomId?: string; marketingSlug?: Marketin
     marketingSlug === "journalist-source-communication" ||
     marketingSlug === "temporary-financial-handoff" ||
     marketingSlug === "press" ||
-    marketingSlug === "internet-needs-places-that-forget" ||
+    marketingSlug === "software-should-know-when-to-forget" ||
     marketingSlug === "why-i-built-elm-chat" ||
     marketingSlug === "building-ephemeral-chat-cloudflare" ||
     marketingSlug === "durable-objects-websocket-hibernation"
