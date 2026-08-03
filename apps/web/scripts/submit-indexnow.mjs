@@ -5,6 +5,7 @@ const urlList = [
   `https://${host}/`,
   `https://${host}/self-destructing-chat`,
   `https://${host}/send-a-password-securely`,
+  `https://${host}/send-a-file-securely`,
   `https://${host}/one-time-secret-chat`,
   `https://${host}/temporary-private-chat`,
   `https://${host}/journalist-source-communication`,
