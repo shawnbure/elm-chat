@@ -112,6 +112,80 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
       </>
     )
   },
+  "send-a-file-securely": {
+    title: "How to send a file securely without creating another attachment archive",
+    description:
+      "A practical guide to transferring a file through a short-lived encrypted room, including live delivery, file-size limits, metadata, and endpoint copies.",
+    eyebrow: "Temporary encrypted file transfer",
+    intro:
+      "A file needed for one live handoff does not always belong in an inbox, ticket, or shared folder that will outlive the task.",
+    body: (
+      <>
+        <section>
+          <h2>Choose the channel by what must happen afterward</h2>
+          <p>
+            Use durable cloud storage or an approved document portal when the recipient needs
+            reliable later access, version history, an audit trail, or an organizational record.
+            Use a purpose-built, independently reviewed system when regulation or a high-risk
+            threat model requires it.
+          </p>
+          <p>
+            A disposable room fits a narrower job: two known participants are online, one needs to
+            transfer a file now, and neither wants the relay to become a permanent file archive.
+          </p>
+        </section>
+
+        <section>
+          <h2>How elm.chat transfers a file</h2>
+          <ol>
+            <li>Create a room and share its single-use invite with the intended recipient.</li>
+            <li>Keep both browsers connected, then attach a file up to 25 MiB.</li>
+            <li>The recipient explicitly requests the offered file.</li>
+            <li>
+              The sender splits it into 64 KiB chunks and encrypts each chunk in the browser before
+              sending it through the relay.
+            </li>
+            <li>The recipient decrypts and reassembles the chunks locally, then chooses whether to save the file.</li>
+            <li>Destroy the room when the handoff and any clarification are complete.</li>
+          </ol>
+          <p>
+            The Cloudflare relay handles ciphertext and does not persist the file as a server-side
+            attachment. The sender must remain connected because elm.chat is a live transfer, not
+            an asynchronous file locker.
+          </p>
+        </section>
+
+        <section>
+          <h2>What room destruction does—and does not—remove</h2>
+          <p>
+            Destroying the room ends its server-side lifecycle and prevents elm.chat from becoming
+            a durable transcript or file repository. It does not erase a file the recipient saved,
+            copied, photographed, backed up, or forwarded, and it cannot clean clipboard history,
+            browser downloads, notification previews, or a compromised endpoint.
+          </p>
+          <p>
+            The relay can still observe ordinary metadata such as IP addresses, connection timing,
+            presence, and encrypted payload sizes. Message authentication is not implemented yet,
+            and elm.chat has not completed an independent security audit. Do not treat it as an
+            anonymous drop box, a compliance product, or a high-risk document-submission system.
+          </p>
+        </section>
+
+        <section>
+          <h2>A safer one-time handoff checklist</h2>
+          <ul>
+            <li>Verify the recipient through a separate known channel when identity matters.</li>
+            <li>Share only the minimum file needed for the task.</li>
+            <li>Remove unnecessary document metadata before sending when appropriate.</li>
+            <li>Keep your own required record in the system designed to hold it.</li>
+            <li>Destroy the room after delivery, and assume the recipient can retain what they receive.</li>
+          </ul>
+        </section>
+
+        <Limitations />
+      </>
+    )
+  },
   "one-time-secret-chat": {
     title: "One-time secret or disposable chat? Choose the right handoff",
     description:
@@ -1195,6 +1269,7 @@ function RelatedGuides({ current }: { current: MarketingSlug }) {
   const guides: Array<{ slug: MarketingSlug; label: string }> = [
     { slug: "self-destructing-chat", label: "What self-destructing chat should mean" },
     { slug: "send-a-password-securely", label: "How to send a password securely" },
+    { slug: "send-a-file-securely", label: "How to send a file securely" },
     { slug: "one-time-secret-chat", label: "One-time secret vs disposable chat" },
     { slug: "temporary-private-chat", label: "Temporary private chat without signup" },
     { slug: "journalist-source-communication", label: "Choosing a channel for journalists and sources" },

@@ -19,6 +19,7 @@ export type RoomStatus = "open" | "expired" | "destroyed";
 export const MARKETING_ACQUISITION_SOURCES = [
   "self-destructing-chat",
   "send-a-password-securely",
+  "send-a-file-securely",
   "one-time-secret-chat",
   "temporary-private-chat",
   "journalist-source-communication",
