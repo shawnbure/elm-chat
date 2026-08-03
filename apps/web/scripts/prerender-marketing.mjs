@@ -347,7 +347,7 @@ const pages = {
           <li><a href="https://github.com/shawnbure/elm-chat">Source repository</a></li>
           <li><a href="https://github.com/shawnbure/elm-chat/blob/main/docs/threat-model.md">Threat model and current limitations</a></li>
           <li><a href="/why-i-built-elm-chat">Founder's story</a></li>
-          <li><a href="/internet-needs-places-that-forget">Public-interest essay on technology that forgets</a></li>
+          <li><a href="/software-should-know-when-to-forget">Public-interest essay on technology that forgets</a></li>
           <li><a href="/building-ephemeral-chat-cloudflare">Architecture walkthrough</a></li>
           <li><a href="/journalist-source-communication">Journalist and source channel guide</a></li>
           <li><a href="/temporary-financial-handoff">Financial data-minimization essay</a></li>
@@ -368,7 +368,7 @@ const pages = {
         <p>Reach Shawn through his <a href="https://github.com/shawnbure">GitHub profile</a> or start a public question in <a href="https://github.com/shawnbure/elm-chat/discussions">elm.chat Discussions</a>.</p>
       </section>`
   },
-  "internet-needs-places-that-forget": {
+  "software-should-know-when-to-forget": {
     title: "The internet needs places that are allowed to forget",
     description:
       "Shawn Bure makes the public-interest case for deliberate digital forgetting: preserve accountable records while minimizing temporary human conversations.",
@@ -605,7 +605,7 @@ const guideLabels = {
   "temporary-private-chat": "Temporary private chat without signup",
   "journalist-source-communication": "Choosing a channel for journalists and sources",
   "temporary-financial-handoff": "Temporary financial handoffs",
-  "internet-needs-places-that-forget": "Why the internet needs places that forget",
+  "software-should-know-when-to-forget": "Why the internet needs places that forget",
   "why-i-built-elm-chat": "Why I built elm.chat",
   "building-ephemeral-chat-cloudflare": "How elm.chat works on Cloudflare",
   "durable-objects-websocket-hibernation": "WebSocket hibernation without a chat database"
