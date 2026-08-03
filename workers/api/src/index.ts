@@ -264,6 +264,7 @@ const MARKETING_PATHS = new Set([
   "/one-time-secret-chat",
   "/temporary-private-chat",
   "/temporary-financial-handoff",
+  "/press",
   "/why-i-built-elm-chat",
   "/building-ephemeral-chat-cloudflare",
   "/durable-objects-websocket-hibernation"
