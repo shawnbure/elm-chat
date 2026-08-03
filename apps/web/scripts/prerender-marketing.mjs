@@ -138,6 +138,9 @@ const pages = {
     authorUrl: "https://shawnbure.com/",
     datePublished: "2026-08-03",
     dateModified: "2026-08-03",
+    socialImage: "elm-chat-finance-social.png",
+    socialImageAlt:
+      "elm.chat — Keep the record. Minimize the handoff. A governed ledger remains while temporary messages disappear.",
     keywords: [
       "financial data minimization",
       "temporary financial handoff",
