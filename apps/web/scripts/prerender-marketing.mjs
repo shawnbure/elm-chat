@@ -4,6 +4,52 @@ import { join } from "node:path";
 const ORIGIN = process.env.SITE_ORIGIN ?? "https://elm.chat";
 
 const pages = {
+  "security-and-limitations": {
+    title: "elm.chat security status and limitations",
+    description:
+      "The public security status of elm.chat: what is encrypted, what metadata remains visible, known protocol gaps, destruction limits, and how to review or report issues.",
+    eyebrow: "Public security status",
+    schemaType: "WebPage",
+    datePublished: "2026-08-03",
+    dateModified: "2026-08-03",
+    intro:
+      "elm.chat is an early-stage encrypted messenger, not an audited high-assurance security product. This page puts its current guarantees, known gaps, and review routes in one place.",
+    body: `
+      <section>
+        <h2>Current status</h2>
+        <ul>
+          <li><strong>No independent security audit has been completed.</strong></li>
+          <li>Message and file content is encrypted and decrypted in participant browsers.</li>
+          <li>The room secret is carried in the URL fragment during normal use, so it is not sent to the server in an HTTP request.</li>
+          <li>The Cloudflare relay handles ciphertext and does not persist a server-side transcript.</li>
+          <li><strong>Message authentication and replay/duplicate protections are not implemented yet.</strong></li>
+        </ul>
+      </section>
+      <section>
+        <h2>What the relay and participants can still know</h2>
+        <p>The hosted relay can observe ordinary network and room metadata, including IP addresses, connection timing, presence, and encrypted payload sizes. Encryption does not make the service anonymous.</p>
+        <p>A participant can save, copy, screenshot, photograph, forward, or back up plaintext and files. Room destruction ends elm.chat's server-side room lifecycle; it cannot erase copies on participant devices or from other software.</p>
+      </section>
+      <section>
+        <h2>Where it does—and does not—fit</h2>
+        <p>elm.chat is being built for temporary communication between known participants who want fewer durable server-side copies. It should not currently be treated as an anonymous drop box, an audited high-risk communications system, a compliance product, or a production financial-control system.</p>
+        <p>Use a purpose-built, independently reviewed system when anonymity, severe-repression resistance, regulated recordkeeping, or high-assurance identity verification is required.</p>
+      </section>
+      <section>
+        <h2>Inspect and challenge the claims</h2>
+        <ul>
+          <li><a href="https://github.com/shawnbure/elm-chat/blob/main/docs/threat-model.md">Read the threat model</a></li>
+          <li><a href="https://github.com/shawnbure/elm-chat/blob/main/docs/architecture.md">Inspect the architecture</a></li>
+          <li><a href="https://github.com/shawnbure/elm-chat">Review the complete AGPL-3.0 source</a></li>
+          <li><a href="https://github.com/shawnbure/elm-chat/issues/56">Join the public independent-review request</a> for coordination and non-sensitive design observations</li>
+        </ul>
+        <p>No independent reviewer is currently committed. The public request is an invitation to scrutiny, not a claim that an audit is underway.</p>
+      </section>
+      <section>
+        <h2>Report a suspected vulnerability privately</h2>
+        <p>Do not publish exploitable details in the review issue. Follow the <a href="https://github.com/shawnbure/elm-chat/blob/main/SECURITY.md">security policy</a> and use <a href="https://github.com/shawnbure/elm-chat/security/advisories/new">GitHub private vulnerability reporting</a>.</p>
+      </section>`
+  },
   "self-destructing-chat": {
     title: "Self-destructing chat: what disappearing should actually mean",
     description:
@@ -656,6 +702,7 @@ const guideLabels = {
   "temporary-private-chat": "Temporary private chat without signup",
   "journalist-source-communication": "Choosing a channel for journalists and sources",
   "temporary-financial-handoff": "Temporary financial handoffs",
+  "security-and-limitations": "Security status and limitations",
   "the-internet-needs-places-that-forget": "Why the internet needs places that forget",
   "why-i-built-elm-chat": "Why I built elm.chat",
   "building-ephemeral-chat-cloudflare": "How elm.chat works on Cloudflare",
@@ -711,6 +758,7 @@ for (const [slug, page] of Object.entries(pages)) {
         <a class="marketing-brand" href="/">elm.chat</a>
         <div>
           <a href="/press">Press kit</a>
+          <a href="/security-and-limitations">Security</a>
           <a href="https://github.com/shawnbure/elm-chat">Source</a>
           <a href="https://github.com/shawnbure/elm-chat/blob/main/docs/threat-model.md">Threat model</a>
         </div>
@@ -731,7 +779,7 @@ for (const [slug, page] of Object.entries(pages)) {
           ${page.body}
           <aside class="marketing-caveat">
             <strong>Security status</strong>
-            <p>elm.chat has not had an independent security audit. Review the <a href="https://github.com/shawnbure/elm-chat/blob/main/docs/threat-model.md">public threat model</a> before using it for a sensitive situation.</p>
+            <p>elm.chat has not had an independent security audit. Review the <a href="/security-and-limitations">public security status</a> before using it for a sensitive situation.</p>
           </aside>
         </div>
         <aside class="marketing-related" aria-label="More guides">

@@ -266,6 +266,7 @@ const MARKETING_PATHS = new Set([
   "/temporary-private-chat",
   "/journalist-source-communication",
   "/temporary-financial-handoff",
+  "/security-and-limitations",
   "/press",
   "/the-internet-needs-places-that-forget",
   "/why-i-built-elm-chat",
