@@ -128,6 +128,46 @@ const pages = {
         <p>For an ongoing relationship, a mature encrypted messenger is usually the better fit. For a single one-way value, a purpose-built one-time secret can be simpler.</p>
       </section>`
   },
+  "why-i-built-elm-chat": {
+    title: "Why I built a messenger designed to disappear",
+    description:
+      "Workrr founder Shawn Bure explains why he built elm.chat: an open-source disposable room for conversations that should not become permanent records.",
+    eyebrow: "Founder's note",
+    byline: "By Shawn Bure — founder of Workrr AI and Workrr One",
+    authorName: "Shawn Bure",
+    authorUrl: "https://www.workrr.ai/",
+    datePublished: "2026-08-03",
+    dateModified: "2026-08-03",
+    intro:
+      "After decades of building operational, financial, communications, and AI systems, I wanted to build one system whose most important feature was knowing when not to remember.",
+    body: `
+      <section>
+        <h2>Most software is rewarded for remembering everything</h2>
+        <p>I have spent much of my career turning difficult, fragmented work into systems people can actually operate. I built and scaled a national recovery operation, founded and sold the collections platform OpenCollect, and shipped software across payments, telephony, CRM, integrations, and cloud infrastructure. Today I lead Workrr AI and Workrr One, where the work is making production AI useful, governed, and accountable.</p>
+        <p>In all of those systems, memory has value. Records make work measurable. Evidence makes decisions reviewable. History helps a process improve. But the same instinct applied to every human interaction creates a different problem: a ten-second exchange becomes a permanent artifact scattered across inboxes, chat histories, backups, and devices.</p>
+      </section>
+      <section>
+        <h2>Some conversations deserve a smaller footprint</h2>
+        <p>Sometimes two people need to exchange a credential, resolve a sensitive operational question, or coordinate something private without adopting another social network. They already know whom they need to reach. What they need is a link for one conversation, not another identity, contact list, notification stream, or archive.</p>
+        <p>That is the idea behind elm.chat. A person creates a room without an account, sends a single-use invite, talks live, and destroys the room when the job is done. The goal is not to replace a mature messenger. It is to make a narrow, disposable channel easy enough to reach for at the moment it is useful.</p>
+      </section>
+      <section>
+        <h2>Privacy should be an architecture, not an adjective</h2>
+        <p>elm.chat encrypts messages and files in participants' browsers. The room secret stays in the URL fragment during normal use, and the Cloudflare relay coordinates the live room without persisting a server-side transcript. Room policy and invite state exist; the conversation itself is held by connected clients and is intentionally disposable.</p>
+        <p>The project is AGPL-3.0, so anyone can inspect it, challenge its choices, or run a copy. I published the architecture and threat model because trust should come from evidence and scrutiny—not from a lock icon or a founder saying “secure.”</p>
+      </section>
+      <section>
+        <h2>Honesty matters more than a perfect privacy story</h2>
+        <p>elm.chat has not had an independent security audit. Message authentication is not yet complete. Cloudflare can observe ordinary relay metadata such as IP addresses, timing, sizes, and presence. A compromised device, screenshot, clipboard manager, photograph, or malicious recipient can preserve what the room was designed to forget.</p>
+        <p>Those are not footnotes to hide after adoption. They define where the tool fits. I do not want people in high-risk situations to confuse an experimental open-source product with an audited anonymity system. I want engineers and privacy practitioners to inspect it, improve it, and help make its claims narrower and stronger.</p>
+      </section>
+      <section>
+        <h2>The larger idea I want to put into the world</h2>
+        <p>Workrr One asks how AI systems can remain accountable: explicit permissions, human approval, bounded retention, reproducible releases, and evidence of what happened. elm.chat asks the complementary question: when does responsible software mean creating less evidence in the first place?</p>
+        <p>I want technology to give ordinary people more control over that boundary. Some work must be recorded. Some decisions must be auditable. Some conversations should simply accomplish their purpose and end. Software should be capable of telling the difference.</p>
+        <p>If that idea resonates, try elm.chat with non-critical information, read the source and threat model, open an issue, or deploy your own copy. The most useful contribution is not praise. It is evidence that helps make the boundary more honest.</p>
+      </section>`
+  },
   "building-ephemeral-chat-cloudflare": {
     title: "Building ephemeral encrypted chat with Cloudflare Durable Objects",
     description:
@@ -240,6 +280,7 @@ const guideLabels = {
   "send-a-password-securely": "How to send a password securely",
   "one-time-secret-chat": "One-time secret vs disposable chat",
   "temporary-private-chat": "Temporary private chat without signup",
+  "why-i-built-elm-chat": "Why I built elm.chat",
   "building-ephemeral-chat-cloudflare": "How elm.chat works on Cloudflare",
   "durable-objects-websocket-hibernation": "WebSocket hibernation without a chat database"
 };
@@ -252,13 +293,19 @@ for (const [slug, page] of Object.entries(pages)) {
     headline: page.title,
     description: page.description,
     image: [`${ORIGIN}/elm-chat-social.png`],
-    datePublished: "2026-07-28",
+    datePublished: page.datePublished ?? "2026-07-28",
     dateModified: page.dateModified ?? "2026-07-28",
-    author: {
-      "@type": "Organization",
-      name: "elm.chat",
-      url: `${ORIGIN}/`
-    },
+    author: page.authorName
+      ? {
+          "@type": "Person",
+          name: page.authorName,
+          url: page.authorUrl
+        }
+      : {
+          "@type": "Organization",
+          name: "elm.chat",
+          url: `${ORIGIN}/`
+        },
     publisher: {
       "@type": "Organization",
       name: "elm.chat",
@@ -289,6 +336,7 @@ for (const [slug, page] of Object.entries(pages)) {
         <header>
           <p class="eyebrow">${page.eyebrow}</p>
           <h1>${page.title}</h1>
+          ${page.byline ? `<p class="marketing-byline">${page.byline}</p>` : ""}
           <p class="marketing-intro">${page.intro}</p>
           <a class="primary-button marketing-primary-cta" href="/?source=${slug}">Create a disposable room</a>
         </header>
