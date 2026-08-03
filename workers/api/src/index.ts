@@ -2,6 +2,7 @@ import {
   DEFAULT_DISAPPEAR_AFTER_READ_SECONDS,
   DEFAULT_INACTIVITY_TIMEOUT_MS,
   isAcquisitionSource,
+  isExternalAcquisitionSource,
   ROOM_ID_BYTES,
   type CreateRoomRequest,
   type CreateRoomResponse
@@ -23,6 +24,7 @@ type GrowthEvent =
   | "marketing_cta_clicked"
   | "marketing_source_clicked"
   | "marketing_deploy_clicked"
+  | "external_referral_viewed"
   | "room_created"
   | "invite_created";
 
@@ -307,6 +309,13 @@ function routeApi(request: Request, env: Env): Promise<Response> {
       .then(({ event, source }) => {
         if (event === "make_your_own_clicked") {
           recordGrowth(env, event);
+          return new Response(null, { status: 204 });
+        }
+        if (event === "external_referral_viewed") {
+          if (!isExternalAcquisitionSource(source)) {
+            return json({ error: "Unsupported event." }, 400);
+          }
+          recordGrowth(env, event, source);
           return new Response(null, { status: 204 });
         }
         const isMarketingEvent =
