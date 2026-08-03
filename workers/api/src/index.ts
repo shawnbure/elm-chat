@@ -21,6 +21,7 @@ type GrowthEvent =
   | "make_your_own_clicked"
   | "marketing_page_viewed"
   | "marketing_cta_clicked"
+  | "marketing_source_clicked"
   | "room_created"
   | "invite_created";
 
@@ -308,7 +309,9 @@ function routeApi(request: Request, env: Env): Promise<Response> {
           return new Response(null, { status: 204 });
         }
         const isMarketingEvent =
-          event === "marketing_page_viewed" || event === "marketing_cta_clicked";
+          event === "marketing_page_viewed" ||
+          event === "marketing_cta_clicked" ||
+          event === "marketing_source_clicked";
         if (!isMarketingEvent || !isAcquisitionSource(source) || source === "invite") {
           return json({ error: "Unsupported event." }, 400);
         }
