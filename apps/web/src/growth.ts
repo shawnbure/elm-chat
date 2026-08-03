@@ -1,15 +1,16 @@
-import type { MarketingAcquisitionSource } from "@elm-chat/shared";
+import type { NonInviteAcquisitionSource } from "@elm-chat/shared";
 
 type ClientGrowthEvent =
   | "make_your_own_clicked"
   | "marketing_page_viewed"
   | "marketing_cta_clicked"
   | "marketing_source_clicked"
-  | "marketing_deploy_clicked";
+  | "marketing_deploy_clicked"
+  | "external_referral_viewed";
 
 export function recordGrowthEvent(
   event: ClientGrowthEvent,
-  source?: MarketingAcquisitionSource
+  source?: NonInviteAcquisitionSource
 ): void {
   const body = JSON.stringify({ event, source });
   if (navigator.sendBeacon) {

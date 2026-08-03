@@ -13,6 +13,7 @@ import {
 import {
   FILE_CHUNK_BYTES,
   isAcquisitionSource,
+  isExternalAcquisitionSource,
   MAX_FILE_BYTES,
   MAX_TRANSCRIPT_SYNC_MESSAGES,
   type CreateRoomRequest,
@@ -700,6 +701,13 @@ function LandingPage() {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const source = new URLSearchParams(window.location.search).get("source");
+    if (isExternalAcquisitionSource(source)) {
+      recordGrowthEvent("external_referral_viewed", source);
+    }
   }, []);
 
   function updateDurationIndefinite(kind: DurationKind, checked: boolean) {

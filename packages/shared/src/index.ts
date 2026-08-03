@@ -16,8 +16,7 @@ export const FILE_CHUNK_BYTES = 64 * 1024;
 
 export type RoomStatus = "open" | "expired" | "destroyed";
 
-export const ACQUISITION_SOURCES = [
-  "invite",
+export const MARKETING_ACQUISITION_SOURCES = [
   "self-destructing-chat",
   "send-a-password-securely",
   "one-time-secret-chat",
@@ -27,13 +26,33 @@ export const ACQUISITION_SOURCES = [
   "durable-objects-websocket-hibernation"
 ] as const;
 
+export const EXTERNAL_ACQUISITION_SOURCES = ["freshcode"] as const;
+
+export const ACQUISITION_SOURCES = [
+  "invite",
+  ...MARKETING_ACQUISITION_SOURCES,
+  ...EXTERNAL_ACQUISITION_SOURCES
+] as const;
+
 export type AcquisitionSource = (typeof ACQUISITION_SOURCES)[number];
-export type MarketingAcquisitionSource = Exclude<AcquisitionSource, "invite">;
+export type MarketingAcquisitionSource =
+  (typeof MARKETING_ACQUISITION_SOURCES)[number];
+export type ExternalAcquisitionSource = (typeof EXTERNAL_ACQUISITION_SOURCES)[number];
+export type NonInviteAcquisitionSource = Exclude<AcquisitionSource, "invite">;
 
 export function isAcquisitionSource(value: unknown): value is AcquisitionSource {
   return (
     typeof value === "string" &&
     (ACQUISITION_SOURCES as readonly string[]).includes(value)
+  );
+}
+
+export function isExternalAcquisitionSource(
+  value: unknown
+): value is ExternalAcquisitionSource {
+  return (
+    typeof value === "string" &&
+    (EXTERNAL_ACQUISITION_SOURCES as readonly string[]).includes(value)
   );
 }
 
