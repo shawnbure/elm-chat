@@ -363,6 +363,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
   },
   "building-ephemeral-chat-cloudflare": {
     developerAudience: true,
+    byline: "By Shawn Bure — creator of elm.chat",
     title: "Building ephemeral encrypted chat with Cloudflare Durable Objects",
     description:
       "A technical walkthrough of elm.chat's React, Web Crypto, Cloudflare Worker, Durable Object, WebSocket, encryption, and disposable-room architecture.",
@@ -456,6 +457,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
   },
   "durable-objects-websocket-hibernation": {
     developerAudience: true,
+    byline: "By Shawn Bure — creator of elm.chat",
     title: "Durable Objects WebSocket hibernation without a chat database",
     description:
       "How elm.chat uses Cloudflare Durable Objects WebSocket hibernation, serialized socket attachments, client-held encrypted history, and peer sync without storing a server transcript.",
