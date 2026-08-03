@@ -21,6 +21,7 @@ export const MARKETING_ACQUISITION_SOURCES = [
   "send-a-password-securely",
   "one-time-secret-chat",
   "temporary-private-chat",
+  "journalist-source-communication",
   "temporary-financial-handoff",
   "press",
   "why-i-built-elm-chat",

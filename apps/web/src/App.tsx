@@ -92,6 +92,7 @@ function roomPathname(): { view: View; roomId?: string; marketingSlug?: Marketin
     marketingSlug === "send-a-password-securely" ||
     marketingSlug === "one-time-secret-chat" ||
     marketingSlug === "temporary-private-chat" ||
+    marketingSlug === "journalist-source-communication" ||
     marketingSlug === "temporary-financial-handoff" ||
     marketingSlug === "press" ||
     marketingSlug === "why-i-built-elm-chat" ||

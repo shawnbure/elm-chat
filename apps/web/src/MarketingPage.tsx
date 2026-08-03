@@ -263,6 +263,133 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
       </>
     )
   },
+  "journalist-source-communication": {
+    title: "How journalists and sources should choose a private communication channel",
+    description:
+      "A threat-model guide to first contact, encrypted messaging, anonymous document submission, metadata, devices, and short-lived conversations.",
+    eyebrow: "Journalist and source safety",
+    byline: "By Shawn Bure — founder of Workrr AI and Workrr One",
+    intro:
+      "There is no single safest channel for every source. The right choice depends on whether the real risk is identity exposure, message content, document metadata, device compromise, or unnecessary retention.",
+    body: (
+      <>
+        <section>
+          <h2>Begin with consequences, not an app list</h2>
+          <p>
+            Before contact, ask what could happen if the source&apos;s identity, the message content,
+            or even the fact of communication became known. The Committee to Protect Journalists
+            recommends completing a digital risk assessment rather than assuming one tool solves
+            every threat. Its current guidance also separates content encryption from metadata and
+            device security.
+          </p>
+          <p>
+            Use CPJ&apos;s <a href="https://cpj.org/2023/06/digital-security-risk-assessment-template/" rel="noreferrer" target="_blank">risk-assessment template</a> and <a href="https://cpj.org/2019/07/digital-safety-kit-journalists/" rel="noreferrer" target="_blank">Digital Safety Kit</a> as starting points. A reporter handling a routine confidential clarification and a whistleblower facing state surveillance do not have the same threat model.
+          </p>
+        </section>
+
+        <section>
+          <h2>Three jobs are often confused</h2>
+          <ul>
+            <li><strong>First contact:</strong> letting a source discover and safely choose an appropriate route before they reveal something sensitive.</li>
+            <li><strong>Ongoing conversation:</strong> exchanging messages, calls, or files after both sides understand the risk and have verified whom they are speaking with.</li>
+            <li><strong>Anonymous document submission:</strong> protecting a source&apos;s identity while receiving material that may itself contain identifying metadata or malware.</li>
+          </ul>
+          <p>
+            Freedom of the Press Foundation calls out the “first contact problem” because a source
+            can compromise confidentiality before a reporter has a chance to move the conversation.
+            Its <a href="https://freedom.press/digisec/guides/source-protection/" rel="noreferrer" target="_blank">source-protection collection</a> recommends advertising channels and explaining their different properties in advance.
+          </p>
+        </section>
+
+        <section>
+          <h2>Match the channel to the job</h2>
+          <div className="marketing-table-wrap">
+            <table>
+              <thead><tr><th scope="col">Situation</th><th scope="col">Usually the better starting point</th></tr></thead>
+              <tbody>
+                <tr><td>Routine, non-sensitive outreach</td><td>A normal published newsroom contact method</td></tr>
+                <tr><td>Ongoing encrypted conversation where the parties can verify each other</td><td>An established end-to-end encrypted messenger supported by the newsroom, such as Signal</td></tr>
+                <tr><td>High-risk anonymous documents or whistleblower material</td><td>A newsroom&apos;s SecureDrop installation and its published source instructions</td></tr>
+                <tr><td>Low-risk, already-known participants who mainly want to avoid another permanent thread</td><td>A short-lived channel, after checking its audit status, metadata, authentication, and deletion scope</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            This is workflow guidance, not a universal security ranking. Freedom of the Press
+            Foundation&apos;s guide to <a href="https://freedom.press/digisec/blog/security-confidential-tip-pages/" rel="noreferrer" target="_blank">confidential tip pages</a> explains why newsrooms should present multiple channels honestly. SecureDrop&apos;s <a href="https://docs.securedrop.org/en/stable/" rel="noreferrer" target="_blank">official documentation</a> describes a system built specifically for anonymous source submissions through Tor and hardened newsroom workflows.
+          </p>
+        </section>
+
+        <section>
+          <h2>Encryption does not erase metadata</h2>
+          <p>
+            End-to-end encryption can protect message content from the service carrying it. It does
+            not automatically hide who connected, when they connected, IP addresses, phone numbers,
+            account identifiers, message sizes, or other surrounding data. CPJ warns that metadata
+            can reveal a communication pattern even when content is encrypted.
+          </p>
+          <p>
+            Anonymity requires a separate design. SecureDrop uses Tor because hiding content alone
+            is not enough for a source whose identity must remain unknown. A normal web chat,
+            including elm.chat, should not be treated as a substitute for that anonymity model.
+          </p>
+        </section>
+
+        <section>
+          <h2>Documents and devices can reveal more than the conversation</h2>
+          <ul>
+            <li>Office documents may contain author names, revision history, internal paths, or organizational identifiers.</li>
+            <li>Photos can contain location, device, timestamp, or editing metadata.</li>
+            <li>Opening an untrusted file can expose a newsroom device to malware.</li>
+            <li>Downloads, screenshots, clipboard history, cloud backups, and notification previews can create new copies.</li>
+            <li>A seized, unlocked, or compromised endpoint can reveal plaintext regardless of the transport.</li>
+          </ul>
+          <p>
+            Do not improvise document sanitization in a high-risk situation. Follow the newsroom&apos;s
+            established process or seek help from a qualified digital-security professional.
+          </p>
+        </section>
+
+        <section>
+          <h2>Where a disposable room fits—and where it does not</h2>
+          <p>
+            A disposable room can reduce retention for a low-risk conversation between people who
+            already know whom they intend to reach: scheduling, a non-critical clarification, or a
+            temporary exchange whose main concern is avoiding another permanent inbox thread.
+          </p>
+          <p>
+            elm.chat is an experiment in that narrow category. It requires no account, encrypts
+            message and file content in the browser, relays ciphertext without persisting a
+            server-side transcript, uses single-use invites, and lets the creator destroy the room.
+          </p>
+          <p>
+            It is not appropriate for anonymous or high-risk sourcing. It has not had an independent
+            security audit, message authentication is not implemented yet, and Cloudflare can
+            observe ordinary relay metadata including IP addresses, timing, sizes, and presence.
+            A participant or compromised device can retain everything received.
+          </p>
+        </section>
+
+        <section>
+          <h2>A safer newsroom sequence</h2>
+          <ol>
+            <li>Publish several contact options before a source needs them.</li>
+            <li>Explain which option provides encryption, anonymity, or only convenience.</li>
+            <li>Complete a risk assessment before moving sensitive material.</li>
+            <li>Verify identities through a separate known channel when the workflow requires it.</li>
+            <li>Minimize identifying details and retain only what reporting, safety, and legal duties require.</li>
+            <li>Reassess the channel when a routine conversation becomes sensitive.</li>
+          </ol>
+          <p>
+            The most responsible tool choice may be the one that tells a source not to use it. A
+            clear boundary is more useful than a broad “secure” label.
+          </p>
+        </section>
+
+        <Limitations />
+      </>
+    )
+  },
   "temporary-financial-handoff": {
     title: "Stop putting one-time financial handoffs in permanent inboxes",
     description:
@@ -460,6 +587,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
             <li><a href={THREAT_MODEL_URL} rel="noreferrer" target="_blank">Threat model and current limitations</a></li>
             <li><a href="/why-i-built-elm-chat">Founder&apos;s story</a></li>
             <li><a href="/building-ephemeral-chat-cloudflare">Architecture walkthrough</a></li>
+            <li><a href="/journalist-source-communication">Journalist and source channel guide</a></li>
             <li><a href="/temporary-financial-handoff">Financial data-minimization essay</a></li>
             <li><a href="https://github.com/shawnbure/elm-chat/releases/tag/v0.1.0" rel="noreferrer" target="_blank">Current public release</a></li>
           </ul>
@@ -958,6 +1086,7 @@ function RelatedGuides({ current }: { current: MarketingSlug }) {
     { slug: "send-a-password-securely", label: "How to send a password securely" },
     { slug: "one-time-secret-chat", label: "One-time secret vs disposable chat" },
     { slug: "temporary-private-chat", label: "Temporary private chat without signup" },
+    { slug: "journalist-source-communication", label: "Choosing a channel for journalists and sources" },
     { slug: "temporary-financial-handoff", label: "Temporary financial handoffs" },
     { slug: "why-i-built-elm-chat", label: "Why I built elm.chat" },
     {
