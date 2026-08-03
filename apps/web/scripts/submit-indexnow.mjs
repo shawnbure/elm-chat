@@ -8,6 +8,7 @@ const urlList = [
   `https://${host}/one-time-secret-chat`,
   `https://${host}/temporary-private-chat`,
   `https://${host}/temporary-financial-handoff`,
+  `https://${host}/press`,
   `https://${host}/why-i-built-elm-chat`,
   `https://${host}/building-ephemeral-chat-cloudflare`,
   `https://${host}/durable-objects-websocket-hibernation`

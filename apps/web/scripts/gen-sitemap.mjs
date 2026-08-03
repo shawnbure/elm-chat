@@ -15,6 +15,7 @@ const urls = [
   { path: "/one-time-secret-chat", changefreq: "monthly", priority: "0.8" },
   { path: "/temporary-private-chat", changefreq: "monthly", priority: "0.8" },
   { path: "/temporary-financial-handoff", changefreq: "monthly", priority: "0.8" },
+  { path: "/press", changefreq: "monthly", priority: "0.6" },
   { path: "/why-i-built-elm-chat", changefreq: "monthly", priority: "0.7" },
   { path: "/building-ephemeral-chat-cloudflare", changefreq: "monthly", priority: "0.8" },
   { path: "/durable-objects-websocket-hibernation", changefreq: "monthly", priority: "0.8" }

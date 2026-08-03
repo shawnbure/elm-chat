@@ -93,6 +93,7 @@ function roomPathname(): { view: View; roomId?: string; marketingSlug?: Marketin
     marketingSlug === "one-time-secret-chat" ||
     marketingSlug === "temporary-private-chat" ||
     marketingSlug === "temporary-financial-handoff" ||
+    marketingSlug === "press" ||
     marketingSlug === "why-i-built-elm-chat" ||
     marketingSlug === "building-ephemeral-chat-cloudflare" ||
     marketingSlug === "durable-objects-websocket-hibernation"
@@ -785,6 +786,9 @@ function LandingPage() {
             </a>
             <a className="hero-link" href={articleUrl} rel="noreferrer" target="_blank">
               Read the article
+            </a>
+            <a className="hero-link" href="/press">
+              Press kit
             </a>
           </div>
           <p className="eyebrow">elm chat</p>

@@ -203,6 +203,85 @@ const pages = {
         <p>That is a more honest goal than calling every channel secure. It gives product, operations, security, legal, and compliance teams a concrete boundary they can inspect together.</p>
       </section>`
   },
+  press: {
+    schemaType: "WebPage",
+    title: "elm.chat press and media kit",
+    description:
+      "Verified product facts, founder background, story angles, source material, and downloadable visuals for journalists covering elm.chat.",
+    eyebrow: "Press and media",
+    datePublished: "2026-08-03",
+    dateModified: "2026-08-03",
+    intro:
+      "Everything an editor or reporter needs to describe elm.chat accurately—including the limits that should remain in any story.",
+    body: `
+      <section>
+        <h2>One-sentence description</h2>
+        <p>elm.chat is an open-source, account-free messenger for short-lived encrypted rooms with single-use invites and no persisted server-side transcript.</p>
+      </section>
+      <section>
+        <h2>The idea behind the project</h2>
+        <p>Most software is designed to remember everything. elm.chat explores the opposite boundary: some accountable records should remain, while a temporary credential, clarification, or private conversation should be able to accomplish its purpose and end without automatically becoming another permanent archive.</p>
+        <p>The goal is not anonymity, compliance avoidance, or erasing participant copies. It is to make retention an explicit product decision and give ordinary people a smaller footprint for one-off conversations.</p>
+      </section>
+      <section>
+        <h2>Verified product facts</h2>
+        <ul>
+          <li>No account, phone number, email address, contact list, or public room directory.</li>
+          <li>Message and file content is encrypted in participants' browsers.</li>
+          <li>A Cloudflare Durable Object relays ciphertext and coordinates one live room.</li>
+          <li>The relay does not persist message or file content as a server-side transcript.</li>
+          <li>Creators issue single-use invites and can destroy the room.</li>
+          <li>The complete project is available under AGPL-3.0 and can be self-hosted.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>Limits every story should preserve</h2>
+        <ul>
+          <li>elm.chat has not had an independent security audit.</li>
+          <li>Message authentication is not implemented yet.</li>
+          <li>Cloudflare can observe ordinary relay metadata such as IP addresses, timing, sizes, and presence.</li>
+          <li>A participant, screenshot, clipboard, download, photograph, or compromised device can retain content.</li>
+          <li>The project is not an anonymity network, a compliance product, or production-ready financial infrastructure.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>Current story angles</h2>
+        <ul>
+          <li><strong>Technology that knows when to forget:</strong> retention as a deliberate product boundary.</li>
+          <li><strong>A chat server without a transcript database:</strong> browser encryption, WebSockets, and Durable Objects.</li>
+          <li><strong>Keep the record, minimize the handoff:</strong> separating governed financial outcomes from temporary operational material.</li>
+          <li><strong>Trust through inspectable limits:</strong> publishing the threat model and unfinished work instead of hiding it behind a security slogan.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>About the founder</h2>
+        <p>Shawn Bure is an AI and operations technology professional with decades of experience across financial operations, payments, telephony, CRM, integrations, cloud systems, automation, and production AI. He leads Workrr AI and Workrr One and built elm.chat as an open experiment in data minimization and accountable software design.</p>
+      </section>
+      <section>
+        <h2>Primary sources</h2>
+        <ul>
+          <li><a href="https://github.com/shawnbure/elm-chat">Source repository</a></li>
+          <li><a href="https://github.com/shawnbure/elm-chat/blob/main/docs/threat-model.md">Threat model and current limitations</a></li>
+          <li><a href="/why-i-built-elm-chat">Founder's story</a></li>
+          <li><a href="/building-ephemeral-chat-cloudflare">Architecture walkthrough</a></li>
+          <li><a href="/temporary-financial-handoff">Financial data-minimization essay</a></li>
+          <li><a href="https://github.com/shawnbure/elm-chat/releases/tag/v0.1.0">Current public release</a></li>
+        </ul>
+      </section>
+      <section>
+        <h2>Downloadable visuals</h2>
+        <ul>
+          <li><a download href="/elm-chat-social.png">General elm.chat social card (1200×630 PNG)</a></li>
+          <li><a download href="/elm-chat-architecture-social.png">Architecture social card (1200×630 PNG)</a></li>
+          <li><a download href="/elm-chat-finance-social.png">Financial handoff social card (1200×630 PNG)</a></li>
+        </ul>
+        <p>These images may be used in editorial coverage of elm.chat with attribution. Product claims should be checked against the source and threat model above.</p>
+      </section>
+      <section>
+        <h2>Media inquiries</h2>
+        <p>Reach Shawn through his <a href="https://github.com/shawnbure">GitHub profile</a> or start a public question in <a href="https://github.com/shawnbure/elm-chat/discussions">elm.chat Discussions</a>.</p>
+      </section>`
+  },
   "why-i-built-elm-chat": {
     title: "Why I built a messenger designed to disappear",
     description:
@@ -398,13 +477,14 @@ const guideLabels = {
 
 for (const [slug, page] of Object.entries(pages)) {
   const canonical = `${ORIGIN}/${slug}`;
+  const isArticle = (page.schemaType ?? "Article") !== "WebPage";
   const socialImage = page.socialImage ?? "elm-chat-social.png";
   const socialImageAlt =
     page.socialImageAlt ?? "elm.chat — One conversation. Then gone.";
   const structuredData = {
     "@context": "https://schema.org",
     "@type": page.schemaType ?? "Article",
-    headline: page.title,
+    ...(isArticle ? { headline: page.title } : { name: page.title }),
     description: page.description,
     image: [`${ORIGIN}/${socialImage}`],
     datePublished: page.datePublished ?? "2026-07-28",
@@ -443,6 +523,7 @@ for (const [slug, page] of Object.entries(pages)) {
       <nav class="marketing-nav" aria-label="elm.chat">
         <a class="marketing-brand" href="/">elm.chat</a>
         <div>
+          <a href="/press">Press kit</a>
           <a href="https://github.com/shawnbure/elm-chat">Source</a>
           <a href="https://github.com/shawnbure/elm-chat/blob/main/docs/threat-model.md">Threat model</a>
         </div>
@@ -506,9 +587,11 @@ for (const [slug, page] of Object.entries(pages)) {
     )
     .replace(
       '<meta property="og:type" content="website" />',
-      `<meta property="og:type" content="article" />
+      isArticle
+        ? `<meta property="og:type" content="article" />
     <meta property="article:published_time" content="${page.datePublished ?? "2026-07-28"}" />
     <meta property="article:modified_time" content="${page.dateModified ?? "2026-07-28"}" />`
+        : '<meta property="og:type" content="website" />'
     )
     .replace(
       /<meta property="og:title" content="[^"]*" \/>/,
