@@ -1,5 +1,7 @@
 # elm.chat
 
+[Changelog](CHANGELOG.md) · [Latest release](https://github.com/shawnbure/elm-chat/releases/latest)
+
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shawnbure/elm-chat)
 [![Built with Cloudflare](https://workers.cloudflare.com/built-with-cloudflare.svg)](https://elm.chat/building-ephemeral-chat-cloudflare)
