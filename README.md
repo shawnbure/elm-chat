@@ -5,8 +5,9 @@
 [![Built with Cloudflare](https://workers.cloudflare.com/built-with-cloudflare.svg)](https://elm.chat/building-ephemeral-chat-cloudflare)
 ![Stars](https://img.shields.io/github/stars/shawnbure/elm-chat?style=social)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![GitHub Discussions](https://img.shields.io/github/discussions/shawnbure/elm-chat?label=discussions)](https://github.com/shawnbure/elm-chat/discussions)
 
-> **Instant chat. Private, secure, fast and disposable.** End-to-end encrypted rooms that self-destruct. No accounts and no server-side transcript.
+> **Instant chat. Account-free, encrypted, fast and disposable.** End-to-end encrypted rooms that self-destruct, with no persisted server-side transcript. This early-stage release has not had an independent security audit.
 
 ![elm.chat two-user demo — create a room, share a single-use invite, chat end-to-end encrypted, watch messages vanish, then destroy the room](docs/images/elm-chat-demo.gif)
 
@@ -15,6 +16,8 @@
 `elm.chat` is an open effort to build a messaging system for people who need privacy by default, operational simplicity, and as little server trust as possible.
 
 This repository is for builders, reviewers, security researchers, and contributors who want to help push the project toward a genuinely minimal-footprint private communication model.
+
+New here? Start with the public [try, review, or contribute guide](https://github.com/shawnbure/elm-chat/discussions/42), ask a question in [Discussions](https://github.com/shawnbure/elm-chat/discussions), or choose a scoped [good first issue](https://github.com/shawnbure/elm-chat/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22).
 
 Try [elm.chat](https://elm.chat), read [why I built a messenger designed to disappear](https://elm.chat/why-i-built-elm-chat), learn what [self-destructing chat should actually mean](https://elm.chat/self-destructing-chat), follow the practical guide to [sending a password without leaving it in chat history](https://elm.chat/send-a-password-securely), compare a [one-time secret with a disposable chat](https://elm.chat/one-time-secret-chat), create a [temporary private chat without signup](https://elm.chat/temporary-private-chat), explore the [Cloudflare Durable Objects architecture](https://elm.chat/building-ephemeral-chat-cloudflare), or see how [WebSocket hibernation works without a chat database](https://elm.chat/durable-objects-websocket-hibernation).
 
