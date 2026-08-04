@@ -5,6 +5,8 @@ import {
 } from "@elm-chat/shared";
 
 const EXTERNAL_REFERRER_SOURCES: Readonly<Record<string, ExternalAcquisitionSource>> = {
+  "devopsish.com": "devopsish",
+  "www.devopsish.com": "devopsish",
   "freestartuplisting.org": "free-startup-listing",
   "www.freestartuplisting.org": "free-startup-listing",
   "highscalability.com": "high-scalability",
