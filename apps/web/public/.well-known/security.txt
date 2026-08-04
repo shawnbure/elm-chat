@@ -1,0 +1,6 @@
+Contact: https://github.com/shawnbure/elm-chat/security/advisories/new
+Expires: 2027-07-31T23:59:59Z
+Preferred-Languages: en
+Canonical: https://elm.chat/.well-known/security.txt
+Policy: https://github.com/shawnbure/elm-chat/blob/main/SECURITY.md
+

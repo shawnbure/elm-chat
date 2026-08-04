@@ -26,6 +26,8 @@ Please include:
 
 ## Scope
 
+This policy welcomes good-faith reports, but it does not grant permission to disrupt the service, access another person's data, use social engineering, or test against anyone's room without every participant's explicit authorization. Use the minimum interaction and data necessary to demonstrate an issue.
+
 In scope:
 
 - the encryption / key-exchange / secret-handling code (`packages/crypto`, room secret in URL fragment),
