@@ -11,17 +11,17 @@
 
 > **Instant chat. Account-free, encrypted, fast and disposable.** End-to-end encrypted rooms that self-destruct, with no persisted server-side transcript. This early-stage release has not had an independent security audit.
 
-![elm.chat two-user demo — create a room, share a single-use invite, chat end-to-end encrypted, watch messages vanish, then destroy the room](docs/images/elm-chat-demo.gif)
+![elm.chat two-user demo — create a room, share a single-use invite, exchange end-to-end encrypted messages, then destroy the room](docs/images/elm-chat-demo.gif)
 
-*A real two-person session: spin up a room, share a single-use invite, exchange an encrypted message, and watch it vanish before the room self-destructs.*
+*A real two-person session: create a room, hand off a single-use invite, exchange encrypted messages, and destroy the room for both participants.*
 
 ## Try the one-person loop
 
 You can test the complete handoff in about a minute with someone you already know:
 
 1. Open [elm.chat](https://elm.chat/?source=github-readme) and create a room.
-2. Click **Invite one person**. The single-use invite is copied automatically.
-3. Send that invite to one person through a separate channel.
+2. Click **Send invite** (or **Invite one person** where native sharing is unavailable). Choose a share target, or use **Copy** on the single-use invite.
+3. Send that invite to one person through a separate channel if you copied it.
 4. Ask them to open it, exchange a low-risk test message, and destroy the room when you are done.
 
 The invite expires and can only be used once. Start with non-critical information: elm.chat is early-stage, has not had an independent security audit, and is not intended for anonymous, high-risk, regulated, or production-finance communication. Read the [security status and limitations](https://elm.chat/security-and-limitations) before relying on it.
@@ -54,7 +54,7 @@ The product is intentionally small and direct.
 
 On the landing screen, a visitor sees:
 
-- the core message: `Instant chat. Private, secure, fast and disposable.`
+- the core message: `Instant chat. Account-free, encrypted, fast and disposable.`
 - a message vanish control with minutes, hours, days, or indefinite
 - a room self-destruct control with minutes, hours, days, or indefinite
 - a `Create private conversation` action
@@ -68,7 +68,7 @@ Inside a room, people see:
 - live presence count
 - color identity chips instead of usernames
 - encrypted message bubbles keyed by participant color
-- creator-only `Invite one person` and `Destroy` controls
+- creator-only `Send invite` (or `Invite one person`) and `Destroy` controls
 - single-use invite links instead of a permanent reusable room invite
 - creator ability to revoke invites and remove participants
 - a single composer for fast message entry
@@ -232,7 +232,7 @@ Room creation can be gated by an invisible Cloudflare Turnstile challenge. It is
 ### Verify it works
 
 1. Open your deployed URL and create a room.
-2. Click **Invite one person**, then open the copied single-use invite in a second browser or an incognito window to confirm two participants can exchange encrypted messages and files.
+2. Click **Send invite** (or **Invite one person**), copy the single-use invite if needed, then open it in a second browser or an incognito window to confirm two participants can exchange encrypted messages and files.
 3. Optional: watch live logs with `npx wrangler tail` from `workers/api`.
 
 ### Free-tier expectations
