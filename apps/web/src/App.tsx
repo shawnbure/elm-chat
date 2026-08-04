@@ -72,6 +72,7 @@ type IncomingFile = {
 };
 
 type ActionFeedback = "idle" | "success";
+type InviteFeedback = "idle" | "copied" | "shared";
 type DurationUnit = "minutes" | "hours" | "days";
 type DurationDraft = {
   amount: string;
@@ -1011,7 +1012,7 @@ function RoomPage({ roomId }: { roomId: string }) {
   const [notFound, setNotFound] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState<ActionFeedback>("idle");
   const [destroyFeedback, setDestroyFeedback] = useState<ActionFeedback>("idle");
-  const [inviteFeedback, setInviteFeedback] = useState<ActionFeedback>("idle");
+  const [inviteFeedback, setInviteFeedback] = useState<InviteFeedback>("idle");
   const [destroying, setDestroying] = useState(false);
   const [inviteAccess, setInviteAccess] = useState<"checking" | "granted" | "invalid">(
     isInviteGuest ? "checking" : "granted"
@@ -1590,7 +1591,7 @@ function RoomPage({ roomId }: { roomId: string }) {
   }, [copyFeedback]);
 
   useEffect(() => {
-    if (inviteFeedback !== "success") {
+    if (inviteFeedback === "idle") {
       return;
     }
     const timeout = window.setTimeout(() => setInviteFeedback("idle"), 1600);
@@ -1754,8 +1755,29 @@ function RoomPage({ roomId }: { roomId: string }) {
       const invite = await createInvite(roomId, creatorToken);
       setInvites((current) => [invite, ...current]);
       const inviteUrl = buildInviteUrl(roomId, invite.token, roomSecret);
+      if (typeof navigator.share === "function") {
+        try {
+          await navigator.share({
+            title: "elm.chat invite",
+            text: "Join my disposable elm.chat room. This single-use link expires.",
+            url: inviteUrl
+          });
+          recordGrowthEvent("invite_share_handoff");
+          setInviteFeedback("shared");
+          setRoomNotice("Invite handed to your selected app. The link can only be used once.");
+          setError(null);
+          return;
+        } catch (cause) {
+          if (cause instanceof DOMException && cause.name === "AbortError") {
+            setInviteFeedback("idle");
+            setRoomNotice("Invite created. Choose Share or Copy below when you are ready.");
+            setError(null);
+            return;
+          }
+        }
+      }
       if (await copyText(inviteUrl)) {
-        setInviteFeedback("success");
+        setInviteFeedback("copied");
         setRoomNotice("Invite copied. Send it to one person—the link can only be used once.");
         setError(null);
         return;
@@ -1770,12 +1792,33 @@ function RoomPage({ roomId }: { roomId: string }) {
 
   async function handleCopyInvite(token: string) {
     if (await copyText(buildInviteUrl(roomId, token, roomSecret))) {
-      setInviteFeedback("success");
+      setInviteFeedback("copied");
       setRoomNotice("Invite copied. Send it to one person—the link can only be used once.");
       setError(null);
       return;
     }
     setError("Clipboard access is blocked in this browser context. Copy the invite URL manually.");
+  }
+
+  async function handleNativeShareInvite(token: string) {
+    if (typeof navigator.share !== "function") {
+      return;
+    }
+    try {
+      await navigator.share({
+        title: "elm.chat invite",
+        text: "Join my disposable elm.chat room. This single-use link expires.",
+        url: buildInviteUrl(roomId, token, roomSecret)
+      });
+      recordGrowthEvent("invite_share_handoff");
+      setInviteFeedback("shared");
+      setRoomNotice("Invite handed to your selected app. The link can only be used once.");
+      setError(null);
+    } catch (cause) {
+      if (!(cause instanceof DOMException && cause.name === "AbortError")) {
+        setError("This browser could not open its share menu. Copy the invite instead.");
+      }
+    }
   }
 
   async function handleRevokeInvite(token: string) {
@@ -1887,10 +1930,16 @@ function RoomPage({ roomId }: { roomId: string }) {
           <div className="room-actions">
             {isCreator ? (
               <button
-                className={`secondary-button ${inviteFeedback === "success" ? "button-success" : ""}`}
+                className={`secondary-button ${inviteFeedback !== "idle" ? "button-success" : ""}`}
                 onClick={handleShareInvite}
               >
-                {inviteFeedback === "success" ? "Invite copied—send it" : "Invite one person"}
+                {inviteFeedback === "shared"
+                  ? "Invite shared"
+                  : inviteFeedback === "copied"
+                    ? "Invite copied—send it"
+                    : typeof navigator.share === "function"
+                      ? "Send invite"
+                      : "Invite one person"}
               </button>
             ) : (
               <button
@@ -1962,9 +2011,20 @@ function RoomPage({ roomId }: { roomId: string }) {
               </span>
               <div className="invite-actions">
                 {!invite.revokedAt && !invite.consumedAt ? (
-                  <button className="secondary-button invite-copy" onClick={() => handleCopyInvite(invite.token)} type="button">
-                    Copy
-                  </button>
+                  <>
+                    {typeof navigator.share === "function" ? (
+                      <button
+                        className="secondary-button invite-copy"
+                        onClick={() => handleNativeShareInvite(invite.token)}
+                        type="button"
+                      >
+                        Share
+                      </button>
+                    ) : null}
+                    <button className="secondary-button invite-copy" onClick={() => handleCopyInvite(invite.token)} type="button">
+                      Copy
+                    </button>
+                  </>
                 ) : null}
                 {!invite.revokedAt ? (
                   <button className="secondary-button invite-revoke" onClick={() => handleRevokeInvite(invite.token)} type="button">

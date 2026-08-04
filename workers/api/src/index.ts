@@ -20,6 +20,7 @@ type Env = {
 
 type GrowthEvent =
   | "make_your_own_clicked"
+  | "invite_share_handoff"
   | "marketing_page_viewed"
   | "marketing_cta_clicked"
   | "marketing_source_clicked"
@@ -339,7 +340,7 @@ function routeApi(request: Request, env: Env): Promise<Response> {
   if (request.method === "POST" && url.pathname === "/api/growth") {
     return safeJson<{ event?: string; source?: string }>(request)
       .then(({ event, source }) => {
-        if (event === "make_your_own_clicked") {
+        if (event === "make_your_own_clicked" || event === "invite_share_handoff") {
           recordGrowth(env, event);
           return new Response(null, { status: 204 });
         }
