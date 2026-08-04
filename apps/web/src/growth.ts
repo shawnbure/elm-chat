@@ -1,4 +1,32 @@
-import type { NonInviteAcquisitionSource } from "@elm-chat/shared";
+import {
+  isExternalAcquisitionSource,
+  type ExternalAcquisitionSource,
+  type NonInviteAcquisitionSource
+} from "@elm-chat/shared";
+
+const EXTERNAL_REFERRER_SOURCES: Readonly<Record<string, ExternalAcquisitionSource>> = {
+  "www.zearches.com": "zearches",
+  "zearches.com": "zearches"
+};
+
+export function resolveExternalAcquisitionSource(
+  sourceParam: string | null,
+  referrer: string
+): ExternalAcquisitionSource | null {
+  if (isExternalAcquisitionSource(sourceParam)) {
+    return sourceParam;
+  }
+
+  if (!referrer) {
+    return null;
+  }
+
+  try {
+    return EXTERNAL_REFERRER_SOURCES[new URL(referrer).hostname.toLowerCase()] ?? null;
+  } catch {
+    return null;
+  }
+}
 
 type ClientGrowthEvent =
   | "make_your_own_clicked"

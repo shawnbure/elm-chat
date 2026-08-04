@@ -13,7 +13,6 @@ import {
 import {
   FILE_CHUNK_BYTES,
   isAcquisitionSource,
-  isExternalAcquisitionSource,
   MAX_FILE_BYTES,
   MAX_TRANSCRIPT_SYNC_MESSAGES,
   type CreateRoomRequest,
@@ -27,7 +26,7 @@ import {
   type ServerEvent,
 } from "@elm-chat/shared";
 import { startTransition, useEffect, useRef, useState, type CSSProperties } from "react";
-import { recordGrowthEvent } from "./growth";
+import { recordGrowthEvent, resolveExternalAcquisitionSource } from "./growth";
 import { MarketingPage, type MarketingSlug } from "./MarketingPage";
 
 type View = "landing" | "marketing" | "room";
@@ -685,7 +684,7 @@ function LandingPage() {
   const articleUrl =
     "https://github.com/shawnbure/elm-chat/blob/main/docs/truly-private-messaging.md";
   const sourceParam = new URLSearchParams(window.location.search).get("source");
-  const externalSource = isExternalAcquisitionSource(sourceParam) ? sourceParam : null;
+  const externalSource = resolveExternalAcquisitionSource(sourceParam, document.referrer);
   const [messageDuration, setMessageDuration] = useState<DurationDraft>({
     amount: "7",
     unit: "minutes",
