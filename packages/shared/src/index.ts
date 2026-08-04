@@ -40,6 +40,7 @@ export const EXTERNAL_ACQUISITION_SOURCES = [
   "free-startup-listing",
   "github-readme",
   "hashnode",
+  "high-scalability",
   "llms-txt",
   "linuxlinks",
   "reddit-cloudflare",
