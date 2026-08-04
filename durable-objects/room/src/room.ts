@@ -563,7 +563,7 @@ export class RoomDurableObject extends DurableObject<Env> {
   private broadcast(event: ServerEvent): void {
     const payload = JSON.stringify(event);
     for (const socket of this.ctx.getWebSockets()) {
-      socket.send(payload);
+      this.sendIfOpen(socket, payload);
     }
   }
 
@@ -578,8 +578,21 @@ export class RoomDurableObject extends DurableObject<Env> {
     for (const socket of this.ctx.getWebSockets()) {
       const attachment = socket.deserializeAttachment() as AttachmentRecord | null;
       if (attachment?.sessionId && allowed.has(attachment.sessionId)) {
-        socket.send(payload);
+        this.sendIfOpen(socket, payload);
       }
+    }
+  }
+
+  private sendIfOpen(socket: WebSocket, payload: string): void {
+    if (socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    try {
+      socket.send(payload);
+    } catch {
+      // A peer can close between the readyState check and send. Its close
+      // callback will update presence, so one failed broadcast should not fail
+      // the room event that triggered it.
     }
   }
 
@@ -597,6 +610,9 @@ export class RoomDurableObject extends DurableObject<Env> {
     const seen = new Set<string>();
     const sessions: AttachmentRecord[] = [];
     for (const socket of this.ctx.getWebSockets()) {
+      if (socket.readyState !== WebSocket.OPEN) {
+        continue;
+      }
       const attachment = socket.deserializeAttachment() as AttachmentRecord | null;
       if (attachment?.sessionId && !seen.has(attachment.sessionId)) {
         seen.add(attachment.sessionId);
