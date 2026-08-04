@@ -8,6 +8,7 @@ const slugs = [
   "temporary-financial-handoff",
   "the-internet-needs-places-that-forget",
   "why-i-built-elm-chat",
+  "deletion-distributed-systems-contract",
   "building-ephemeral-chat-cloudflare",
   "durable-objects-websocket-hibernation",
   "journalist-source-communication",

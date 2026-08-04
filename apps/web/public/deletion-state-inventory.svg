@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">Distributed data state inventory</title>
+  <desc id="desc">Six state classes around a deletion contract: authoritative storage, derived data, data in transit, operational telemetry, recovery media, and participant-controlled copies.</desc>
+  <rect width="1200" height="675" rx="36" fill="#f7f9fc"/>
+  <text x="70" y="82" fill="#111827" font-family="Arial, sans-serif" font-size="38" font-weight="700">A deletion promise needs a complete state inventory</text>
+  <text x="70" y="126" fill="#566174" font-family="Arial, sans-serif" font-size="22">Every controlled copy needs an owner, purpose, retention rule, and verification method.</text>
+  <g font-family="Arial, sans-serif">
+    <rect x="70" y="190" width="320" height="150" rx="24" fill="#ffffff" stroke="#90a7dd" stroke-width="3"/>
+    <text x="100" y="235" fill="#315898" font-size="20" font-weight="700">AUTHORITATIVE</text>
+    <text x="100" y="273" fill="#111827" font-size="24" font-weight="700">Primary records</text>
+    <text x="100" y="309" fill="#566174" font-size="18">database · object storage</text>
+    <rect x="440" y="190" width="320" height="150" rx="24" fill="#ffffff" stroke="#90a7dd" stroke-width="3"/>
+    <text x="470" y="235" fill="#315898" font-size="20" font-weight="700">DERIVED</text>
+    <text x="470" y="273" fill="#111827" font-size="24" font-weight="700">Queryable copies</text>
+    <text x="470" y="309" fill="#566174" font-size="18">indexes · caches · thumbnails</text>
+    <rect x="810" y="190" width="320" height="150" rx="24" fill="#ffffff" stroke="#90a7dd" stroke-width="3"/>
+    <text x="840" y="235" fill="#315898" font-size="20" font-weight="700">TRANSIT</text>
+    <text x="840" y="273" fill="#111827" font-size="24" font-weight="700">Work still moving</text>
+    <text x="840" y="309" fill="#566174" font-size="18">queues · retries · relay buffers</text>
+    <rect x="70" y="390" width="320" height="150" rx="24" fill="#ffffff" stroke="#90a7dd" stroke-width="3"/>
+    <text x="100" y="435" fill="#315898" font-size="20" font-weight="700">OPERATIONAL</text>
+    <text x="100" y="473" fill="#111827" font-size="24" font-weight="700">System evidence</text>
+    <text x="100" y="509" fill="#566174" font-size="18">logs · traces · analytics</text>
+    <rect x="440" y="390" width="320" height="150" rx="24" fill="#e8efff" stroke="#3b73f1" stroke-width="4"/>
+    <text x="470" y="435" fill="#0e3f9e" font-size="20" font-weight="700">RECOVERY</text>
+    <text x="470" y="473" fill="#111827" font-size="24" font-weight="700">Older system state</text>
+    <text x="470" y="509" fill="#566174" font-size="18">replicas · snapshots · backups</text>
+    <rect x="810" y="390" width="320" height="150" rx="24" fill="#111827"/>
+    <text x="840" y="435" fill="#a9c2ff" font-size="20" font-weight="700">PARTICIPANT</text>
+    <text x="840" y="473" fill="#ffffff" font-size="24" font-weight="700">Outside service control</text>
+    <text x="840" y="509" fill="#d9e2f2" font-size="18">downloads · screenshots · exports</text>
+  </g>
+  <text x="600" y="610" text-anchor="middle" fill="#111827" font-family="Arial, sans-serif" font-size="23" font-weight="700">If a team cannot enumerate a copy, it cannot defend a claim about deleting it.</text>
+</svg>

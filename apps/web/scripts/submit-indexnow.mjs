@@ -14,6 +14,7 @@ const urlList = [
   `https://${host}/press`,
   `https://${host}/the-internet-needs-places-that-forget`,
   `https://${host}/why-i-built-elm-chat`,
+  `https://${host}/deletion-distributed-systems-contract`,
   `https://${host}/building-ephemeral-chat-cloudflare`,
   `https://${host}/durable-objects-websocket-hibernation`
 ];
