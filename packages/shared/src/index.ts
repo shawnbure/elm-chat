@@ -40,7 +40,8 @@ export const EXTERNAL_ACQUISITION_SOURCES = [
   "hashnode",
   "llms-txt",
   "reddit-cloudflare",
-  "reddit-selfhosted"
+  "reddit-selfhosted",
+  "zearches"
 ] as const;
 
 export const ACQUISITION_SOURCES = [
