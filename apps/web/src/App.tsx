@@ -656,7 +656,9 @@ export function App() {
     return <RoomPage roomId={route.roomId} />;
   }
   if (route.view === "marketing" && route.marketingSlug) {
-    return <MarketingPage slug={route.marketingSlug} />;
+    const sourceParam = new URLSearchParams(window.location.search).get("source");
+    const externalSource = resolveExternalAcquisitionSource(sourceParam, document.referrer);
+    return <MarketingPage externalSource={externalSource} slug={route.marketingSlug} />;
   }
   return <LandingPage />;
 }

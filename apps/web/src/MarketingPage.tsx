@@ -1,4 +1,7 @@
-import type { MarketingAcquisitionSource } from "@elm-chat/shared";
+import type {
+  ExternalAcquisitionSource,
+  MarketingAcquisitionSource
+} from "@elm-chat/shared";
 import { useEffect, type ReactNode } from "react";
 import { recordGrowthEvent } from "./growth";
 
@@ -1428,7 +1431,13 @@ function Limitations() {
   );
 }
 
-export function MarketingPage({ slug }: { slug: MarketingSlug }) {
+export function MarketingPage({
+  externalSource,
+  slug
+}: {
+  externalSource?: ExternalAcquisitionSource | null;
+  slug: MarketingSlug;
+}) {
   const page = pages[slug];
   const roomHref = `/?source=${slug}`;
 
@@ -1438,6 +1447,9 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
     const previousDescription = description?.content ?? "";
 
     recordGrowthEvent("marketing_page_viewed", slug);
+    if (externalSource) {
+      recordGrowthEvent("external_referral_viewed", externalSource);
+    }
     document.title = `${page.title} | elm.chat`;
     if (description) {
       description.content = page.description;
@@ -1449,7 +1461,7 @@ export function MarketingPage({ slug }: { slug: MarketingSlug }) {
         description.content = previousDescription;
       }
     };
-  }, [page, slug]);
+  }, [externalSource, page, slug]);
 
   return (
     <main className="marketing-shell">
