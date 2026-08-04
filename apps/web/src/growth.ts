@@ -7,6 +7,8 @@ import {
 const EXTERNAL_REFERRER_SOURCES: Readonly<Record<string, ExternalAcquisitionSource>> = {
   "freestartuplisting.org": "free-startup-listing",
   "www.freestartuplisting.org": "free-startup-listing",
+  "highscalability.com": "high-scalability",
+  "www.highscalability.com": "high-scalability",
   "linuxlinks.com": "linuxlinks",
   "www.linuxlinks.com": "linuxlinks",
   "www.zearches.com": "zearches",
