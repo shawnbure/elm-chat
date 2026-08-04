@@ -1,0 +1,35 @@
+# elm.chat
+
+> elm.chat is an open-source, account-free, end-to-end encrypted messenger for short-lived conversations. A creator opens a room, sends one single-use invite to one known person, and the room disappears when the conversation ends.
+
+elm.chat is an early-stage experiment in minimizing the transcript a chat service retains. It is not an anonymity network, an audited high-assurance security product, a compliance product, or a tool for anonymous or high-risk source protection. No independent security audit has been completed. Message authentication and replay protection are unfinished. Cloudflare can observe ordinary relay metadata such as IP addresses, connection timing, presence, and encrypted payload sizes. Participant devices and recipients can retain anything they receive.
+
+## Start here
+
+- [Try elm.chat](https://elm.chat/?source=llms-txt): Open a room and invite exactly one known person. Use non-critical information while the project is early-stage.
+- [Source code and README](https://github.com/shawnbure/elm-chat): Review the AGPL-3.0-or-later repository, local-development instructions, architecture, limitations, and contribution routes.
+- [Security status and limitations](https://elm.chat/security-and-limitations): Read the current guarantees, known protocol gaps, metadata boundary, destruction limits, and private reporting route.
+- [Threat model](https://github.com/shawnbure/elm-chat/blob/main/docs/threat-model.md): Inspect protected assets, trust assumptions, known threats, and non-goals.
+- [Security policy](https://github.com/shawnbure/elm-chat/blob/main/SECURITY.md): Report suspected vulnerabilities privately through GitHub Security Advisories.
+
+## Technical context
+
+- [Architecture](https://github.com/shawnbure/elm-chat/blob/main/docs/architecture.md): Understand the React client, Cloudflare Worker, Durable Objects, WebSockets, client-side cryptography, and room lifecycle.
+- [Protocol](https://github.com/shawnbure/elm-chat/blob/main/docs/protocol.md): Review the wire protocol and current cryptographic design.
+- [Building ephemeral chat with Cloudflare](https://elm.chat/building-ephemeral-chat-cloudflare): Read the implementation walkthrough and its engineering tradeoffs.
+- [Durable Objects WebSocket hibernation](https://elm.chat/durable-objects-websocket-hibernation): See how the relay handles sleeping connections without a chat-message database.
+- [Contributing](https://github.com/shawnbure/elm-chat/blob/main/CONTRIBUTING.md): Find development standards and ways to help.
+
+## Product context
+
+- [Why I built elm.chat](https://elm.chat/why-i-built-elm-chat): Read the founder's case for communication that does not automatically become a permanent archive.
+- [What self-destructing chat should mean](https://elm.chat/self-destructing-chat): Compare deletion claims, server retention, metadata, endpoints, and audit status.
+- [One-time secret or disposable chat](https://elm.chat/one-time-secret-chat): Choose between a one-way secret and a short-lived two-person conversation.
+- [Press and media kit](https://elm.chat/press): Find accurate descriptions, founder context, screenshots, and claims that should remain qualified.
+
+## Optional practical guides
+
+- [Send a password without leaving it in chat history](https://elm.chat/send-a-password-securely): A limited-risk workflow with explicit caveats.
+- [Send a file without creating another attachment archive](https://elm.chat/send-a-file-securely): A practical workflow and its endpoint limitations.
+- [Temporary private chat without signup](https://elm.chat/temporary-private-chat): How the account-free room flow works.
+
