@@ -38,6 +38,7 @@ export const EXTERNAL_ACQUISITION_SOURCES = [
   "freshcode",
   "github-readme",
   "hashnode",
+  "llms-txt",
   "reddit-cloudflare",
   "reddit-selfhosted"
 ] as const;
