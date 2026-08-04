@@ -28,6 +28,7 @@ export const MARKETING_ACQUISITION_SOURCES = [
   "press",
   "the-internet-needs-places-that-forget",
   "why-i-built-elm-chat",
+  "deletion-distributed-systems-contract",
   "building-ephemeral-chat-cloudflare",
   "durable-objects-websocket-hibernation"
 ] as const;
@@ -62,6 +63,15 @@ export function isAcquisitionSource(value: unknown): value is AcquisitionSource 
   return (
     typeof value === "string" &&
     (ACQUISITION_SOURCES as readonly string[]).includes(value)
+  );
+}
+
+export function isMarketingAcquisitionSource(
+  value: unknown
+): value is MarketingAcquisitionSource {
+  return (
+    typeof value === "string" &&
+    (MARKETING_ACQUISITION_SOURCES as readonly string[]).includes(value)
   );
 }
 

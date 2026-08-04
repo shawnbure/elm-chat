@@ -553,6 +553,121 @@ const pages = {
         <p>If that idea resonates, try elm.chat with non-critical information, read the source and threat model, open an issue, or deploy your own copy. The most useful contribution is not praise. It is evidence that helps make the boundary more honest.</p>
       </section>`
   },
+  "deletion-distributed-systems-contract": {
+    title: "Deletion is a distributed-systems contract, not a UI animation",
+    description:
+      "A provider-neutral engineering guide to deletion semantics: state inventories, control and data planes, expiry authority, failure modes, verification, and honest user promises.",
+    eyebrow: "Distributed systems and data deletion",
+    byline: "By Shawn Bure — creator of elm.chat",
+    authorName: "Shawn Bure",
+    authorUrl: "https://shawnbure.com/",
+    datePublished: "2026-08-04",
+    dateModified: "2026-08-04",
+    schemaType: "TechArticle",
+    keywords: [
+      "distributed systems",
+      "data deletion",
+      "data retention",
+      "ephemeral systems",
+      "privacy engineering",
+      "tombstones",
+      "backup recovery"
+    ],
+    developerAudience: true,
+    intro:
+      "A disappearing row proves only that one interface stopped rendering it. Engineers who promise deletion have to define what happens across clients, relays, databases, caches, logs, queues, replicas, backups, and recovery paths.",
+    body: `
+      <section>
+        <h2>Deletion is an end-to-end property</h2>
+        <p>In a distributed system, data rarely has one address. A user action can produce an application record, search index entry, cache value, analytics event, retry payload, queue message, log line, database replica, backup block, notification preview, and one or more client-side copies. Hiding the application record does not resolve the rest.</p>
+        <p>A credible deletion promise therefore needs a scope, an authority, a deadline, and a failure model. Scope identifies the copies the service controls. Authority identifies who may trigger destruction. The deadline says when controlled copies become inaccessible and when they are physically reclaimed. The failure model explains what happens when a component is offline, a retry arrives late, or recovery restores older state.</p>
+      </section>
+      <section>
+        <h2>Start with a state inventory, not a delete endpoint</h2>
+        <p>Before designing an API, list every place the data can exist and why it exists there. Classify each location as authoritative storage, derived storage, transit, operational telemetry, backup, or participant-controlled state. Give every class an owner and a retention rule. If a team cannot enumerate a copy, it cannot make a defensible claim about deleting that copy.</p>
+        <div class="marketing-table-wrap">
+          <table>
+            <thead><tr><th>State class</th><th>Typical examples</th><th>Deletion question</th></tr></thead>
+            <tbody>
+              <tr><td>Authoritative</td><td>Primary database, object storage</td><td>What event makes the record unreachable?</td></tr>
+              <tr><td>Derived</td><td>Indexes, caches, thumbnails</td><td>How are stale derivatives invalidated?</td></tr>
+              <tr><td>Transit</td><td>Queues, retries, relay buffers</td><td>Can an old payload recreate deleted state?</td></tr>
+              <tr><td>Operational</td><td>Logs, traces, analytics</td><td>Was sensitive content excluded before collection?</td></tr>
+              <tr><td>Recovery</td><td>Replicas, snapshots, backups</td><td>How is destruction preserved after restore?</td></tr>
+              <tr><td>Participant</td><td>Downloads, screenshots, exports</td><td>Which copies are outside service control?</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <figure>
+          <img src="/deletion-state-inventory.svg" alt="Six distributed data state classes: authoritative, derived, transit, operational, recovery, and participant-controlled copies" width="1200" height="675" loading="lazy">
+          <figcaption>Inventory every controlled copy before defining a deletion promise.</figcaption>
+        </figure>
+      </section>
+      <section>
+        <h2>Model destruction as an irreversible state transition</h2>
+        <p>A boolean such as <code>deleted=true</code> is usually too weak. Systems often need a lifecycle that distinguishes an active object from one that is closed to new writes, destroyed for normal access, and eventually reclaimed from recovery media. The transition into the destroyed state should be monotonic: delayed requests, retries, and replayed events must not reopen it.</p>
+        <pre><code>ACTIVE -&gt; SEALED -&gt; DESTROYED -&gt; RECLAIMED
+          |          |
+          +--expire--+
+
+Invariant: no transition leaves DESTROYED or RECLAIMED.</code></pre>
+        <p>Store the destruction marker wherever the system stores the object's identity, and make every write path check it. If a backup restore can resurrect an older active record, the recovery procedure must replay later destruction markers before the object becomes reachable.</p>
+        <figure>
+          <img src="/deletion-state-lifecycle.svg" alt="Irreversible lifecycle from Active to Sealed, Destroyed, and Reclaimed, with expiry leading to destruction" width="1200" height="675" loading="lazy">
+          <figcaption>Retries and restores may move forward, never out of destruction.</figcaption>
+        </figure>
+      </section>
+      <section>
+        <h2>Separate the control plane from the data plane</h2>
+        <p>The control plane answers whether an object exists, who may use it, when it expires, and whether destruction has occurred. The data plane carries the content. Keeping these responsibilities separate makes it possible to retain the minimum state needed to enforce an irreversible tombstone without retaining the content that the tombstone is meant to retire.</p>
+        <p>This separation also sharpens review. A reviewer can ask whether the control plane authorizes destruction correctly, whether the data plane writes content anywhere durable, and whether either plane leaks content into logs or metrics. Encryption helps with content confidentiality, but it does not answer lifecycle, metadata, or endpoint questions by itself.</p>
+      </section>
+      <section>
+        <h2>Design for the failures that make data return</h2>
+        <p>Most deletion bugs are resurrection bugs. A mobile client reconnects with an old offline mutation. A queue retries a create event after a tombstone. A cache repopulates from a lagging replica. A restore process brings back a record but not the later delete. A search index remains queryable after the primary row is gone. These are ordinary distributed-systems behaviors, so deletion tests must exercise them deliberately.</p>
+        <ul>
+          <li>Make write operations conditional on the current lifecycle state.</li>
+          <li>Give destructive transitions stable, idempotent identifiers.</li>
+          <li>Expire queued and offline mutations before they can outlive their purpose.</li>
+          <li>Propagate invalidation to indexes and caches through observable workflows.</li>
+          <li>Keep content out of logs, traces, error reports, and analytics by construction.</li>
+          <li>Document backup retention separately from interactive deletion latency.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>Verification needs negative evidence</h2>
+        <p>A successful API response proves that one component accepted a request. It does not prove that the system can no longer serve, search, replay, restore, or infer the data. Verification should test absence across every controlled state class and should repeat those checks after component restarts, delayed delivery, cache refresh, replica catchup, and recovery exercises.</p>
+        <ol>
+          <li>Create uniquely identifiable test content without using real sensitive data.</li>
+          <li>Confirm each intended state class receives—or deliberately never receives—it.</li>
+          <li>Trigger expiry and explicit destruction through every authorized path.</li>
+          <li>Attempt reads, writes, searches, reconnects, retries, exports, and sync operations.</li>
+          <li>Restart components and replay delayed messages that predate destruction.</li>
+          <li>Restore a pre-destruction snapshot, then apply the documented recovery procedure.</li>
+          <li>Check logs, traces, metrics, crash reports, indexes, and caches for the marker.</li>
+          <li>Record which participant-controlled copies remain outside the service boundary.</li>
+        </ol>
+        <figure>
+          <img src="/deletion-verification-loop.svg" alt="Deletion verification loop: create a harmless marker, destroy it, attack recovery paths, search controlled state, and record the remaining boundary" width="1200" height="675" loading="lazy">
+          <figcaption>Verification seeks negative evidence across restart and recovery paths.</figcaption>
+        </figure>
+      </section>
+      <section>
+        <h2>User language should match the system boundary</h2>
+        <p>“Gone forever” is almost never an engineering statement. A service can promise that it no longer serves content, that controlled content stores were purged, or that backups age out within a documented window. It cannot promise that a recipient forgot, that a screenshot vanished, that a compromised endpoint was cleaned, or that network metadata was never observed unless the architecture actually provides those properties.</p>
+        <p>Product copy should name the actor and the scope: “the relay no longer retains the room” is testable; “this conversation leaves no trace” is not. Honest language is not a conversion penalty. It is part of the interface contract, especially when users are choosing a tool because they want less durable data.</p>
+      </section>
+      <section>
+        <h2>elm.chat as an inspectable, imperfect case study</h2>
+        <p>elm.chat applies a narrow version of this model. A Durable Object stores room policy, status, creator capability, and invite state. Connected browsers hold the current conversation history. The relay forwards encrypted messages and file chunks without persisting a server-side transcript. Destroying the room changes its control-plane state so later joins and writes are rejected.</p>
+        <p>The tradeoffs are explicit. Cloudflare can observe IP addresses, connection timing, sizes, and presence. Participants can retain plaintext. Peer-supplied history is not a trustworthy archive, and message authentication plus replay and duplicate protection remain unfinished. The project has not had an independent security audit and is not an anonymity, compliance, whistleblowing, or high-risk communications system.</p>
+      </section>
+      <section>
+        <h2>The design review question</h2>
+        <p>Do not ask only, “Where is the delete button?” Ask, “Which controlled copies can still influence behavior after destruction, and what evidence proves they cannot bring the object back?” That question turns deletion from a user-interface gesture into a system property engineers can model, test, monitor, and explain.</p>
+        <p>The complete elm.chat source, architecture, threat model, and deployment path are public under AGPL-3.0 for anyone who wants to challenge the example or adapt the design to a different infrastructure.</p>
+      </section>`
+  },
   "building-ephemeral-chat-cloudflare": {
     title: "Building ephemeral encrypted chat with Cloudflare Durable Objects",
     description:
@@ -706,6 +821,7 @@ const guideLabels = {
   "security-and-limitations": "Security status and limitations",
   "the-internet-needs-places-that-forget": "Why the internet needs places that forget",
   "why-i-built-elm-chat": "Why I built elm.chat",
+  "deletion-distributed-systems-contract": "Deletion as a distributed-systems contract",
   "building-ephemeral-chat-cloudflare": "How elm.chat works on Cloudflare",
   "durable-objects-websocket-hibernation": "WebSocket hibernation without a chat database"
 };

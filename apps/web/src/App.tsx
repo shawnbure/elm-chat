@@ -13,6 +13,7 @@ import {
 import {
   FILE_CHUNK_BYTES,
   isAcquisitionSource,
+  isMarketingAcquisitionSource,
   MAX_FILE_BYTES,
   MAX_TRANSCRIPT_SYNC_MESSAGES,
   type CreateRoomRequest,
@@ -86,22 +87,8 @@ function roomPathname(): { view: View; roomId?: string; marketingSlug?: Marketin
   if (match) {
     return { view: "room", roomId: match[1] };
   }
-  const marketingSlug = window.location.pathname.replace(/^\/|\/$/g, "") as MarketingSlug;
-  if (
-    marketingSlug === "self-destructing-chat" ||
-    marketingSlug === "send-a-password-securely" ||
-    marketingSlug === "send-a-file-securely" ||
-    marketingSlug === "one-time-secret-chat" ||
-    marketingSlug === "temporary-private-chat" ||
-    marketingSlug === "journalist-source-communication" ||
-    marketingSlug === "temporary-financial-handoff" ||
-    marketingSlug === "security-and-limitations" ||
-    marketingSlug === "press" ||
-    marketingSlug === "the-internet-needs-places-that-forget" ||
-    marketingSlug === "why-i-built-elm-chat" ||
-    marketingSlug === "building-ephemeral-chat-cloudflare" ||
-    marketingSlug === "durable-objects-websocket-hibernation"
-  ) {
+  const marketingSlug = window.location.pathname.replace(/^\/|\/$/g, "");
+  if (isMarketingAcquisitionSource(marketingSlug)) {
     return { view: "marketing", marketingSlug };
   }
   return { view: "landing" };
