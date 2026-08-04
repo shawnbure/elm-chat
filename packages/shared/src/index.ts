@@ -40,6 +40,7 @@ export const EXTERNAL_ACQUISITION_SOURCES = [
   "github-readme",
   "hashnode",
   "llms-txt",
+  "linuxlinks",
   "reddit-cloudflare",
   "reddit-selfhosted",
   "zearches"
