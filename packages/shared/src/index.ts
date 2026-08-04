@@ -36,6 +36,7 @@ export const MARKETING_ACQUISITION_SOURCES = [
 export const EXTERNAL_ACQUISITION_SOURCES = [
   "awesome-cloudflare",
   "dev-community",
+  "devopsish",
   "freshcode",
   "free-startup-listing",
   "github-discussion",
