@@ -1756,10 +1756,12 @@ function RoomPage({ roomId }: { roomId: string }) {
       const inviteUrl = buildInviteUrl(roomId, invite.token, roomSecret);
       if (await copyText(inviteUrl)) {
         setInviteFeedback("success");
+        setRoomNotice("Invite copied. Send it to one person—the link can only be used once.");
         setError(null);
         return;
       }
       setInviteFeedback("idle");
+      setRoomNotice("Invite created. Copy it below and send it to one person.");
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Failed to create invite.");
@@ -1769,6 +1771,7 @@ function RoomPage({ roomId }: { roomId: string }) {
   async function handleCopyInvite(token: string) {
     if (await copyText(buildInviteUrl(roomId, token, roomSecret))) {
       setInviteFeedback("success");
+      setRoomNotice("Invite copied. Send it to one person—the link can only be used once.");
       setError(null);
       return;
     }
@@ -1887,7 +1890,7 @@ function RoomPage({ roomId }: { roomId: string }) {
                 className={`secondary-button ${inviteFeedback === "success" ? "button-success" : ""}`}
                 onClick={handleShareInvite}
               >
-                {inviteFeedback === "success" ? "Invite copied" : "Share invite"}
+                {inviteFeedback === "success" ? "Invite copied—send it" : "Invite one person"}
               </button>
             ) : (
               <button
@@ -1945,6 +1948,9 @@ function RoomPage({ roomId }: { roomId: string }) {
       {isCreator && invites.length > 0 ? (
         <section className="invite-panel">
           <span className="eyebrow">invites</span>
+          <p className="invite-guidance">
+            Send one unused invite to one person. Each link expires and can only be used once.
+          </p>
           {invites.slice(0, 4).map((invite) => (
             <div className="invite-row" key={invite.token} style={inviteAccentStyle(invite)}>
               <span>
