@@ -257,6 +257,8 @@ async function handleRevokeInvite(request: Request, roomId: string, env: Env): P
 }
 
 const GITHUB_REPO = "shawnbure/elm-chat";
+const CLOUDFLARE_DEPLOY_URL =
+  "https://deploy.workers.cloudflare.com/?url=https://github.com/shawnbure/elm-chat";
 const GITHUB_STATS_TTL_MS = 60 * 60 * 1000;
 const MARKETING_PATHS = new Set([
   "/self-destructing-chat",
@@ -308,6 +310,26 @@ async function handleGithubStats(): Promise<Response> {
     repo: GITHUB_REPO,
     stars: githubStatsCache.stars,
     forks: githubStatsCache.forks
+  });
+}
+
+function handleCloudflareDeploy(request: Request, env: Env): Response {
+  const source = new URL(request.url).searchParams.get("source");
+  if (request.method === "GET") {
+    recordGrowth(
+      env,
+      "external_deploy_clicked",
+      isAcquisitionSource(source) && source !== "invite" ? source : "direct"
+    );
+  }
+
+  return new Response(null, {
+    status: 302,
+    headers: {
+      location: CLOUDFLARE_DEPLOY_URL,
+      "cache-control": "no-store",
+      "referrer-policy": "no-referrer"
+    }
   });
 }
 
@@ -412,6 +434,13 @@ export default {
       } catch {
         return withSecurityHeaders(json({ error: "Internal error." }, 500));
       }
+    }
+
+    if (
+      url.pathname === "/deploy/cloudflare" &&
+      (request.method === "GET" || request.method === "HEAD")
+    ) {
+      return withSecurityHeaders(handleCloudflareDeploy(request, env));
     }
 
     // Every route runs through the Worker (run_worker_first) so security
