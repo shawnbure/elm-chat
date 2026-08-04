@@ -3,7 +3,7 @@
 [Changelog](CHANGELOG.md) · [Latest release](https://github.com/shawnbure/elm-chat/releases/latest)
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shawnbure/elm-chat)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://elm.chat/deploy/cloudflare?source=github-readme)
 [![Built with Cloudflare](https://workers.cloudflare.com/built-with-cloudflare.svg)](https://elm.chat/building-ephemeral-chat-cloudflare)
 [![Stars](https://img.shields.io/github/stars/shawnbure/elm-chat?style=social)](https://github.com/shawnbure/elm-chat/stargazers)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
@@ -42,7 +42,7 @@ Subscribe to the [RSS feed](https://elm.chat/feed.xml) for new articles and tech
 
 elm.chat is Cloudflare-native, so you can fork and self-host a full private instance in about a minute — Cloudflare clones the repo into your account and provisions the Durable Objects for you:
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shawnbure/elm-chat)
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://elm.chat/deploy/cloudflare?source=github-readme)
 
 Prefer to do it by hand? See [Deploy to Cloudflare](#deploy-to-cloudflare) below. Want to contribute instead of just run it? Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [good first issues](docs/GOOD-FIRST-ISSUES.md).
 
@@ -171,7 +171,7 @@ No paid add-ons are required. SQLite-backed Durable Objects (what this project u
 
 ### Option A — one click
 
-1. Click **[Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/shawnbure/elm-chat)**.
+1. Click **[Deploy to Cloudflare](https://elm.chat/deploy/cloudflare?source=github-readme)**.
 2. Authorize Cloudflare to create a fork in your GitHub account and connect it to Workers Builds.
 3. Set the build settings (see below). The build step compiles the React app into `apps/web/dist`, which the Worker serves.
 4. Deploy. Cloudflare provisions the Worker and the Durable Object namespace for you.
