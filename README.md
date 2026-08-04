@@ -15,6 +15,17 @@
 
 *A real two-person session: spin up a room, share a single-use invite, exchange an encrypted message, and watch it vanish before the room self-destructs.*
 
+## Try the one-person loop
+
+You can test the complete handoff in about a minute with someone you already know:
+
+1. Open [elm.chat](https://elm.chat/?source=github-readme) and create a room.
+2. Click **Invite one person**. The single-use invite is copied automatically.
+3. Send that invite to one person through a separate channel.
+4. Ask them to open it, exchange a low-risk test message, and destroy the room when you are done.
+
+The invite expires and can only be used once. Start with non-critical information: elm.chat is early-stage, has not had an independent security audit, and is not intended for anonymous, high-risk, regulated, or production-finance communication. Read the [security status and limitations](https://elm.chat/security-and-limitations) before relying on it.
+
 `elm.chat` is an open effort to build a messaging system for people who need privacy by default, operational simplicity, and as little server trust as possible.
 
 This repository is for builders, reviewers, security researchers, and contributors who want to help push the project toward a genuinely minimal-footprint private communication model.
@@ -23,7 +34,7 @@ New here? Start with the public [try, review, or contribute guide](https://githu
 
 If elm.chat is useful to you, [star the repository](https://github.com/shawnbure/elm-chat) so other open-source users can find it. You can see the public stargazer list [here](https://github.com/shawnbure/elm-chat/stargazers).
 
-Try [elm.chat](https://elm.chat), review its [public security status and limitations](https://elm.chat/security-and-limitations), open the [press and media kit](https://elm.chat/press), read why [the internet needs places that are allowed to forget](https://elm.chat/the-internet-needs-places-that-forget) or [why I built a messenger designed to disappear](https://elm.chat/why-i-built-elm-chat), learn what [self-destructing chat should actually mean](https://elm.chat/self-destructing-chat), follow the practical guides to [sending a password without leaving it in chat history](https://elm.chat/send-a-password-securely) and [sending a file without creating another attachment archive](https://elm.chat/send-a-file-securely), compare a [one-time secret with a disposable chat](https://elm.chat/one-time-secret-chat), create a [temporary private chat without signup](https://elm.chat/temporary-private-chat), choose a [communication channel for a journalist and source](https://elm.chat/journalist-source-communication), explore the [Cloudflare Durable Objects architecture](https://elm.chat/building-ephemeral-chat-cloudflare), or see how [WebSocket hibernation works without a chat database](https://elm.chat/durable-objects-websocket-hibernation).
+Try [elm.chat](https://elm.chat/?source=github-readme), review its [public security status and limitations](https://elm.chat/security-and-limitations), open the [press and media kit](https://elm.chat/press), read why [the internet needs places that are allowed to forget](https://elm.chat/the-internet-needs-places-that-forget) or [why I built a messenger designed to disappear](https://elm.chat/why-i-built-elm-chat), learn what [self-destructing chat should actually mean](https://elm.chat/self-destructing-chat), follow the practical guides to [sending a password without leaving it in chat history](https://elm.chat/send-a-password-securely) and [sending a file without creating another attachment archive](https://elm.chat/send-a-file-securely), compare a [one-time secret with a disposable chat](https://elm.chat/one-time-secret-chat), create a [temporary private chat without signup](https://elm.chat/temporary-private-chat), choose a [communication channel for a journalist and source](https://elm.chat/journalist-source-communication), explore the [Cloudflare Durable Objects architecture](https://elm.chat/building-ephemeral-chat-cloudflare), or see how [WebSocket hibernation works without a chat database](https://elm.chat/durable-objects-websocket-hibernation).
 
 Subscribe to the [RSS feed](https://elm.chat/feed.xml) for new articles and technical notes.
 
@@ -57,7 +68,7 @@ Inside a room, people see:
 - live presence count
 - color identity chips instead of usernames
 - encrypted message bubbles keyed by participant color
-- creator-only `Share invite` and `Destroy` controls
+- creator-only `Invite one person` and `Destroy` controls
 - single-use invite links instead of a permanent reusable room invite
 - creator ability to revoke invites and remove participants
 - a single composer for fast message entry
@@ -221,7 +232,7 @@ Room creation can be gated by an invisible Cloudflare Turnstile challenge. It is
 ### Verify it works
 
 1. Open your deployed URL and create a room.
-2. Copy the room link (it contains a `#secret` fragment) and open it in a second browser or an incognito window to confirm two participants can exchange encrypted messages and files.
+2. Click **Invite one person**, then open the copied single-use invite in a second browser or an incognito window to confirm two participants can exchange encrypted messages and files.
 3. Optional: watch live logs with `npx wrangler tail` from `workers/api`.
 
 ### Free-tier expectations
