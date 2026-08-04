@@ -38,6 +38,7 @@ export const EXTERNAL_ACQUISITION_SOURCES = [
   "dev-community",
   "freshcode",
   "free-startup-listing",
+  "github-discussion",
   "github-readme",
   "hashnode",
   "high-scalability",
