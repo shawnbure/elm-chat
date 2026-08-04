@@ -525,7 +525,9 @@ function recordMakeYourOwnClick() {
 function MakeYourOwnCallout({ compact = false }: { compact?: boolean }) {
   return (
     <p className={`make-your-own ${compact ? "make-your-own-compact" : ""}`}>
-      {compact ? "Want a disposable room of your own? " : "This secure room was made with elm.chat. "}
+      {compact
+        ? "Try the invite loop yourself: "
+        : "This disposable room was made with elm.chat. "}
       <a
         className="make-your-own-link"
         href="/?source=invite"
@@ -533,7 +535,7 @@ function MakeYourOwnCallout({ compact = false }: { compact?: boolean }) {
         rel={compact ? "noreferrer" : undefined}
         target={compact ? "_blank" : undefined}
       >
-        {compact ? "Open your own in a new tab" : "Create your own"} &mdash; free, no signup.
+        Start your own room and invite one person &mdash; free, no signup.
       </a>
     </p>
   );
