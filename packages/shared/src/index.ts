@@ -36,6 +36,7 @@ export const EXTERNAL_ACQUISITION_SOURCES = [
   "awesome-cloudflare",
   "dev-community",
   "freshcode",
+  "github-readme",
   "hashnode",
   "reddit-cloudflare",
   "reddit-selfhosted"
