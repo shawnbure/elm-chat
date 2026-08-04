@@ -45,6 +45,7 @@ export const EXTERNAL_ACQUISITION_SOURCES = [
   "linuxlinks",
   "reddit-cloudflare",
   "reddit-selfhosted",
+  "sre-weekly",
   "zearches"
 ] as const;
 

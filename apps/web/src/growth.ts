@@ -11,6 +11,8 @@ const EXTERNAL_REFERRER_SOURCES: Readonly<Record<string, ExternalAcquisitionSour
   "www.highscalability.com": "high-scalability",
   "linuxlinks.com": "linuxlinks",
   "www.linuxlinks.com": "linuxlinks",
+  "sreweekly.com": "sre-weekly",
+  "www.sreweekly.com": "sre-weekly",
   "www.zearches.com": "zearches",
   "zearches.com": "zearches"
 };
