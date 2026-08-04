@@ -36,6 +36,7 @@ export const EXTERNAL_ACQUISITION_SOURCES = [
   "awesome-cloudflare",
   "dev-community",
   "freshcode",
+  "free-startup-listing",
   "github-readme",
   "hashnode",
   "llms-txt",
