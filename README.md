@@ -15,12 +15,23 @@
 
 *A real two-person session: create a room, hand off a single-use invite, exchange encrypted messages, and destroy the room for both participants.*
 
-## Try the one-person loop
+## Choose your path
+
+| I want to… | Start here |
+| --- | --- |
+| Try the product | [Create a disposable room](https://elm.chat/?source=github-readme), invite exactly one person, and exchange a low-risk test message. |
+| Run my own instance | [Deploy to Cloudflare](https://elm.chat/deploy/cloudflare?source=github-readme) or follow the [manual deployment guide](#deploy-to-cloudflare). |
+| Review the claims | Read the [security status](https://elm.chat/security-and-limitations), [threat model](docs/threat-model.md), and [architecture](docs/architecture.md). |
+| Help build it | Pick one of the scoped [good first issues](https://github.com/shawnbure/elm-chat/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22) or read [CONTRIBUTING.md](CONTRIBUTING.md). |
+
+If elm.chat is worth revisiting, use GitHub's **Star** button above. Stars are the public signal that helps other open-source users find the project.
+
+## Try it with one person
 
 You can test the complete handoff in about a minute with someone you already know:
 
 1. Open [elm.chat](https://elm.chat/?source=github-readme) and create a room.
-2. Click **Send invite** (or **Invite one person** where native sharing is unavailable). Choose a share target, or use **Copy** on the single-use invite.
+2. Click **Send invite** (or **Invite one person** where native sharing is unavailable). Choose a share target, or use **Copy invite link** on the single-use invite.
 3. Send that invite to one person through a separate channel if you copied it.
 4. Ask them to open it, exchange a low-risk test message, and destroy the room when you are done.
 
