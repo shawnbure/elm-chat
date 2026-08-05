@@ -1,10 +1,10 @@
-// Workspace entry point. Keep runtime resources in sync with ../../wrangler.jsonc.
-// GROWTH is production-only; the root deploy-button config omits it because
+// Deploy-button entry point. Keep runtime resources in sync with
+// workers/api/wrangler.jsonc. GROWTH is intentionally omitted because
 // Deploy to Cloudflare does not auto-provision Analytics Engine datasets.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "elm-chat",
-  "main": "src/index.ts",
+  "main": "workers/api/src/index.ts",
   "compatibility_date": "2026-04-08",
   "compatibility_flags": ["nodejs_compat"],
   "dev": {
@@ -15,17 +15,11 @@
     "head_sampling_rate": 1
   },
   "assets": {
-    "directory": "../../apps/web/dist",
+    "directory": "apps/web/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     "run_worker_first": true
   },
-  "analytics_engine_datasets": [
-    {
-      "binding": "GROWTH",
-      "dataset": "elm_chat_growth"
-    }
-  ],
   "durable_objects": {
     "bindings": [
       {
