@@ -273,8 +273,11 @@ const MARKETING_PATHS = new Set([
   "/press",
   "/the-internet-needs-places-that-forget",
   "/why-i-built-elm-chat",
+  "/deletion-distributed-systems-contract",
   "/building-ephemeral-chat-cloudflare",
-  "/durable-objects-websocket-hibernation"
+  "/durable-objects-websocket-hibernation",
+  "/cloudflare-deploy-button-monorepo",
+  "/single-use-invite-links"
 ]);
 
 // Cached in the isolate so repeated visitors don't each trigger a GitHub call.

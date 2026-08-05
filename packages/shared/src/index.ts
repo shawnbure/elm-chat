@@ -31,7 +31,8 @@ export const MARKETING_ACQUISITION_SOURCES = [
   "deletion-distributed-systems-contract",
   "building-ephemeral-chat-cloudflare",
   "durable-objects-websocket-hibernation",
-  "cloudflare-deploy-button-monorepo"
+  "cloudflare-deploy-button-monorepo",
+  "single-use-invite-links"
 ] as const;
 
 export const EXTERNAL_ACQUISITION_SOURCES = [

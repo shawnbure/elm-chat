@@ -12,6 +12,7 @@ const slugs = [
   "building-ephemeral-chat-cloudflare",
   "durable-objects-websocket-hibernation",
   "cloudflare-deploy-button-monorepo",
+  "single-use-invite-links",
   "journalist-source-communication",
   "temporary-private-chat",
   "one-time-secret-chat",
