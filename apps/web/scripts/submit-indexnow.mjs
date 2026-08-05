@@ -16,7 +16,8 @@ const urlList = [
   `https://${host}/why-i-built-elm-chat`,
   `https://${host}/deletion-distributed-systems-contract`,
   `https://${host}/building-ephemeral-chat-cloudflare`,
-  `https://${host}/durable-objects-websocket-hibernation`
+  `https://${host}/durable-objects-websocket-hibernation`,
+  `https://${host}/cloudflare-deploy-button-monorepo`
 ];
 
 const response = await fetch("https://api.indexnow.org/indexnow", {

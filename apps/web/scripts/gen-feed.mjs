@@ -11,6 +11,7 @@ const slugs = [
   "deletion-distributed-systems-contract",
   "building-ephemeral-chat-cloudflare",
   "durable-objects-websocket-hibernation",
+  "cloudflare-deploy-button-monorepo",
   "journalist-source-communication",
   "temporary-private-chat",
   "one-time-secret-chat",

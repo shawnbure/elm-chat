@@ -23,7 +23,8 @@ const urls = [
   { path: "/why-i-built-elm-chat", changefreq: "monthly", priority: "0.7" },
   { path: "/deletion-distributed-systems-contract", changefreq: "monthly", priority: "0.8" },
   { path: "/building-ephemeral-chat-cloudflare", changefreq: "monthly", priority: "0.8" },
-  { path: "/durable-objects-websocket-hibernation", changefreq: "monthly", priority: "0.8" }
+  { path: "/durable-objects-websocket-hibernation", changefreq: "monthly", priority: "0.8" },
+  { path: "/cloudflare-deploy-button-monorepo", changefreq: "monthly", priority: "0.8" }
 ];
 
 const lastmod = new Date().toISOString().slice(0, 10);
