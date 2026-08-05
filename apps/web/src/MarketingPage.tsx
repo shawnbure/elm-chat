@@ -1478,6 +1478,166 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.`}</code>
       </>
     ),
   },
+  "single-use-invite-links": {
+    developerAudience: true,
+    byline: "By Shawn Bure — creator of elm.chat",
+    title: "Single-use invite links are capabilities: at-most-once admission without broken reconnects",
+    description:
+      "How to design one-time invite links with separate routing, admission, decryption, expiry, revocation, at-most-once consumption, and reconnect semantics.",
+    eyebrow: "Capability-link engineering",
+    intro:
+      "A permanent room URL is easy to share and impossible to unshare. A safer invitation separates the authority to locate a room, enter it once, decrypt its content, reconnect, and administer it.",
+    body: (
+      <>
+        <section>
+          <h2>Do not make one URL carry every kind of authority</h2>
+          <p>
+            A reusable secret link usually answers several questions at once: which room, who may
+            enter, and which key decrypts the conversation. Forwarding that link forwards every
+            capability it contains. elm.chat instead gives each concern a different value:
+          </p>
+          <ul>
+            <li><strong>Room ID:</strong> a path segment used to route the request.</li>
+            <li><strong>Invite token:</strong> a query value the room validates for one admission.</li>
+            <li><strong>Room secret:</strong> a URL fragment used by browsers to derive the encryption key.</li>
+            <li><strong>Creator token:</strong> a separate capability for issuing invites, revoking them, removing participants, and destroying the room.</li>
+          </ul>
+          <pre>
+            <code>{`/c/{roomId}?invite={inviteToken}#{roomSecret}`}</code>
+          </pre>
+          <p>
+            Browsers do not send the fragment in a normal HTTP request, so the relay receives the
+            room ID and invite token but not the room secret through ordinary navigation. This
+            narrows the relay&apos;s authority; it does not make the connection anonymous.
+          </p>
+        </section>
+
+        <section>
+          <h2>Represent an invite as a state machine</h2>
+          <p>
+            An invite is not a Boolean named <code>valid</code>. It has time and ownership semantics.
+            The current elm.chat record contains a random token, creation and expiry times, and
+            optional consumption, consuming-session, and revocation fields.
+          </p>
+          <pre>
+            <code>{`type Invite = {
+  token: string;
+  createdAt: number;
+  expiresAt: number;
+  consumedAt?: number;
+  consumedBySessionId?: string;
+  revokedAt?: number;
+};`}</code>
+          </pre>
+          <p>
+            Creation requires the creator capability. The room generates the token, applies a
+            ten-minute default lifetime with a one-minute floor, persists the record, and returns
+            it only after storage succeeds.
+          </p>
+        </section>
+
+        <section>
+          <h2>Consume before admitting</h2>
+          <p>
+            The join transition rejects a missing, revoked, consumed, or expired invite. For the
+            winning session, it writes <code>consumedAt</code> and
+            <code>consumedBySessionId</code> before the first storage await. That ordering matters:
+            another join handled by the same room sees the in-memory consumed state immediately,
+            even while persistence is in progress.
+          </p>
+          <pre>
+            <code>{`if (!invite || invite.revokedAt || invite.consumedAt || invite.expiresAt <= now) {
+  rejectJoin();
+}
+
+invite.consumedAt = now;
+invite.consumedBySessionId = sessionId;
+invites.set(invite.token, invite);
+await persistInvites();
+admitSocket();`}</code>
+          </pre>
+          <p>
+            Keeping this transition inside the room&apos;s single Durable Object avoids a separate
+            read-then-write race across stateless workers or database replicas. If your platform
+            does not provide single-owner coordination, use a conditional write or transaction
+            that changes exactly one unconsumed record.
+          </p>
+          <p>
+            Cloudflare&apos;s current <a href="https://developers.cloudflare.com/durable-objects/best-practices/rules-of-durable-objects/" rel="noreferrer" target="_blank">Durable Objects rules</a> describe each object as a globally unique, single-threaded coordination point and explain the input and output gates around storage. The practical guarantee here is <em>at most one new session admitted</em>, not magical exactly-once delivery: a failure after persistence can burn an invite without completing the join.
+          </p>
+        </section>
+
+        <section>
+          <h2>Reconnect is not a second redemption</h2>
+          <p>
+            At-most-once admission without reconnect semantics creates a brittle product: a page
+            reload consumes a second invite or locks out the intended participant. elm.chat stores
+            a random room-scoped session ID in browser session storage. The session that consumed
+            the invite may reconnect with the same ID while the invite remains unrevoked; a new
+            session is rejected.
+          </p>
+          <p>
+            This is continuity, not identity verification. Anyone who obtains the invite before
+            redemption can still win the race, and browser state can be copied or compromised.
+          </p>
+        </section>
+
+        <section>
+          <h2>Revocation should end current authority too</h2>
+          <p>
+            Revoking an unused invite prevents a future join. Revoking a consumed invite also
+            disconnects its currently connected consuming session. Otherwise a creator-facing
+            “revoke” button changes a database flag while leaving the admitted participant online.
+          </p>
+          <p>
+            Room destruction is a broader transition: it closes every socket and ends the room
+            lifecycle. Neither action can erase plaintext a participant already saved, copied,
+            photographed, forwarded, or backed up.
+          </p>
+        </section>
+
+        <section>
+          <h2>Test the negative paths</h2>
+          <ol>
+            <li>Redeem the same invite concurrently from two new sessions; only one may join.</li>
+            <li>Reload the winning browser; the same session should reconnect without a new redemption.</li>
+            <li>Open the consumed link in a different session; it must fail.</li>
+            <li>Revoke an unused invite; later redemption must fail.</li>
+            <li>Revoke a consumed invite; its connected session must be removed.</li>
+            <li>Advance beyond expiry; redemption must fail even if the token was never used.</li>
+            <li>Restart or hibernate the room owner; consumed and revoked state must survive.</li>
+          </ol>
+          <p>
+            Count creation and redemption only in aggregate if you need funnel evidence. Do not put
+            room IDs, invite tokens, participant IDs, or message data into growth analytics.
+          </p>
+        </section>
+
+        <section>
+          <h2>Inspect the working implementation</h2>
+          <p>
+            The complete TypeScript path is public: the browser assembles the capability URL, the
+            Worker routes requests, and the room-scoped Durable Object owns invite state and join
+            ordering. The project is AGPL-3.0-or-later and includes a one-click Cloudflare deploy
+            path for independent testing.
+          </p>
+          <ul>
+            <li><a href={`${GITHUB_URL}/blob/main/apps/web/src/App.tsx`} rel="noreferrer" target="_blank">Browser invite and reconnect flow</a></li>
+            <li><a href={`${GITHUB_URL}/blob/main/durable-objects/room/src/room.ts`} rel="noreferrer" target="_blank">Invite state machine and join transition</a></li>
+            <li><a href={THREAT_MODEL_URL} rel="noreferrer" target="_blank">Threat model and known limits</a></li>
+          </ul>
+          <p>
+            elm.chat has not had an independent security audit. Message authentication and
+            replay/duplicate protection are unfinished, the Cloudflare relay sees ordinary
+            connection metadata, and endpoints can retain copies. Do not use it as an anonymity,
+            high-risk, regulated-data, or production-finance system.
+          </p>
+        </section>
+
+        <Limitations />
+      </>
+    )
+  },
   "durable-objects-websocket-hibernation": {
     developerAudience: true,
     byline: "By Shawn Bure — creator of elm.chat",
@@ -1785,6 +1945,10 @@ function RelatedGuides({ current }: { current: MarketingSlug }) {
     {
       slug: "cloudflare-deploy-button-monorepo",
       label: "Fix Deploy to Cloudflare in a monorepo"
+    },
+    {
+      slug: "single-use-invite-links",
+      label: "Build single-use invite links as capabilities"
     }
   ];
 

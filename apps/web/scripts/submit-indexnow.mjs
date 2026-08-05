@@ -17,7 +17,8 @@ const urlList = [
   `https://${host}/deletion-distributed-systems-contract`,
   `https://${host}/building-ephemeral-chat-cloudflare`,
   `https://${host}/durable-objects-websocket-hibernation`,
-  `https://${host}/cloudflare-deploy-button-monorepo`
+  `https://${host}/cloudflare-deploy-button-monorepo`,
+  `https://${host}/single-use-invite-links`
 ];
 
 const response = await fetch("https://api.indexnow.org/indexnow", {
