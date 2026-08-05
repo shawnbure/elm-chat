@@ -30,7 +30,8 @@ export const MARKETING_ACQUISITION_SOURCES = [
   "why-i-built-elm-chat",
   "deletion-distributed-systems-contract",
   "building-ephemeral-chat-cloudflare",
-  "durable-objects-websocket-hibernation"
+  "durable-objects-websocket-hibernation",
+  "cloudflare-deploy-button-monorepo"
 ] as const;
 
 export const EXTERNAL_ACQUISITION_SOURCES = [

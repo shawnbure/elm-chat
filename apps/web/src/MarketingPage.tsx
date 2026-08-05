@@ -1334,6 +1334,150 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.`}</code>
       </>
     )
   },
+  "cloudflare-deploy-button-monorepo": {
+    developerAudience: true,
+    byline: "By Shawn Bure — creator of elm.chat",
+    title:
+      "Fixing Deploy to Cloudflare in a monorepo: expose the root contract",
+    description:
+      "Why Deploy to Cloudflare misses nested Wrangler configuration, and how root scripts, a root config, drift checks, and public-path testing fix it.",
+    eyebrow: "Cloudflare deployment field note",
+    intro:
+      "A deploy badge can look correct while every new user reaches “No Wrangler configuration detected.” In a workspace repository, the fix is to make the target root a complete deployment contract.",
+    body: (
+      <>
+        <section>
+          <h2>The failure appears after the badge works</h2>
+          <p>
+            elm.chat already had a working production deployment and a valid
+            Deploy to Cloudflare link. Its Wrangler configuration lived under{" "}
+            <code>workers/api</code>, where local and production commands could
+            find it. A new visitor followed the badge, however, and Cloudflare
+            reported <strong>No Wrangler configuration detected</strong> before
+            falling back to automatic project configuration.
+          </p>
+          <p>
+            That is the dangerous version of a deployment bug: maintainers can
+            keep shipping while the public self-host path is broken. The badge
+            tests only navigation. It does not prove that the target directory
+            exposes everything the setup flow needs.
+          </p>
+        </section>
+
+        <section>
+          <h2>The target directory is the contract boundary</h2>
+          <p>
+            Cloudflare analyzes the directory named by the deploy URL. If the
+            URL targets the repository root, nested workspace configuration is
+            not a substitute for a root deploy contract. The root needs a
+            Wrangler configuration plus build and deploy scripts that work from
+            that directory.
+          </p>
+          <pre>
+            <code>{`{
+  "scripts": {
+    "build": "npm run build --workspace @example/web && npm run build --workspace @example/api",
+    "deploy": "npm run build && wrangler deploy -c wrangler.jsonc"
+  }
+}`}</code>
+          </pre>
+          <p>
+            The root scripts can delegate to workspaces. What matters is that a
+            stranger—and Cloudflare&apos;s project analysis—can start at the
+            target root without knowing the repository&apos;s internal layout.
+          </p>
+        </section>
+
+        <section>
+          <h2>
+            Keep the public template smaller than production when necessary
+          </h2>
+          <p>
+            elm.chat&apos;s production Worker uses an optional Analytics Engine
+            binding for its own aggregate growth measurement. Cloudflare does
+            not list Analytics Engine among the resources its deploy button
+            automatically provisions, so the public root template omits that
+            binding. Independent instances work without sending elm.chat
+            measurement events.
+          </p>
+          <p>
+            Do not copy every production binding into a one-click template by
+            reflex. Include only resources the platform can provision or the
+            deployer can supply during setup. Otherwise the button turns an
+            optional integration into a first-run failure.
+          </p>
+        </section>
+
+        <section>
+          <h2>Two configurations require a drift test</h2>
+          <p>
+            A root template and a workspace production configuration can quietly
+            diverge. elm.chat runs a repository check that compares the Worker
+            entry point, Durable Object binding, migration tag, assets
+            directory, compatibility date, and resolved paths. The build fails
+            if the shared runtime contract drifts.
+          </p>
+          <p>
+            This keeps intentional differences explicit: production can retain
+            an optional binding, while the independently deployable root
+            template stays minimal and reproducible.
+          </p>
+        </section>
+
+        <section>
+          <h2>Test the public journey, not the maintainer journey</h2>
+          <ol>
+            <li>Open the public repository as a visitor would.</li>
+            <li>
+              Follow the published deploy button rather than a private dashboard
+              shortcut.
+            </li>
+            <li>Select an account and wait for repository analysis.</li>
+            <li>
+              Confirm the detected build command, deploy command, and root path.
+            </li>
+            <li>Stop and investigate if the fallback warning appears.</li>
+            <li>
+              Run both root and workspace Wrangler dry runs in continuous
+              integration.
+            </li>
+          </ol>
+          <p>
+            Cloudflare documents the supported button format, scripts, and
+            provisioned resources in its{" "}
+            <a
+              href="https://developers.cloudflare.com/workers/platform/deploy-buttons/"
+              rel="noreferrer"
+              target="_blank"
+            >
+              Deploy to Cloudflare guide
+            </a>
+            . The elm.chat repair is public in{" "}
+            <a
+              href="https://github.com/shawnbure/elm-chat/pull/89"
+              rel="noreferrer"
+              target="_blank"
+            >
+              pull request 89
+            </a>
+            , including its root configuration and parity check.
+          </p>
+        </section>
+
+        <section>
+          <h2>The reusable lesson</h2>
+          <p>
+            A one-click deploy feature is an external API. Its callers do not
+            share the maintainer&apos;s working directory, cached settings, or
+            mental model. Treat the target root as a stable interface, make
+            every dependency visible there, and test it from the outside.
+          </p>
+        </section>
+
+        <Limitations />
+      </>
+    ),
+  },
   "durable-objects-websocket-hibernation": {
     developerAudience: true,
     byline: "By Shawn Bure — creator of elm.chat",
@@ -1637,6 +1781,10 @@ function RelatedGuides({ current }: { current: MarketingSlug }) {
     {
       slug: "durable-objects-websocket-hibernation",
       label: "WebSocket hibernation without a chat database"
+    },
+    {
+      slug: "cloudflare-deploy-button-monorepo",
+      label: "Fix Deploy to Cloudflare in a monorepo"
     }
   ];
 
