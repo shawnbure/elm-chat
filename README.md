@@ -53,6 +53,8 @@ elm.chat is Cloudflare-native, so you can fork and self-host a full private inst
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://elm.chat/deploy/cloudflare?source=github-readme)
 
+Tried the self-host path? [Share a successful deployment or the exact blocker](https://github.com/shawnbure/elm-chat/discussions/97). Self-hosted instances send no analytics back to elm.chat, so this opt-in report is the only reliable way to improve the path for the next operator.
+
 Prefer to do it by hand? See [Deploy to Cloudflare](#deploy-to-cloudflare) below. Want to contribute instead of just run it? Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [good first issues](docs/GOOD-FIRST-ISSUES.md).
 
 ![elm.chat landing page](docs/images/landing-page.jpg)
