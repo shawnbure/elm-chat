@@ -1204,7 +1204,7 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.`}</code>
     byline: "By Shawn Bure — creator of elm.chat",
     title: "Building ephemeral encrypted chat with Cloudflare Durable Objects",
     description:
-      "A technical walkthrough of elm.chat's React, Web Crypto, Cloudflare Worker, Durable Object, WebSocket, encryption, and disposable-room architecture.",
+      "A technical walkthrough of elm.chat's React, Web Crypto, Cloudflare Worker, Durable Object, WebSocket, encryption, disposable-room, and one-click deployment architecture.",
     eyebrow: "Architecture walkthrough",
     intro:
       "elm.chat uses one Cloudflare Worker and one Durable Object per room to coordinate a live encrypted conversation without turning the server into a transcript database.",
@@ -1271,6 +1271,47 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.`}</code>
             The current design does not solve device compromise, screenshots, malicious recipients,
             traffic analysis, denial of service, or strong anonymous routing. It has not had an
             independent security audit.
+          </p>
+        </section>
+
+        <section>
+          <h2>A deploy button needs a root contract</h2>
+          <p>
+            elm.chat is an npm-workspaces repository. Its original Wrangler configuration lived
+            under <code>workers/api</code>, which worked for local and production commands but was
+            invisible to the Deploy to Cloudflare setup flow. The button existed, yet a fresh
+            visitor reached <strong>No Wrangler configuration detected</strong> and Cloudflare fell
+            back to automatic project configuration.
+          </p>
+          <p>
+            The repository now has a root <code>wrangler.jsonc</code>, root build and deploy scripts,
+            and a check that fails when the root and workspace runtime resources drift. The public
+            template deliberately omits elm.chat&apos;s optional Analytics Engine dataset because
+            Cloudflare does not list Analytics Engine among the resources its deploy button
+            automatically provisions. Independent instances work without that measurement binding.
+          </p>
+          <p>
+            The useful test is the public journey, not the presence of a badge: open the repository
+            as a visitor, follow the button, select an account, and confirm that Cloudflare detects
+            <code>npm run build</code>, <code>npm run deploy</code>, and the repository root. Stop if
+            the fallback warning appears. Cloudflare&apos;s current resource rules are documented in
+            its{" "}
+            <a
+              href="https://developers.cloudflare.com/workers/platform/deploy-buttons/"
+              rel="noreferrer"
+              target="_blank"
+            >
+              Deploy to Cloudflare guide
+            </a>
+            , and the elm.chat fix is public in{" "}
+            <a
+              href="https://github.com/shawnbure/elm-chat/pull/89"
+              rel="noreferrer"
+              target="_blank"
+            >
+              pull request 89
+            </a>
+            .
           </p>
         </section>
 
