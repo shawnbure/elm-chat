@@ -229,6 +229,7 @@ Notes:
 - **workers.dev subdomain.** The first time you deploy to an account, Cloudflare may ask you to register a free `*.workers.dev` subdomain (in the dashboard under **Workers & Pages**). Do that once, then re-run `npm run deploy`.
 - **Durable Object migration.** The `migrations` block in `wrangler.jsonc` creates the `RoomDurableObject` SQLite class automatically on first deploy — no manual step.
 - **Two checked Wrangler entry points.** Root `wrangler.jsonc` is the Deploy-to-Cloudflare entry point; `workers/api/wrangler.jsonc` remains the production/API workspace entry point. The root template intentionally omits elm.chat's optional growth-measurement dataset because Cloudflare does not list Analytics Engine among the resources its deploy button auto-provisions. Self-hosted instances work without that dataset and do not send elm.chat growth events. `npm run check:wrangler-configs` fails if the runtime resources or resolved paths drift.
+- **Maintainer production deployment.** The hosted `elm.chat` instance uses `npm run deploy:production`, which selects `workers/api/wrangler.jsonc` and preserves the optional aggregate Analytics Engine binding. Independent self-hosters should continue to use `npm run deploy`; it intentionally uses the smaller public template.
 - **Renaming.** To run multiple instances or avoid a name clash, change `"name"` in both Wrangler configuration files before deploying.
 - **Redeploying after changes.** Just run `npm run deploy` again — it rebuilds `apps/web/dist` before deploying.
 
