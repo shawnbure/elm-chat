@@ -671,13 +671,13 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.</code></pre>
   "building-ephemeral-chat-cloudflare": {
     title: "Building ephemeral encrypted chat with Cloudflare Durable Objects",
     description:
-      "A technical walkthrough of elm.chat's React, Web Crypto, Cloudflare Worker, Durable Object, WebSocket, encryption, and disposable-room architecture.",
+      "A technical walkthrough of elm.chat's React, Web Crypto, Cloudflare Worker, Durable Object, WebSocket, encryption, disposable-room, and one-click deployment architecture.",
     eyebrow: "Architecture walkthrough",
     byline: "By Shawn Bure — creator of elm.chat",
     authorName: "Shawn Bure",
     authorUrl: "https://shawnbure.com/",
     datePublished: "2026-07-28",
-    dateModified: "2026-08-03",
+    dateModified: "2026-08-05",
     schemaType: "TechArticle",
     socialImage: "elm-chat-architecture-social.png",
     socialImageAlt:
@@ -685,6 +685,8 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.</code></pre>
     keywords: [
       "Cloudflare Workers",
       "Cloudflare Durable Objects",
+      "Deploy to Cloudflare",
+      "Wrangler monorepo",
       "Web Crypto",
       "WebSockets",
       "end-to-end encryption",
@@ -727,6 +729,12 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.</code></pre>
           <li>Ephemeral identity keys exist, but message authentication is not implemented yet.</li>
         </ul>
         <p>The current design does not solve device compromise, screenshots, malicious recipients, traffic analysis, denial of service, or strong anonymous routing. It has not had an independent security audit.</p>
+      </section>
+      <section>
+        <h2>A deploy button needs a root contract</h2>
+        <p>elm.chat is an npm-workspaces repository. Its original Wrangler configuration lived under <code>workers/api</code>, which worked for local and production commands but was invisible to the Deploy to Cloudflare setup flow. The button existed, yet a fresh visitor reached <strong>No Wrangler configuration detected</strong> and Cloudflare fell back to automatic project configuration.</p>
+        <p>The repository now has a root <code>wrangler.jsonc</code>, root build and deploy scripts, and a check that fails when the root and workspace runtime resources drift. The public template deliberately omits elm.chat's optional Analytics Engine dataset because Cloudflare does not list Analytics Engine among the resources its deploy button automatically provisions. Independent instances work without that measurement binding.</p>
+        <p>The useful test is the public journey, not the presence of a badge: open the repository as a visitor, follow the button, select an account, and confirm that Cloudflare detects <code>npm run build</code>, <code>npm run deploy</code>, and the repository root. Stop if the fallback warning appears. Cloudflare's current resource rules are documented in its <a href="https://developers.cloudflare.com/workers/platform/deploy-buttons/">Deploy to Cloudflare guide</a>, and the elm.chat fix is public in <a href="https://github.com/shawnbure/elm-chat/pull/89">pull request 89</a>.</p>
       </section>
       <section>
         <h2>Fork it, inspect it, or run your own</h2>
