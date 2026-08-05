@@ -1028,6 +1028,7 @@ function RoomPage({ roomId }: { roomId: string }) {
   const roomStatusRef = useRef<RoomMetadata["status"] | null>(null);
   const chatLogRef = useRef<HTMLElement | null>(null);
   const messageRef = useRef(new Map<string, EncryptedMessageEnvelope>());
+  const measuredInviteHandoffsRef = useRef(new Set<string>());
   const shouldRequestSyncRef = useRef(false);
   // Files being served by this client (we are the sender), kept in memory so we
   // can stream chunks on demand when a peer requests them.
@@ -1737,6 +1738,14 @@ function RoomPage({ roomId }: { roomId: string }) {
     setError("Clipboard access is blocked in this browser context. Copy the link manually from the address bar.");
   }
 
+  function recordInviteHandoff(token: string) {
+    if (measuredInviteHandoffsRef.current.has(token)) {
+      return;
+    }
+    measuredInviteHandoffsRef.current.add(token);
+    recordGrowthEvent("invite_share_handoff");
+  }
+
   async function handleShareInvite() {
     if (!creatorToken) {
       return;
@@ -1752,7 +1761,7 @@ function RoomPage({ roomId }: { roomId: string }) {
             text: "Join my disposable elm.chat room. This single-use link expires.",
             url: inviteUrl
           });
-          recordGrowthEvent("invite_share_handoff");
+          recordInviteHandoff(invite.token);
           setInviteFeedback("shared");
           setRoomNotice("Invite handed to your selected app. The link can only be used once.");
           setError(null);
@@ -1767,6 +1776,7 @@ function RoomPage({ roomId }: { roomId: string }) {
         }
       }
       if (await copyText(inviteUrl)) {
+        recordInviteHandoff(invite.token);
         setInviteFeedback("copied");
         setRoomNotice("Invite copied. Send it to one person—the link can only be used once.");
         setError(null);
@@ -1782,6 +1792,7 @@ function RoomPage({ roomId }: { roomId: string }) {
 
   async function handleCopyInvite(token: string) {
     if (await copyText(buildInviteUrl(roomId, token, roomSecret))) {
+      recordInviteHandoff(token);
       setInviteFeedback("copied");
       setRoomNotice("Invite copied. Send it to one person—the link can only be used once.");
       setError(null);
@@ -1800,7 +1811,7 @@ function RoomPage({ roomId }: { roomId: string }) {
         text: "Join my disposable elm.chat room. This single-use link expires.",
         url: buildInviteUrl(roomId, token, roomSecret)
       });
-      recordGrowthEvent("invite_share_handoff");
+      recordInviteHandoff(token);
       setInviteFeedback("shared");
       setRoomNotice("Invite handed to your selected app. The link can only be used once.");
       setError(null);
@@ -2012,7 +2023,7 @@ function RoomPage({ roomId }: { roomId: string }) {
                       </button>
                     ) : null}
                     <button className="secondary-button invite-copy" onClick={() => handleCopyInvite(invite.token)} type="button">
-                      Copy
+                      Copy invite link
                     </button>
                   </>
                 ) : null}
