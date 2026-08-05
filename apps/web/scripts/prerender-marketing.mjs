@@ -754,9 +754,9 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.</code></pre>
     datePublished: "2026-08-05",
     dateModified: "2026-08-05",
     schemaType: "TechArticle",
-    socialImage: "elm-chat-architecture-social.png",
+    socialImage: "deploy-button-root-contract-social.png",
     socialImageAlt:
-      "Cloudflare deployment architecture — a monorepo root contract delegates to web and Worker workspaces",
+      "Monorepo deployment diagram showing a nested Wrangler configuration failing while a root Wrangler contract connects to deployment",
     keywords: [
       "Deploy to Cloudflare",
       "Cloudflare deploy button",
@@ -1045,6 +1045,22 @@ for (const [slug, page] of Object.entries(pages)) {
     .replace(
       /<meta property="og:image:alt" content="[^"]*" \/>/,
       `<meta property="og:image:alt" content="${socialImageAlt}" />`
+    )
+    .replace(
+      /<meta name="twitter:title" content="[^"]*" \/>/,
+      `<meta name="twitter:title" content="${page.title}" />`
+    )
+    .replace(
+      /<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/>/,
+      `<meta name="twitter:description" content="${page.description}" />`
+    )
+    .replace(
+      /<meta name="twitter:image" content="[^"]*" \/>/,
+      `<meta name="twitter:image" content="${ORIGIN}/${socialImage}" />`
+    )
+    .replace(
+      /<meta name="twitter:image:alt" content="[^"]*" \/>/,
+      `<meta name="twitter:image:alt" content="${socialImageAlt}" />`
     )
     .replace(
       /<script id="structured-data" type="application\/ld\+json">[\s\S]*?<\/script>/,
