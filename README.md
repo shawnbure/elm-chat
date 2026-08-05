@@ -181,19 +181,23 @@ No paid add-ons are required. SQLite-backed Durable Objects (what this project u
 ### Option A — one click
 
 1. Click **[Deploy to Cloudflare](https://elm.chat/deploy/cloudflare?source=github-readme)**.
-2. Authorize Cloudflare to create a fork in your GitHub account and connect it to Workers Builds.
-3. Set the build settings (see below). The build step compiles the React app into `apps/web/dist`, which the Worker serves.
-4. Deploy. Cloudflare provisions the Worker and the Durable Object namespace for you.
+2. Choose your GitHub account and authorize Cloudflare to create a copy of the repository and connect it to Workers Builds.
+3. Confirm the project name and whether the new repository should be private.
+4. Deploy. Cloudflare detects the root `wrangler.jsonc`, runs the repository's build and deploy scripts, and provisions the Worker and Durable Object namespace.
+5. Open the generated `*.workers.dev` URL and create a low-risk test room.
 
-#### Workers Builds settings (important for this monorepo)
+#### What Cloudflare should detect
 
-This is an npm-workspaces monorepo, so the deploy command **must target the Worker's config** — otherwise Wrangler errors with *"application detection logic has been run in the root of a workspace."* In **Workers & Pages → your Worker → Settings → Build**, set:
+The repository includes a root deploy-button configuration specifically because
+Cloudflare does not fully support automatic monorepo detection. The setup screen
+should recognize `wrangler.jsonc` and use the root `package.json` scripts:
 
-- **Build command:** `npm install && npm run build`
-- **Deploy command:** `npx wrangler deploy -c workers/api/wrangler.jsonc`
+- **Build command:** `npm run build`
+- **Deploy command:** `npm run deploy`
 - **Root directory:** `/` (repo root)
 
-The `-c workers/api/wrangler.jsonc` flag points Wrangler at the specific project instead of the workspace root.
+If the setup screen says **No Wrangler configuration detected**, stop before
+deploying and [open a deployment issue](https://github.com/shawnbure/elm-chat/issues/new?template=bug_report.md). That message means Cloudflare is falling back to automatic project configuration instead of the reviewed Worker, assets, and Durable Object bindings.
 
 If the hosted build fails for any reason, use Option B — it is the fully tested path.
 
@@ -224,7 +228,8 @@ Notes:
 - **Choosing an account.** `wrangler.jsonc` intentionally does **not** hardcode an `account_id`, so it deploys to whatever account you logged in with. If your login has access to more than one account, set **`ELM_CHAT_CLOUDFLARE_ACCOUNT_ID`** (find the id under **Workers & Pages → Account details** in the dashboard). The `deploy` script maps it to the `CLOUDFLARE_ACCOUNT_ID` Wrangler expects, so it stays scoped to this project. If you already export the standard `CLOUDFLARE_ACCOUNT_ID`, that is used as a fallback.
 - **workers.dev subdomain.** The first time you deploy to an account, Cloudflare may ask you to register a free `*.workers.dev` subdomain (in the dashboard under **Workers & Pages**). Do that once, then re-run `npm run deploy`.
 - **Durable Object migration.** The `migrations` block in `wrangler.jsonc` creates the `RoomDurableObject` SQLite class automatically on first deploy — no manual step.
-- **Renaming.** To run multiple instances or avoid a name clash, change `"name"` in `workers/api/wrangler.jsonc` before deploying.
+- **Two checked Wrangler entry points.** Root `wrangler.jsonc` is the Deploy-to-Cloudflare entry point; `workers/api/wrangler.jsonc` remains the production/API workspace entry point. The root template intentionally omits elm.chat's optional growth-measurement dataset because Cloudflare does not list Analytics Engine among the resources its deploy button auto-provisions. Self-hosted instances work without that dataset and do not send elm.chat growth events. `npm run check:wrangler-configs` fails if the runtime resources or resolved paths drift.
+- **Renaming.** To run multiple instances or avoid a name clash, change `"name"` in both Wrangler configuration files before deploying.
 - **Redeploying after changes.** Just run `npm run deploy` again — it rebuilds `apps/web/dist` before deploying.
 
 ### Optional — custom domain
