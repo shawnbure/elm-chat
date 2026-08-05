@@ -47,6 +47,7 @@ export const EXTERNAL_ACQUISITION_SOURCES = [
   "high-scalability",
   "llms-txt",
   "linuxlinks",
+  "linkedin",
   "reddit-cloudflare",
   "reddit-selfhosted",
   "sre-weekly",
