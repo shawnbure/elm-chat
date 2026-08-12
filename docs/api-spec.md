@@ -86,11 +86,16 @@ Invite shape:
   "token": "invite-token",
   "createdAt": 1744150000000,
   "expiresAt": 1744150600000,
+  "claimedAt": 1744150099000,
+  "claimedBySessionId": "uuid",
+  "admittedAt": 1744150100000,
   "consumedAt": 1744150100000,
   "consumedBySessionId": "uuid",
   "revokedAt": null
 }
 ```
+
+Invite admission is at-most-once. The Durable Object claims an invite before admission is persisted, then marks it admitted/consumed after the WebSocket attachment and room metadata are durable. If a failure happens between those steps, the invite remains visibly claimed instead of pretending admission was exactly-once.
 
 An invite link is `/(c)/:roomId?invite=<token>#<room_secret>`.
 

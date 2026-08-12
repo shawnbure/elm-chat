@@ -55,7 +55,7 @@ elm.chat is Cloudflare-native, so you can fork and self-host a full private inst
 
 Tried the self-host path? [Share a successful deployment or the exact blocker](https://github.com/shawnbure/elm-chat/discussions/97). Self-hosted instances send no analytics back to elm.chat, so this opt-in report is the only reliable way to improve the path for the next operator.
 
-Prefer to do it by hand? See [Deploy to Cloudflare](#deploy-to-cloudflare) below. Want to contribute instead of just run it? Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [good first issues](docs/GOOD-FIRST-ISSUES.md).
+Prefer to do it by hand? See [Deploy to Cloudflare](#deploy-to-cloudflare) below and the [deployment verification checklist](docs/deploy-to-cloudflare-verification.md). Want to contribute instead of just run it? Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [good first issues](docs/GOOD-FIRST-ISSUES.md).
 
 ![elm.chat landing page](docs/images/landing-page.jpg)
 
@@ -187,6 +187,7 @@ No paid add-ons are required. SQLite-backed Durable Objects (what this project u
 3. Confirm the project name and whether the new repository should be private.
 4. Deploy. Cloudflare detects the root `wrangler.jsonc`, runs the repository's build and deploy scripts, and provisions the Worker and Durable Object namespace.
 5. Open the generated `*.workers.dev` URL and create a low-risk test room.
+6. Run the [deployment verification checklist](docs/deploy-to-cloudflare-verification.md) before sharing the instance.
 
 #### What Cloudflare should detect
 
@@ -251,6 +252,8 @@ Room creation can be gated by an invisible Cloudflare Turnstile challenge. It is
 1. Open your deployed URL and create a room.
 2. Click **Send invite** (or **Invite one person**), copy the single-use invite if needed, then open it in a second browser or an incognito window to confirm two participants can exchange encrypted messages and files.
 3. Optional: watch live logs with `npx wrangler tail` from `workers/api`.
+
+For release or configuration changes, use the fuller [Deploy-to-Cloudflare verification checklist](docs/deploy-to-cloudflare-verification.md).
 
 ### Free-tier expectations
 
@@ -425,6 +428,7 @@ Recommended reading in this repository:
 
 - [docs/architecture.md](docs/architecture.md)
 - [docs/threat-model.md](docs/threat-model.md)
+- [docs/deploy-to-cloudflare-verification.md](docs/deploy-to-cloudflare-verification.md)
 - [docs/api-spec.md](docs/api-spec.md)
 - [docs/room-lifecycle.md](docs/room-lifecycle.md)
 - [docs/why-use-elm-chat.md](docs/why-use-elm-chat.md)

@@ -13,7 +13,9 @@
 - the client derives the room key locally with HKDF
 - the client opens the room WebSocket and sends `join` with its session ID, identity public key, and either the creator token or a one-time invite token
 - the creator joins with the creator token; everyone else must present a valid, unconsumed, unrevoked invite
+- before admitting a guest, the Durable Object marks the invite as claimed by that session; after the session attachment and room metadata are durable, it marks the invite admitted/consumed
 - the session that consumed an invite may reconnect (e.g. reload) with the same invite; a different session cannot reuse it
+- if admission fails after claiming but before it becomes durable, the invite stays visibly claimed until it expires instead of being silently reused
 - the Durable Object returns currently connected peers and presence
 
 ## Active Messaging

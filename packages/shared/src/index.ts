@@ -246,6 +246,9 @@ export interface RoomInvite {
   token: string;
   createdAt: number;
   expiresAt: number;
+  claimedAt?: number;
+  claimedBySessionId?: string;
+  admittedAt?: number;
   consumedAt?: number;
   consumedBySessionId?: string;
   revokedAt?: number;

@@ -73,11 +73,16 @@ type IncomingFile = {
 
 type ActionFeedback = "idle" | "success";
 type InviteFeedback = "idle" | "copied" | "shared";
+type InviteAccess = "checking" | "granted" | "invalid" | "claimed" | "used";
 type DurationUnit = "minutes" | "hours" | "days";
 type DurationDraft = {
   amount: string;
   unit: DurationUnit;
   indefinite: boolean;
+};
+type InviteDurationDraft = {
+  amount: string;
+  unit: DurationUnit;
 };
 
 type DurationKind = "message" | "room";
@@ -239,6 +244,12 @@ function parseDurationDraft(
   return kind === "seconds"
     ? durationToSeconds(safeAmount, unit)
     : durationToMs(safeAmount, unit);
+}
+
+function parseInviteDurationDraft(draft: InviteDurationDraft): number {
+  const parsed = Number(draft.amount);
+  const safeAmount = Number.isFinite(parsed) && parsed > 0 ? parsed : 10;
+  return durationToMs(safeAmount, draft.unit || "minutes");
 }
 
 function toggleIndefiniteDuration(
@@ -482,6 +493,22 @@ function inviteAccentStyle(invite: RoomInvite): CSSProperties | undefined {
   } as CSSProperties;
 }
 
+function inviteStatusLabel(invite: RoomInvite): string {
+  if (invite.revokedAt) {
+    return "revoked";
+  }
+  if (invite.consumedAt || invite.admittedAt) {
+    return "joined";
+  }
+  if (invite.claimedAt) {
+    return "joining...";
+  }
+  if (invite.expiresAt <= Date.now()) {
+    return "expired";
+  }
+  return `expires in ${formatRelativeDuration(invite.expiresAt)}`;
+}
+
 function buildInviteUrl(roomId: string, inviteToken: string, roomSecret: string): string {
   return `${window.location.origin}/c/${roomId}?invite=${encodeURIComponent(inviteToken)}#${roomSecret}`;
 }
@@ -528,15 +555,19 @@ function MakeYourOwnCallout({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function InvalidInviteScreen() {
+function InvalidInviteScreen({ reason }: { reason: InviteAccess }) {
+  const copy =
+    reason === "claimed"
+      ? "This one-time invite is already being used by another browser session."
+      : reason === "used"
+        ? "This one-time invite has already admitted another session."
+        : "This one-time invite has expired, was revoked, or is no longer available.";
   return (
     <main className="room-shell room-shell-centered">
       <section className="access-screen" aria-live="polite">
         <p className="eyebrow">elm chat</p>
         <h1 className="access-title">Link no longer valid</h1>
-        <p className="access-copy">
-          This one-time invite has already been used, expired, or is no longer available.
-        </p>
+        <p className="access-copy">{copy}</p>
         <a
           className="secondary-button access-home-link"
           href="/?source=invite"
@@ -956,7 +987,7 @@ function LandingPage() {
               rel="noreferrer"
               target="_blank"
             >
-              Pick 1 of 8 starter issues
+              Pick a starter issue
             </a>
           </div>
           </div>
@@ -1004,10 +1035,12 @@ function RoomPage({ roomId }: { roomId: string }) {
   const [destroyFeedback, setDestroyFeedback] = useState<ActionFeedback>("idle");
   const [inviteFeedback, setInviteFeedback] = useState<InviteFeedback>("idle");
   const [destroying, setDestroying] = useState(false);
-  const [inviteAccess, setInviteAccess] = useState<"checking" | "granted" | "invalid">(
-    isInviteGuest ? "checking" : "granted"
-  );
+  const [inviteAccess, setInviteAccess] = useState<InviteAccess>(isInviteGuest ? "checking" : "granted");
   const [removedFromRoom, setRemovedFromRoom] = useState(false);
+  const [inviteDuration, setInviteDuration] = useState<InviteDurationDraft>({
+    amount: "10",
+    unit: "minutes"
+  });
   const [sessionId] = useState(() => {
     const stored = safeStorageGet("session", sessionKey(roomId));
     if (stored) {
@@ -1019,6 +1052,8 @@ function RoomPage({ roomId }: { roomId: string }) {
   });
   const creatorToken = storedCreatorToken;
   const socketRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptRef = useRef(0);
   const roomKeyRef = useRef<CryptoKey | null>(null);
   const identityKeyRef = useRef<string>("");
   const joinedRef = useRef(false);
@@ -1239,6 +1274,7 @@ function RoomPage({ roomId }: { roomId: string }) {
     }
 
     let active = true;
+    let reconnectAllowed = true;
     const tick = window.setInterval(() => setNow(Date.now()), 1000);
 
     async function bootstrap() {
@@ -1253,6 +1289,7 @@ function RoomPage({ roomId }: { roomId: string }) {
         }
         roomKeyRef.current = key;
         identityKeyRef.current = await exportIdentityPublicKey(identityKeys.publicKey);
+        roomStatusRef.current = metadata.status;
         setRoom(metadata);
         if (metadata.status !== "open") {
           setReady(true);
@@ -1280,13 +1317,38 @@ function RoomPage({ roomId }: { roomId: string }) {
 
         socket.addEventListener("close", (closeEvent) => {
           joinedRef.current = false;
-          if (isInviteGuest && inviteAccess !== "granted" && closeEvent.code === 4403) {
-            setInviteAccess("invalid");
+          if (isInviteGuest && closeEvent.code === 4403) {
+            reconnectAllowed = false;
+            setInviteAccess((current) => {
+              if (current === "claimed" || current === "used") {
+                return current;
+              }
+              if (closeEvent.reason === "invite claimed") {
+                return "claimed";
+              }
+              if (closeEvent.reason === "invite used") {
+                return "used";
+              }
+              return "invalid";
+            });
             setError(null);
             setRoom(null);
             setRoomNotice(null);
             setReady(true);
             return;
+          }
+          if (active && reconnectAllowed && roomStatusRef.current === "open") {
+            const attempt = reconnectAttemptRef.current;
+            if (attempt < 5) {
+              const delay = Math.min(500 * 2 ** attempt, 8000);
+              reconnectAttemptRef.current = attempt + 1;
+              setConnection(`Reconnecting in ${Math.ceil(delay / 1000)}s`);
+              reconnectTimerRef.current = window.setTimeout(() => {
+                reconnectTimerRef.current = null;
+                void bootstrap();
+              }, delay);
+              return;
+            }
           }
           setConnection(roomStatusRef.current === "open" ? "Disconnected" : "Closed");
         });
@@ -1299,6 +1361,7 @@ function RoomPage({ roomId }: { roomId: string }) {
           const payload = JSON.parse(String(event.data)) as ServerEvent;
           if (payload.type === "joined") {
             joinedRef.current = true;
+            reconnectAttemptRef.current = 0;
             startTransition(() => {
               setInviteAccess("granted");
               setRoom(payload.room);
@@ -1376,6 +1439,8 @@ function RoomPage({ roomId }: { roomId: string }) {
           }
 
           if (payload.type === "room_state") {
+            reconnectAllowed = false;
+            roomStatusRef.current = payload.status;
             startTransition(() => {
               setRoom((current) =>
                 current
@@ -1396,6 +1461,7 @@ function RoomPage({ roomId }: { roomId: string }) {
 
           if (payload.type === "participant_kicked") {
             if (payload.sessionId === sessionId) {
+              reconnectAllowed = false;
               setRemovedFromRoom(true);
               setRoomNotice(null);
               setError(null);
@@ -1410,8 +1476,19 @@ function RoomPage({ roomId }: { roomId: string }) {
           }
 
           if (payload.type === "error") {
-            if (payload.message === "A valid one-time invite is required.") {
-              setInviteAccess("invalid");
+            if (
+              payload.code === "invite_required" ||
+              payload.code === "invite_claimed" ||
+              payload.code === "invite_used"
+            ) {
+              reconnectAllowed = false;
+              setInviteAccess(
+                payload.code === "invite_claimed"
+                  ? "claimed"
+                  : payload.code === "invite_used"
+                    ? "used"
+                    : "invalid"
+              );
               setError(null);
               setRoom(null);
               setRoomNotice(null);
@@ -1559,6 +1636,7 @@ function RoomPage({ roomId }: { roomId: string }) {
       }
 
       if (payload.type === "peer_destroy") {
+        reconnectAllowed = false;
         setRoomNotice("A connected peer destroyed this room.");
         setConnection("Closed");
       }
@@ -1568,7 +1646,12 @@ function RoomPage({ roomId }: { roomId: string }) {
 
     return () => {
       active = false;
+      reconnectAllowed = false;
       window.clearInterval(tick);
+      if (reconnectTimerRef.current !== null) {
+        window.clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
       socketRef.current?.close();
     };
   }, [creatorToken, inviteToken, roomId, roomSecret, sessionId]);
@@ -1751,7 +1834,8 @@ function RoomPage({ roomId }: { roomId: string }) {
       return;
     }
     try {
-      const invite = await createInvite(roomId, creatorToken);
+      const inviteTtlMs = parseInviteDurationDraft(inviteDuration);
+      const invite = await createInvite(roomId, creatorToken, inviteTtlMs);
       setInvites((current) => [invite, ...current]);
       const inviteUrl = buildInviteUrl(roomId, invite.token, roomSecret);
       if (typeof navigator.share === "function") {
@@ -1877,9 +1961,19 @@ function RoomPage({ roomId }: { roomId: string }) {
     typeof room?.disappearAfterReadSeconds === "number"
       ? `Messages vanish after ${formatStaticDuration(room.disappearAfterReadSeconds)}.`
       : "Messages stay until someone destroys the room.";
-  const roomPolicyLabel =
+  const idleDeadline =
     typeof room?.inactivityTimeoutMs === "number"
-      ? `Room self-destructs after ${formatStaticDuration(Math.floor(room.inactivityTimeoutMs / 1000))} of inactivity.`
+      ? room.lastActivityAt + room.inactivityTimeoutMs
+      : null;
+  const roomDeadline =
+    typeof room?.expiresAt === "number" && typeof idleDeadline === "number"
+      ? Math.min(room.expiresAt, idleDeadline)
+      : typeof room?.expiresAt === "number"
+        ? room.expiresAt
+        : idleDeadline;
+  const roomPolicyLabel =
+    typeof roomDeadline === "number"
+      ? `Room self-destructs in ${formatRelativeDuration(roomDeadline)}.`
       : "Room stays open until someone destroys it.";
   const isCreator = Boolean(creatorToken);
 
@@ -1887,8 +1981,8 @@ function RoomPage({ roomId }: { roomId: string }) {
     return <RemovedFromRoomScreen />;
   }
 
-  if (inviteAccess === "invalid") {
-    return <InvalidInviteScreen />;
+  if (inviteAccess === "invalid" || inviteAccess === "claimed" || inviteAccess === "used") {
+    return <InvalidInviteScreen reason={inviteAccess} />;
   }
 
   if (notFound) {
@@ -1924,7 +2018,7 @@ function RoomPage({ roomId }: { roomId: string }) {
           </p>
         </div>
         <div className="room-toolbar">
-          <div className="room-meta">
+          <div className="room-meta" aria-live="polite">
             <span>{connection}</span>
             <span>{presentCount} present</span>
           </div>
@@ -1933,6 +2027,7 @@ function RoomPage({ roomId }: { roomId: string }) {
               <button
                 className={`secondary-button ${inviteFeedback !== "idle" ? "button-success" : ""}`}
                 onClick={handleShareInvite}
+                type="button"
               >
                 {inviteFeedback === "shared"
                   ? "Invite shared"
@@ -1946,6 +2041,7 @@ function RoomPage({ roomId }: { roomId: string }) {
               <button
                 className={`secondary-button ${copyFeedback === "success" ? "button-success" : ""}`}
                 onClick={handleCopyLink}
+                type="button"
               >
                 {copyFeedback === "success" ? "Copied" : "Copy my link"}
               </button>
@@ -1954,10 +2050,20 @@ function RoomPage({ roomId }: { roomId: string }) {
               className={`secondary-button ${destroyFeedback === "success" ? "button-success" : ""}`}
               disabled={!creatorToken || destroying || room?.status !== "open"}
               onClick={handleDestroy}
+              type="button"
             >
               {destroying ? "Destroying..." : destroyFeedback === "success" ? "Destroyed" : "Destroy"}
             </button>
           </div>
+          <span className="sr-only" role="status" aria-live="polite">
+            {inviteFeedback === "shared"
+              ? "Invite shared."
+              : inviteFeedback === "copied"
+                ? "Invite copied."
+                : copyFeedback === "success"
+                  ? "Room link copied."
+                  : ""}
+          </span>
         </div>
       </header>
 
@@ -1992,8 +2098,51 @@ function RoomPage({ roomId }: { roomId: string }) {
         </div>
       </section>
 
+      {isCreator ? (
+        <section className="invite-settings" aria-label="Invite expiration">
+          <div>
+            <span className="setting-label">New invite expires</span>
+            <p className="setting-note">
+              Applies only to the next single-use invite you create.
+            </p>
+          </div>
+          <div className="setting-controls">
+            <input
+              aria-label="Invite lifetime amount"
+              className="setting-input"
+              inputMode="numeric"
+              min="1"
+              onChange={(event) =>
+                setInviteDuration((current) => ({ ...current, amount: event.target.value }))
+              }
+              type="number"
+              value={inviteDuration.amount}
+            />
+            <select
+              aria-label="Invite lifetime unit"
+              className="setting-select"
+              onChange={(event) =>
+                setInviteDuration((current) => ({
+                  ...current,
+                  unit: event.target.value as DurationUnit
+                }))
+              }
+              value={inviteDuration.unit}
+            >
+              <option value="minutes">Minutes</option>
+              <option value="hours">Hours</option>
+              <option value="days">Days</option>
+            </select>
+          </div>
+        </section>
+      ) : null}
+
       {isInviteGuest ? <MakeYourOwnCallout compact /> : null}
-      {roomNotice ? <p className="room-notice">{roomNotice}</p> : null}
+      {roomNotice ? (
+        <p className="room-notice" role="status" aria-live="polite">
+          {roomNotice}
+        </p>
+      ) : null}
       {error ? <p className="error-text room-error">{error}</p> : null}
       {isCreator && invites.length > 0 ? (
         <section className="invite-panel">
@@ -2003,13 +2152,7 @@ function RoomPage({ roomId }: { roomId: string }) {
           </p>
           {invites.slice(0, 4).map((invite) => (
             <div className="invite-row" key={invite.token} style={inviteAccentStyle(invite)}>
-              <span>
-                {invite.revokedAt
-                  ? "revoked"
-                  : invite.consumedAt
-                    ? "used"
-                    : `expires in ${formatRelativeDuration(invite.expiresAt)}`}
-              </span>
+              <span>{inviteStatusLabel(invite)}</span>
               <div className="invite-actions">
                 {!invite.revokedAt && !invite.consumedAt ? (
                   <>
@@ -2094,6 +2237,7 @@ function RoomPage({ roomId }: { roomId: string }) {
           type="file"
         />
         <textarea
+          aria-label="Write an encrypted message"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleComposerKeyDown}

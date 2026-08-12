@@ -78,7 +78,7 @@ Each connected participant keeps the current encrypted transcript in memory and 
 ## Access Control
 
 - The creator holds the creator token (stored in the browser's `localStorage`) and can issue single-use invites, revoke invites, and remove participants.
-- Non-creators must present a valid one-time invite to join. The session that consumes an invite may reconnect (e.g. a page reload), but the invite cannot be reused by a different session, and revoking it disconnects the consuming participant.
+- Non-creators must present a valid one-time invite to join. The Durable Object claims the invite before admission and consumes it only after the session attachment and room metadata are durable. The admitted session may reconnect (e.g. a page reload), but the invite cannot be reused by a different session, and revoking it disconnects the consuming participant.
 
 ## Abuse Prevention
 

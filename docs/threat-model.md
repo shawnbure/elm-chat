@@ -13,6 +13,29 @@
 
 Minimize what the server can read and retain, so the application can be used with lower central trust than a store-and-forward chat service. Content is end-to-end encrypted; the server relays ciphertext and never persists messages or files.
 
+## System Boundary
+
+```mermaid
+flowchart LR
+  creator["Creator browser\nroom secret + plaintext"]
+  guest["Guest browser\ninvite URL + plaintext"]
+  worker["Cloudflare Worker\nHTTP API + static app"]
+  room["Room Durable Object\npresence + invites + ciphertext relay"]
+  turnstile["Optional Turnstile\nroom-creation token"]
+
+  creator -- "create room metadata" --> worker
+  worker -- "optional verify token" --> turnstile
+  worker -- "create/load room" --> room
+  creator -- "WebSocket join + ciphertext/file chunks" --> room
+  guest -- "invite token + WebSocket join" --> room
+  room -- "ciphertext relay + presence" --> creator
+  room -- "ciphertext relay + presence" --> guest
+
+  creator -. "URL fragment secret stays local" .- guest
+```
+
+The server-side boundary is intentional: the Worker and Durable Object can enforce room lifecycle, invite state, capacity, and transport rules, but they do not receive the room secret or readable message/file content in normal operation. The browsers are the only components that derive the room key and handle plaintext.
+
 ## Trust Assumptions
 
 - browsers provide correct Web Crypto implementations

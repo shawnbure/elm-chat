@@ -57,6 +57,10 @@ const ROOM_META_KEY = "room:meta";
 const INVITES_KEY = "room:invites";
 const DEFAULT_INVITE_TTL_MS = 10 * 60 * 1000;
 
+type InviteAdmission =
+  | { ok: true; invite?: RoomInvite; newlyClaimed: boolean }
+  | { ok: false; code: string; message: string; closeReason: string };
+
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     status,
@@ -289,30 +293,11 @@ export class RoomDurableObject extends DurableObject<Env> {
     }
 
     const creator = payload.creatorToken === this.roomMeta.creatorToken;
-    if (!creator) {
-      const invite = payload.inviteToken ? this.invites.get(payload.inviteToken) : undefined;
-      const now = Date.now();
-      // The session that already consumed this invite may reconnect (e.g. a page
-      // reload) as long as the invite has not been revoked. A brand-new session
-      // must present an invite that is unrevoked, unconsumed, and unexpired.
-      const isReconnectingConsumer =
-        !!invite && !invite.revokedAt && invite.consumedBySessionId === payload.sessionId;
-      if (!isReconnectingConsumer) {
-        if (!invite || invite.revokedAt || invite.consumedAt || invite.expiresAt <= now) {
-          ws.send(JSON.stringify(errorEvent("invite_required", "A valid one-time invite is required.")));
-          ws.close(4403, "invite required");
-          return;
-        }
-        invite.consumedAt = now;
-        invite.consumedBySessionId = payload.sessionId;
-        this.invites.set(invite.token, invite);
-        await this.persistInvites();
-        this.env.GROWTH?.writeDataPoint({
-          indexes: ["invite_redeemed"],
-          blobs: [""],
-          doubles: [1]
-        });
-      }
+    const admission = await this.reserveInviteForJoin(creator, payload);
+    if (!admission.ok) {
+      ws.send(JSON.stringify(errorEvent(admission.code, admission.message)));
+      ws.close(4403, admission.closeReason);
+      return;
     }
 
     const session: AttachmentRecord = {
@@ -329,6 +314,22 @@ export class RoomDurableObject extends DurableObject<Env> {
     this.roomMeta.participantCount = this.connectedSessionIds().length;
     this.roomMeta.lastActivityAt = Date.now();
     await this.ctx.storage.put(ROOM_META_KEY, this.roomMeta);
+
+    if (admission.invite && !admission.invite.consumedAt) {
+      const admittedAt = Date.now();
+      admission.invite.admittedAt = admittedAt;
+      admission.invite.consumedAt = admittedAt;
+      admission.invite.consumedBySessionId = payload.sessionId;
+      this.invites.set(admission.invite.token, admission.invite);
+      await this.persistInvites();
+      if (admission.newlyClaimed) {
+        this.env.GROWTH?.writeDataPoint({
+          indexes: ["invite_redeemed"],
+          blobs: [""],
+          doubles: [1]
+        });
+      }
+    }
 
     const peers = this.connectedSessions()
       .filter((peer) => peer.sessionId !== payload.sessionId)
@@ -353,6 +354,56 @@ export class RoomDurableObject extends DurableObject<Env> {
 
     await this.broadcastPresence();
     await this.markRoomActivity();
+  }
+
+  private async reserveInviteForJoin(
+    creator: boolean,
+    payload: JoinPayload
+  ): Promise<InviteAdmission> {
+    if (creator) {
+      return { ok: true, newlyClaimed: false };
+    }
+
+    const invite = payload.inviteToken ? this.invites.get(payload.inviteToken) : undefined;
+    const now = Date.now();
+    if (!invite || invite.revokedAt || invite.expiresAt <= now) {
+      return {
+        ok: false,
+        code: "invite_required",
+        message: "A valid one-time invite is required.",
+        closeReason: "invite required"
+      };
+    }
+
+    if (invite.consumedAt) {
+      if (invite.consumedBySessionId === payload.sessionId) {
+        return { ok: true, invite, newlyClaimed: false };
+      }
+      return {
+        ok: false,
+        code: "invite_used",
+        message: "This one-time invite has already admitted another session.",
+        closeReason: "invite used"
+      };
+    }
+
+    if (invite.claimedAt) {
+      if (invite.claimedBySessionId === payload.sessionId) {
+        return { ok: true, invite, newlyClaimed: false };
+      }
+      return {
+        ok: false,
+        code: "invite_claimed",
+        message: "This one-time invite is already being used by another session.",
+        closeReason: "invite claimed"
+      };
+    }
+
+    invite.claimedAt = now;
+    invite.claimedBySessionId = payload.sessionId;
+    this.invites.set(invite.token, invite);
+    await this.persistInvites();
+    return { ok: true, invite, newlyClaimed: true };
   }
 
   private async handlePeerData(ws: WebSocket, payload: PeerDataRelayPayload): Promise<void> {
