@@ -54,7 +54,7 @@ Current mitigations:
 - room secret stays in the URL fragment and is not sent in normal HTTP requests
 - strict `Referrer-Policy: no-referrer`
 - one-time invites for non-creators; creator can revoke invites and remove participants
-- no third-party analytics on room pages
+- no third-party analytics on room pages; hosted first-party growth counters are aggregate-only and documented in the README
 
 ### Server compromise or insider access
 

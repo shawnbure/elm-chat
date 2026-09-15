@@ -316,9 +316,13 @@ To enable it:
 
 With both set, the landing page runs an invisible challenge before creating a room, and the Worker rejects room creation unless the token verifies. With neither set, creation is open.
 
-## No Tracking
+## No Third-Party Tracking
 
-elm.chat ships with **no analytics, no beacons, and no third-party scripts** on any page. A strict `Content-Security-Policy` with `script-src 'self'` is applied to every route, so the browser cannot load an external tracker even if one were added by mistake. The only network calls a visitor's browser makes are to elm.chat's own origin. (The GitHub star count on the landing is fetched server-side by the Worker, so visitors' browsers never contact GitHub.)
+elm.chat ships with **no third-party analytics, no third-party beacons, and no third-party scripts** on any page. A strict `Content-Security-Policy` with `script-src 'self'` is applied to every route, so the browser cannot load an external tracker even if one were added by mistake. The only network calls a visitor's browser makes are to elm.chat's own origin. (The GitHub star count on the landing is fetched server-side by the Worker, so visitors' browsers never contact GitHub.)
+
+The hosted `elm.chat` service can send optional same-origin growth events to `/api/growth`, and the production Worker can write aggregate counters to a Cloudflare Analytics Engine dataset. The browser payload is limited to `event` and an enumerated `source`; the Worker writes only event name, source, and count. These counters are intended to measure public funnel behavior such as article CTAs, invite handoff, and GitHub interest. They must not include room IDs, room secrets, invite tokens, creator tokens, session IDs, identity keys, IP addresses, filenames, message/file content, or durable relationship identifiers. `npm run check:growth-privacy` fails if the client payload, growth route, or Analytics Engine write drifts toward those fields.
+
+The public self-host `wrangler.jsonc` intentionally omits the `GROWTH` Analytics Engine binding. Independent instances deployed from that template do not send analytics to elm.chat. The maintainer production dataset is accessible to the Cloudflare account operators for this hosted instance; exact retention for that aggregate dataset is not yet independently verified. This first-party measurement does not make elm.chat anonymous, audited, compliant, suitable for regulated/high-risk use, or free from ordinary relay metadata.
 
 ## Durable Object Lifecycle
 
