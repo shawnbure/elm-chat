@@ -21,6 +21,7 @@ import {
   type ServerEvent
 } from "@elm-chat/shared";
 import { DurableObject } from "cloudflare:workers";
+import { roomExpiryReason } from "./expiry";
 
 type RoomStorage = RoomMetadata & {
   creatorToken: string;
@@ -137,7 +138,7 @@ export class RoomDurableObject extends DurableObject<Env> {
         return jsonResponse({ error: "Expected WebSocket upgrade." }, 400);
       }
 
-      if (!this.roomMeta || this.roomMeta.status !== "open") {
+      if (await this.expireIfDue() || !this.roomMeta || this.roomMeta.status !== "open") {
         return jsonResponse({ error: "Room is unavailable." }, 410);
       }
 
@@ -163,34 +164,12 @@ export class RoomDurableObject extends DurableObject<Env> {
 
   async alarm(): Promise<void> {
     await this.storageReady;
-    if (!this.roomMeta || this.roomMeta.status !== "open") {
-      return;
-    }
-
-    const now = Date.now();
-    const idleFor = now - this.roomMeta.lastActivityAt;
-
-    if (typeof this.roomMeta.expiresAt === "number" && now >= this.roomMeta.expiresAt) {
-      await this.transitionRoom("expired", "max-age");
-      return;
-    }
-
-    if (
-      typeof this.roomMeta.inactivityTimeoutMs === "number" &&
-      idleFor >= this.roomMeta.inactivityTimeoutMs
-    ) {
-      await this.transitionRoom(
-        "expired",
-        this.connectedSessionIds().length === 0 ? "join-timeout" : "inactive"
-      );
-      return;
-    }
-
-    await this.scheduleNextAlarm();
+    if (!(await this.expireIfDue())) await this.scheduleNextAlarm();
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     await this.storageReady;
+    if (await this.expireIfDue()) return;
     if (typeof message !== "string") {
       ws.send(JSON.stringify(errorEvent("binary_not_supported", "Binary payloads are not supported.")));
       return;
@@ -541,8 +520,16 @@ export class RoomDurableObject extends DurableObject<Env> {
     }
   }
 
+  private async expireIfDue(): Promise<boolean> {
+    if (!this.roomMeta || this.roomMeta.status !== "open") return false;
+    const reason = roomExpiryReason(this.roomMeta, Date.now(), this.connectedSessionIds().length);
+    if (!reason) return false;
+    await this.transitionRoom("expired", reason);
+    return true;
+  }
+
   private async markRoomActivity(): Promise<void> {
-    if (!this.roomMeta) {
+    if (!this.roomMeta || this.roomMeta.status !== "open") {
       return;
     }
     this.roomMeta.lastActivityAt = Date.now();

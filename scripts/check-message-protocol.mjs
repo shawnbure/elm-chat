@@ -19,6 +19,9 @@ async function load(entry) {
 const { deriveRoomKey, encryptMessage, decryptMessage, generateRoomSecret } =
   await load("packages/crypto/src/index.ts");
 const { ReplayGuard } = await load("apps/web/src/replay.ts");
+const { InvalidMessageEnvelopeError, receiveTextMessage } =
+  await load("apps/web/src/message-receive.ts");
+const { roomExpiryReason } = await load("durable-objects/room/src/expiry.ts");
 const { resolveLocale, translate } = await load("apps/web/src/localization.ts");
 
 const key = await deriveRoomKey(generateRoomSecret());
@@ -86,6 +89,42 @@ assert.equal(await held, true);
 assert.equal(await concurrent.accept("same", async () => {}), false);
 await assert.rejects(() => concurrent.accept("retry", async () => { throw new Error("bad"); }));
 assert.equal(await concurrent.accept("retry", async () => {}), true);
+
+// Exercise the same receive path used by the browser, including relay identity,
+// expiry, reconnect, refresh/state loss, and a new room key.
+const received = new ReplayGuard();
+assert.deepEqual(await receiveTextMessage(key, "room-a", envelope, received,
+  context.senderSessionId, context.sentAt), { plaintext: "hello", expiresAt: context.sentAt + 420000 });
+assert.equal(await receiveTextMessage(key, "room-a", envelope, received,
+  context.senderSessionId, context.sentAt), null); // WebSocket reconnect, same page
+await assert.rejects(() => receiveTextMessage(key, "room-a", envelope,
+  new ReplayGuard(), "33333333-3333-4333-8333-333333333333", context.sentAt),
+  InvalidMessageEnvelopeError); // direct cross-session relay
+await assert.rejects(() => receiveTextMessage(key, "room-a",
+  { ...envelope, senderSessionId: "33333333-3333-4333-8333-333333333333" },
+  new ReplayGuard(), undefined, context.sentAt)); // transcript sender tampering
+await assert.rejects(() => receiveTextMessage(key, "room-b", envelope,
+  new ReplayGuard(), undefined, context.sentAt)); // cross-room transcript
+const rotatedKey = await deriveRoomKey(generateRoomSecret());
+await assert.rejects(() => receiveTextMessage(rotatedKey, "room-a", envelope,
+  new ReplayGuard(), undefined, context.sentAt));
+const expired = new ReplayGuard();
+assert.equal(await receiveTextMessage(key, "room-a", envelope, expired,
+  undefined, context.sentAt + 420001), null);
+assert.equal(await receiveTextMessage(key, "room-a", envelope, expired,
+  undefined, context.sentAt), null); // expiry does not release replay slot
+assert.deepEqual(await receiveTextMessage(key, "room-a", envelope,
+  new ReplayGuard(), undefined, context.sentAt),
+  { plaintext: "hello", expiresAt: context.sentAt + 420000 }); // refresh loses state
+const sameIdNewCiphertext = { ...context,
+  ...await encryptMessage(key, "room-a", context, "different text") };
+assert.equal(await receiveTextMessage(key, "room-a", sameIdNewCiphertext,
+  received, undefined, context.sentAt), null); // message ID reuse is rejected
+const lifecycle = { expiresAt: 2000, inactivityTimeoutMs: 500, lastActivityAt: 1000 };
+assert.equal(roomExpiryReason(lifecycle, 1499, 1), null);
+assert.equal(roomExpiryReason(lifecycle, 1500, 1), "inactive");
+assert.equal(roomExpiryReason(lifecycle, 1500, 0), "join-timeout");
+assert.equal(roomExpiryReason(lifecycle, 2000, 1), "max-age");
 
 assert.equal(resolveLocale(["es-MX", "en-US"]), "es");
 assert.equal(resolveLocale(["fr-FR"]), "en");

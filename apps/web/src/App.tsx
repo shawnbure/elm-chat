@@ -1,7 +1,6 @@
 import {
   createIdentityKeyPair,
   decryptBytes,
-  decryptMessage,
   deriveRoomKey,
   encryptBytes,
   encryptMessage,
@@ -31,6 +30,7 @@ import { startTransition, useEffect, useRef, useState, type CSSProperties } from
 import { recordGrowthEvent, resolveExternalAcquisitionSource } from "./growth";
 import { MarketingPage, type MarketingSlug } from "./MarketingPage";
 import { t } from "./localization";
+import { InvalidMessageEnvelopeError, receiveTextMessage } from "./message-receive";
 import { ReplayGuard } from "./replay";
 
 type View = "landing" | "marketing" | "room";
@@ -1600,29 +1600,16 @@ function RoomPage({ roomId }: { roomId: string }) {
     }
 
     async function addEnvelope(envelope: EncryptedMessageEnvelope, relaySenderId?: string) {
-      if (
-        !envelope ||
-        envelope.protocolVersion !== MESSAGE_PROTOCOL_VERSION ||
-        (relaySenderId && relaySenderId !== envelope.senderSessionId)
-      ) {
-        setError(t("alteredMessage"));
-        return;
-      }
       if (!roomKeyRef.current) {
         return;
       }
 
       try {
-        let plaintext = "";
-        const accepted = await replayGuardRef.current.accept(envelope.messageId, async () => {
-          plaintext = await decryptMessage(roomKeyRef.current!, roomId, envelope);
-        });
-        if (!accepted) return;
-        const expiresAt =
-          typeof envelope.expiresAfterReadSeconds === "number"
-            ? envelope.sentAt + envelope.expiresAfterReadSeconds * 1000
-            : undefined;
-        if (typeof expiresAt === "number" && expiresAt <= Date.now()) return;
+        const received = await receiveTextMessage(
+          roomKeyRef.current, roomId, envelope, replayGuardRef.current, relaySenderId
+        );
+        if (!received) return;
+        const { plaintext, expiresAt } = received;
         messageRef.current.set(envelope.messageId, envelope);
 
         startTransition(() => {
@@ -1639,7 +1626,9 @@ function RoomPage({ roomId }: { roomId: string }) {
         });
       } catch (cause) {
         setError(
-          cause instanceof Error && cause.message === "Message replay limit reached."
+          cause instanceof InvalidMessageEnvelopeError
+            ? t("alteredMessage")
+            : cause instanceof Error && cause.message === "Message replay limit reached."
             ? t("replayLimit")
             : t("authFailed")
         );

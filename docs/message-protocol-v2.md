@@ -33,6 +33,11 @@ authenticates before displaying or expiring the text. A direct live relay also
 requires the relay's `fromSessionId` to equal the envelope's sender ID. A
 peer-supplied transcript can contain messages from other senders, so sync
 authenticates each envelope individually without that live-sender check.
+The constant `elm-chat-message` is the authenticated message-type domain
+separator. There is no sender sequence number: a random message ID plus a
+per-page accepted-ID ledger is the replay scheme. Reusing an ID, even with
+different authenticated ciphertext, is rejected in that ledger. This permits
+arbitrary out-of-order delivery but cannot detect missing messages.
 
 This is a wire-format break from older clients. v2 receivers reject envelopes
 without `protocolVersion: 2`; older clients cannot decrypt v2 text. Room key
@@ -56,6 +61,11 @@ is neither complete nor authoritative. A recipient's clock controls expiry;
 clock skew can change when a valid message is hidden. Room destruction ends
 relay admission, but does not erase endpoint copies.
 
+The Durable Object checks max-age and idle deadlines on WebSocket admission
+and before handling each WebSocket event, in addition to its alarm. This closes
+the gap where an overdue room could relay another event before its alarm ran.
+It does not authenticate a peer's device or revoke plaintext already received.
+
 There is one shared room key for the room's lifetime. No key rotation or
 forward secrecy is provided. A new room and secret create a new key scope;
 the room ID in associated data prevents ciphertext reuse across rooms.
@@ -66,13 +76,21 @@ the room ID in associated data prevents ciphertext reuse across rooms.
 AES-GCM vector using a zero 256-bit key, zero 96-bit nonce, the associated-data
 array above, and plaintext `vector`. The expected base64url ciphertext with
 the GCM tag is `uMIjSSISvl9PtXjhyDcP6DaCSjcCZA`. The test pins that value and
-verifies that the client accepts it. The same check rejects changed ciphertext, each protected metadata
-field, a different room ID, and protocol v1. It also exercises duplicate
-delivery after reconnect, concurrent duplicates, out-of-order IDs, retry after
-failed authentication, and the replay-ledger cap. These are automated checks,
-not a substitute for independent protocol review.
+verifies that the client accepts it. The same check rejects changed ciphertext,
+each protected metadata field, a different room ID, and protocol v1. It also
+exercises the browser receive path: direct-relay sender mismatch, transcript
+sender tampering, duplicate delivery after reconnect, ID reuse, expiry,
+concurrent duplicates, out-of-order IDs, retry after failed authentication,
+and the replay-ledger cap. A new ledger accepting the same authenticated
+envelope documents the refresh/state-loss limit. Decryption under a new room
+key fails. Deadline-boundary checks cover max-age and idle expiry decisions.
+These are automated checks, not a substitute for separate protocol review.
 
-Before claiming the documented threat model is met, a separate reviewer should
-inspect the protocol, client event handling, sync behavior, and endpoint
-assumptions. File-event authentication and replay controls need their own
-design and implementation.
+A separate review of the protocol, client event handling, transcript sync,
+Durable Object deadline checks, and endpoint assumptions is still recommended
+before relying on the documented room-key and live-page replay model. The
+maintainer waived that review as a prerequisite for closing issue #100; the
+automated checks and maintainer testing do **not** constitute an independent
+security audit. File-event authentication, sender identity, and replay controls
+across refresh need their own design and implementation; they are not claims
+made by text protocol v2.
