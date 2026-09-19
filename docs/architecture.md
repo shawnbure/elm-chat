@@ -64,16 +64,16 @@ Each connected participant keeps the current encrypted transcript in memory and 
 ## Encryption
 
 - **Room key:** HKDF-SHA-256 over the fragment secret → AES-GCM-256.
-- **Messages:** AES-GCM per message with a random 96-bit nonce; transmitted as a base64url envelope.
+- **Text messages:** AES-GCM per message with a random 96-bit nonce. Protocol v2 authenticates room ID, sender session ID, message ID, timestamp, and expiry as associated data. The receiving page rejects duplicate IDs while it remains open. See [message protocol v2](message-protocol-v2.md).
 - **Files:** chunked at `FILE_CHUNK_BYTES` (64 KiB). Each chunk is AES-GCM-encrypted with its own nonce, streamed over the relay to the requesting peer, then reassembled and decrypted by the recipient. Max size `MAX_FILE_BYTES` (25 MiB).
-- **Identity keys:** each client generates an ephemeral ECDSA P-256 keypair and shares the public key on join. This is reserved for future message authentication and is not yet used to verify messages.
+- **Identity keys:** each client generates an ephemeral ECDSA P-256 keypair and shares the public key on join. These keys are not yet used to verify sender identity; any holder of the room secret can create a valid text envelope.
 
 ## Membership & Relay Rules
 
 - The set of connected participants is derived from **live WebSocket attachments**, not an in-memory map. This survives Durable Object hibernation, so targeted relays (file chunks, per-peer sync) keep working after the object sleeps and wakes.
 - Broadcasts (chat, presence, peer join/leave) go to all other participants; targeted relays go to one `sessionId`.
 - Room capacity is capped at `MAX_CONNECTIONS_PER_ROOM`.
-- Transcript collation on join de-duplicates by `messageId`.
+- Transcript collation on join verifies each v2 text envelope and de-duplicates by `messageId` within the current page session.
 
 ## Access Control
 
@@ -93,4 +93,4 @@ Relaying encrypted content reduces what the server can read, but it does not eli
 - screenshots or copied plaintext
 - traffic analysis against the relay (message timing and size are observable)
 
-The server still relays ciphertext and observes connection metadata. For high-risk deployments, denial-of-service handling, message authentication, and mobile-network reliability need explicit operational review.
+The server still relays ciphertext and observes connection metadata. For high-risk deployments, sender identity, file-event authentication, replay behavior after refresh, denial-of-service handling, and mobile-network reliability need explicit operational review.

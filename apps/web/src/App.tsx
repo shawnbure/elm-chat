@@ -1,10 +1,10 @@
 import {
   createIdentityKeyPair,
   decryptBytes,
-  decryptText,
+  decryptMessage,
   deriveRoomKey,
   encryptBytes,
-  encryptText,
+  encryptMessage,
   exportIdentityPublicKey,
   generateMessageId,
   generateRoomSecret,
@@ -12,6 +12,7 @@ import {
 } from "@elm-chat/crypto";
 import {
   FILE_CHUNK_BYTES,
+  MESSAGE_PROTOCOL_VERSION,
   isAcquisitionSource,
   isMarketingAcquisitionSource,
   MAX_FILE_BYTES,
@@ -29,6 +30,8 @@ import {
 import { startTransition, useEffect, useRef, useState, type CSSProperties } from "react";
 import { recordGrowthEvent, resolveExternalAcquisitionSource } from "./growth";
 import { MarketingPage, type MarketingSlug } from "./MarketingPage";
+import { t } from "./localization";
+import { ReplayGuard } from "./replay";
 
 type View = "landing" | "marketing" | "room";
 
@@ -83,6 +86,19 @@ type DurationDraft = {
 type InviteDurationDraft = {
   amount: string;
   unit: DurationUnit;
+};
+
+type CommunityIssue = {
+  number: number;
+  title: string;
+  url: string;
+  date: string;
+  votes: number;
+};
+
+type CommunityFeed = {
+  fixes: CommunityIssue[];
+  requests: CommunityIssue[];
 };
 
 type DurationKind = "message" | "room";
@@ -196,11 +212,11 @@ function safeStorageSet(storage: "local" | "session", key: string, value: string
 function durationUnitLabel(unit: DurationUnit): string {
   switch (unit) {
     case "minutes":
-      return "minutes";
+      return t("minutes").toLowerCase();
     case "hours":
-      return "hours";
+      return t("hours").toLowerCase();
     case "days":
-      return "days";
+      return t("days").toLowerCase();
   }
 }
 
@@ -221,7 +237,7 @@ function durationToSeconds(amount: number, unit: DurationUnit): number {
 
 function formatSelectedDuration(amount: string, unit: DurationUnit, indefinite: boolean): string {
   if (indefinite) {
-    return "Indefinite";
+    return t("indefinite");
   }
   const value = Number(amount) || 0;
   const label = durationUnitLabel(unit);
@@ -361,7 +377,7 @@ async function createRoom(body: CreateRoomRequest): Promise<CreateRoomResponse> 
   });
   if (!response.ok) {
     const detail = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(detail?.error ?? "Failed to create room.");
+    throw new Error(detail?.error ?? t("failedCreateRoom"));
   }
   return response.json();
 }
@@ -369,7 +385,7 @@ async function createRoom(body: CreateRoomRequest): Promise<CreateRoomResponse> 
 async function loadRoom(roomId: string): Promise<RoomMetadata> {
   const response = await fetch(`/api/rooms/${roomId}`);
   if (!response.ok) {
-    throw new Error("Room not found.");
+    throw new Error(t("roomNotFoundError"));
   }
   return response.json();
 }
@@ -383,7 +399,7 @@ async function destroyRoom(roomId: string, creatorToken: string): Promise<RoomMe
     body: JSON.stringify({ creatorToken })
   });
   if (!response.ok) {
-    throw new Error("Failed to destroy room.");
+    throw new Error(t("destroyRoomFailed"));
   }
   return response.json();
 }
@@ -395,7 +411,7 @@ async function createInvite(roomId: string, creatorToken: string, ttlMs = 10 * 6
     body: JSON.stringify({ creatorToken, ttlMs })
   });
   if (!response.ok) {
-    throw new Error("Failed to create invite.");
+    throw new Error(t("createInviteFailed"));
   }
   return response.json();
 }
@@ -403,7 +419,7 @@ async function createInvite(roomId: string, creatorToken: string, ttlMs = 10 * 6
 async function listInvites(roomId: string, creatorToken: string): Promise<RoomInvite[]> {
   const response = await fetch(`/api/rooms/${roomId}/invites?creatorToken=${encodeURIComponent(creatorToken)}`);
   if (!response.ok) {
-    throw new Error("Failed to load invites.");
+    throw new Error(t("failedLoadInvites"));
   }
   return response.json();
 }
@@ -415,7 +431,7 @@ async function revokeInvite(roomId: string, creatorToken: string, token: string)
     body: JSON.stringify({ creatorToken, token })
   });
   if (!response.ok) {
-    throw new Error("Failed to revoke invite.");
+    throw new Error(t("revokeInviteFailed"));
   }
 }
 
@@ -440,9 +456,9 @@ function wsUrl(path: string): string {
 
 function messageStatus(message: UiMessage): string {
   if (message.expiresAt) {
-    return `Vanishes in ${formatRelativeDuration(message.expiresAt)}`;
+    return t("vanishesIn", { duration: formatRelativeDuration(message.expiresAt) });
   }
-  return "Peer-to-peer";
+  return t("untilRoomCloses");
 }
 
 function upsertMessage(messages: UiMessage[], next: UiMessage): UiMessage[] {
@@ -495,18 +511,18 @@ function inviteAccentStyle(invite: RoomInvite): CSSProperties | undefined {
 
 function inviteStatusLabel(invite: RoomInvite): string {
   if (invite.revokedAt) {
-    return "revoked";
+    return t("inviteStatusRevoked");
   }
   if (invite.consumedAt || invite.admittedAt) {
-    return "joined";
+    return t("inviteStatusJoined");
   }
   if (invite.claimedAt) {
-    return "joining...";
+    return t("inviteStatusJoining");
   }
   if (invite.expiresAt <= Date.now()) {
-    return "expired";
+    return t("inviteStatusExpired");
   }
-  return `expires in ${formatRelativeDuration(invite.expiresAt)}`;
+  return t("inviteStatusExpires", { duration: formatRelativeDuration(invite.expiresAt) });
 }
 
 function buildInviteUrl(roomId: string, inviteToken: string, roomSecret: string): string {
@@ -515,18 +531,18 @@ function buildInviteUrl(roomId: string, inviteToken: string, roomSecret: string)
 
 function roomStateMessage(status: RoomMetadata["status"], reason?: string): string {
   if (status === "destroyed") {
-    return "This room was destroyed and everyone was disconnected.";
+    return t("destroyed");
   }
 
   switch (reason) {
     case "join-timeout":
-      return "This room self-destructed because nobody joined before the room timeout.";
+      return t("joinTimeout");
     case "inactive":
-      return "This room self-destructed after the configured idle timeout.";
+      return t("inactive");
     case "max-age":
-      return "This room reached its maximum lifetime and self-destructed.";
+      return t("maxAge");
     default:
-      return "This room is no longer available.";
+      return t("unavailable");
   }
 }
 
@@ -540,8 +556,8 @@ function MakeYourOwnCallout({ compact = false }: { compact?: boolean }) {
   return (
     <p className={`make-your-own ${compact ? "make-your-own-compact" : ""}`}>
       {compact
-        ? "Try the invite loop yourself: "
-        : "This disposable room was made with elm.chat. "}
+        ? t("tryInvite")
+        : t("madeWith")}
       <a
         className="make-your-own-link"
         href="/?source=invite"
@@ -549,7 +565,7 @@ function MakeYourOwnCallout({ compact = false }: { compact?: boolean }) {
         rel={compact ? "noreferrer" : undefined}
         target={compact ? "_blank" : undefined}
       >
-        Start your own room and invite one person &mdash; free, no signup.
+        {t("makeYourOwn")}
       </a>
     </p>
   );
@@ -558,22 +574,22 @@ function MakeYourOwnCallout({ compact = false }: { compact?: boolean }) {
 function InvalidInviteScreen({ reason }: { reason: InviteAccess }) {
   const copy =
     reason === "claimed"
-      ? "This one-time invite is already being used by another browser session."
+      ? t("inviteClaimed")
       : reason === "used"
-        ? "This one-time invite has already admitted another session."
-        : "This one-time invite has expired, was revoked, or is no longer available.";
+        ? t("inviteUsed")
+        : t("inviteInvalid");
   return (
     <main className="room-shell room-shell-centered">
       <section className="access-screen" aria-live="polite">
         <p className="eyebrow">elm chat</p>
-        <h1 className="access-title">Link no longer valid</h1>
+        <h1 className="access-title">{t("invalidLink")}</h1>
         <p className="access-copy">{copy}</p>
         <a
           className="secondary-button access-home-link"
           href="/?source=invite"
           onClick={recordMakeYourOwnClick}
         >
-          Back to home
+          {t("backHome")}
         </a>
         <MakeYourOwnCallout />
       </section>
@@ -586,14 +602,14 @@ function RemovedFromRoomScreen() {
     <main className="room-shell room-shell-centered">
       <section className="access-screen" aria-live="polite">
         <p className="eyebrow">elm chat</p>
-        <h1 className="access-title">You were removed from this room</h1>
-        <p className="access-copy">The room creator ended your access to this conversation.</p>
+        <h1 className="access-title">{t("removedTitle")}</h1>
+        <p className="access-copy">{t("removedCopy")}</p>
         <a
           className="secondary-button access-home-link"
           href="/?source=invite"
           onClick={recordMakeYourOwnClick}
         >
-          Back to home
+          {t("backHome")}
         </a>
         <MakeYourOwnCallout />
       </section>
@@ -623,10 +639,10 @@ function FileCard({ file, onDownload }: { file: UiFile; onDownload: () => void }
         </div>
       </div>
       {file.outgoing ? (
-        <span className="file-status">Shared &mdash; peers can download</span>
+        <span className="file-status">{t("fileShared")}</span>
       ) : file.state === "offered" ? (
         <button className="secondary-button file-action" onClick={onDownload} type="button">
-          Download
+          {t("download")}
         </button>
       ) : file.state === "requesting" || file.state === "transferring" ? (
         <div className="file-progress">
@@ -637,10 +653,10 @@ function FileCard({ file, onDownload }: { file: UiFile; onDownload: () => void }
         </div>
       ) : file.state === "ready" && file.url ? (
         <a className="secondary-button file-action" download={file.name} href={file.url}>
-          Save file
+          {t("saveFile")}
         </a>
       ) : file.state === "error" ? (
-        <span className="file-status file-status-error">Transfer failed &mdash; ask for a re-share</span>
+        <span className="file-status file-status-error">{t("transferFailed")}</span>
       ) : null}
     </div>
   );
@@ -651,8 +667,8 @@ function InviteCheckingScreen() {
     <main className="room-shell room-shell-centered">
       <section className="access-screen" aria-live="polite">
         <p className="eyebrow">elm chat</p>
-        <h1 className="access-title">Checking invite</h1>
-        <p className="access-copy">Verifying this one-time invite and joining the room.</p>
+        <h1 className="access-title">{t("checkingInvite")}</h1>
+        <p className="access-copy">{t("verifyingInvite")}</p>
         <MakeYourOwnCallout />
       </section>
     </main>
@@ -664,16 +680,16 @@ function RoomGoneScreen({ fromInvite, reason }: { fromInvite: boolean; reason?: 
     <main className="room-shell room-shell-centered">
       <section className="access-screen" aria-live="polite">
         <p className="eyebrow">elm chat</p>
-        <h1 className="access-title">Room gone</h1>
+        <h1 className="access-title">{t("roomGone")}</h1>
         <p className="access-copy">
-          {reason ?? "This conversation self-destructed. Nothing was kept."}
+          {reason ?? t("roomGoneCopy")}
         </p>
         <a
           className="primary-button access-home-link"
           href={fromInvite ? "/?source=invite" : "/"}
           onClick={fromInvite ? recordMakeYourOwnClick : undefined}
         >
-          Start a new one &rarr;
+          {t("startNew")} &rarr;
         </a>
         {fromInvite ? <MakeYourOwnCallout /> : null}
       </section>
@@ -697,6 +713,8 @@ export function App() {
 function LandingPage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [community, setCommunity] = useState<CommunityFeed | null>(null);
+  const [communityError, setCommunityError] = useState(false);
   const [ghStats, setGhStats] = useState<{ stars: number | null; forks: number | null }>({
     stars: null,
     forks: null
@@ -736,6 +754,22 @@ function LandingPage() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    fetch("/api/community")
+      .then((response) => {
+        if (!response.ok) throw new Error("Community feed unavailable.");
+        return response.json() as Promise<CommunityFeed>;
+      })
+      .then((feed) => {
+        if (active) setCommunity(feed);
+      })
+      .catch(() => {
+        if (active) setCommunityError(true);
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
     if (externalSource) {
       recordGrowthEvent("external_referral_viewed", externalSource);
     }
@@ -771,7 +805,7 @@ function LandingPage() {
       safeStorageSet("local", creatorTokenKey(room.roomId), room.creatorToken);
       window.location.assign(`${room.roomUrl}#${secret}`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Unable to create room.");
+      setError(cause instanceof Error ? cause.message : t("unableCreateRoom"));
       setCreating(false);
     }
   }
@@ -781,13 +815,10 @@ function LandingPage() {
       <section className="hero">
         <div className="hero-copy">
           {externalSource === "freshcode" ? (
-            <aside className="external-arrival" aria-label="elm.chat release details">
-              <span className="external-arrival-label">Found via Freshcode</span>
-              <strong>elm.chat v0.1.0 is open for inspection.</strong>
-              <p>
-                Try a short-lived room below, review the documented limits, or deploy your own
-                Cloudflare instance. This early release has not had an independent security audit.
-              </p>
+            <aside className="external-arrival" aria-label={t("freshcodeFound")}>
+              <span className="external-arrival-label">{t("freshcodeFound")}</span>
+              <strong>{t("freshcodeOpen")}</strong>
+              <p>{t("freshcodeCopy")}</p>
               <div className="external-arrival-actions">
                 <a
                   href={`${GITHUB_URL}/releases/tag/v0.1.0`}
@@ -795,7 +826,7 @@ function LandingPage() {
                   rel="noreferrer"
                   target="_blank"
                 >
-                  Inspect v0.1.0
+                  {t("inspectRelease")}
                 </a>
                 <a
                   href={`https://deploy.workers.cloudflare.com/?url=${GITHUB_URL}`}
@@ -803,34 +834,34 @@ function LandingPage() {
                   rel="noreferrer"
                   target="_blank"
                 >
-                  Deploy your own
+                  {t("deployOwn")}
                 </a>
               </div>
             </aside>
           ) : null}
-          <div className="hero-links" aria-label="Learn about elm chat">
+          <div className="hero-links" aria-label={t("learnAbout")}>
             <a className="hero-link" href={whyUseUrl} rel="noreferrer" target="_blank">
-              Why use this?
+              {t("whyUse")}
             </a>
             <a className="hero-link" href={articleUrl} rel="noreferrer" target="_blank">
-              Read the article
+              {t("readArticle")}
             </a>
             <a className="hero-link" href="/press">
-              Press kit
+              {t("pressKit")}
             </a>
             <a className="hero-link" href="/security-and-limitations">
-              Security status
+              {t("securityStatus")}
             </a>
           </div>
           <p className="eyebrow">elm chat</p>
-          <h1>Instant chat. Account-free, encrypted, fast and disposable.</h1>
+          <h1>{t("heroTitle")}</h1>
           <p className="lede">
-            Encrypted link-based chat with color identity, no usernames, and room rules you set before anyone joins.
+            {t("heroCopy")}
           </p>
           <div className="creation-panel">
             <div className="setting-row">
               <div>
-                <span className="setting-label">Message vanish</span>
+                <span className="setting-label">{t("messageVanish")}</span>
                 <p className="setting-note">
                   {formatSelectedDuration(
                     messageDuration.amount,
@@ -864,9 +895,9 @@ function LandingPage() {
                   }
                   value={messageDuration.unit}
                 >
-                  <option value="minutes">Minutes</option>
-                  <option value="hours">Hours</option>
-                  <option value="days">Days</option>
+                  <option value="minutes">{t("minutes")}</option>
+                  <option value="hours">{t("hours")}</option>
+                  <option value="days">{t("days")}</option>
                 </select>
                 <label className="toggle-pill">
                   <input
@@ -876,17 +907,17 @@ function LandingPage() {
                     }
                     type="checkbox"
                   />
-                  <span>Indefinite</span>
+                  <span>{t("indefinite")}</span>
                 </label>
               </div>
             </div>
             <div className="setting-row">
               <div>
-                <span className="setting-label">Room self-destruct</span>
+                <span className="setting-label">{t("roomSelfDestruct")}</span>
                 <p className="setting-note">
                   {roomDuration.indefinite
-                    ? "Only manual destroy"
-                    : `${formatSelectedDuration(roomDuration.amount, roomDuration.unit, false)} idle`}
+                    ? t("onlyManualDestroy")
+                    : `${formatSelectedDuration(roomDuration.amount, roomDuration.unit, false)} ${t("idle")}`}
                 </p>
               </div>
               <div
@@ -914,9 +945,9 @@ function LandingPage() {
                   }
                   value={roomDuration.unit}
                 >
-                  <option value="minutes">Minutes</option>
-                  <option value="hours">Hours</option>
-                  <option value="days">Days</option>
+                  <option value="minutes">{t("minutes")}</option>
+                  <option value="hours">{t("hours")}</option>
+                  <option value="days">{t("days")}</option>
                 </select>
                 <label className="toggle-pill">
                   <input
@@ -926,18 +957,19 @@ function LandingPage() {
                     }
                     type="checkbox"
                   />
-                  <span>Indefinite</span>
+                  <span>{t("indefinite")}</span>
                 </label>
               </div>
             </div>
           </div>
           <div className="hero-actions">
             <button className="primary-button" disabled={creating} onClick={handleCreate}>
-              {creating ? "Creating room..." : "Create private conversation"}
+              {creating ? t("creatingRoom") : t("createRoom")}
             </button>
             <p className="helper-text">
-              Room secret stays in the URL fragment and never reaches the server.
+              {t("roomSecret")}
             </p>
+            <p className="helper-text">{t("securityWarning")}</p>
           </div>
           {error ? <p className="error-text">{error}</p> : null}
         </div>
@@ -955,10 +987,10 @@ function LandingPage() {
           >
             <GithubMark size={22} />
             <span className="github-cta-copy">
-              <strong>Star or inspect on GitHub</strong>
-              <span>Open source. Review every claim, fork it, or help build it.</span>
+              <strong>{t("githubHeadline")}</strong>
+              <span>{t("githubCopy")}</span>
             </span>
-            <span className="github-cta-stats" aria-label="GitHub stars and forks">
+            <span className="github-cta-stats" aria-label={t("githubStats")}>
               {ghStats.stars !== null ? (
                 <span className="github-stat">
                   <span aria-hidden="true">★</span> {formatCount(ghStats.stars)}
@@ -971,12 +1003,12 @@ function LandingPage() {
               ) : null}
             </span>
           </a>
-          <div className="github-links" aria-label="Project source">
+          <div className="github-links" aria-label={t("projectSource")}>
             <a className="github-mini" href={GITHUB_URL} rel="noreferrer" target="_blank">
-              <GithubMark size={13} /> View source
+              <GithubMark size={13} /> {t("viewSource")}
             </a>
             <a className="github-mini" href={`${GITHUB_URL}/fork`} rel="noreferrer" target="_blank">
-              Fork me
+              {t("forkMe")}
             </a>
             <a
               className="github-mini"
@@ -987,26 +1019,79 @@ function LandingPage() {
               rel="noreferrer"
               target="_blank"
             >
-              Pick a starter issue
+              {t("starterIssue")}
             </a>
           </div>
           </div>
+          <div className="github-community" aria-label={t("communityTitle")}>
+            <div className="community-section">
+              <div className="community-heading">
+                <h2>{t("latestFixes")}</h2>
+                <a href={`${GITHUB_URL}/issues?q=is%3Aissue%20state%3Aclosed`} rel="noreferrer" target="_blank">
+                  {t("viewAll")}
+                </a>
+              </div>
+              {community?.fixes.map((issue) => (
+                <a className="community-fix" href={issue.url} key={issue.number} rel="noreferrer" target="_blank">
+                  <span className="community-number">#{issue.number}</span>
+                  <span className="community-title">{issue.title}</span>
+                </a>
+              ))}
+              {community && community.fixes.length === 0 ? <p className="community-empty">{t("noFixes")}</p> : null}
+            </div>
+            <div className="community-section">
+              <div className="community-heading">
+                <h2>{t("openRequests")}</h2>
+                <a href={`${GITHUB_URL}/issues?q=is%3Aissue%20state%3Aopen`} rel="noreferrer" target="_blank">
+                  {t("viewAll")}
+                </a>
+              </div>
+              {community?.requests.map((issue) => (
+                <div className="community-request" key={issue.number}>
+                  <a className="community-request-title" href={issue.url} rel="noreferrer" target="_blank">
+                    <span className="community-number">#{issue.number}</span>
+                    <span className="community-title">{issue.title}</span>
+                  </a>
+                  <a
+                    aria-label={t("voteFor", { title: issue.title, count: issue.votes })}
+                    className="community-vote"
+                    href={issue.url}
+                    rel="noreferrer"
+                    target="_blank"
+                    title={t("voteOnGithub")}
+                  >
+                    {t("vote")} <strong>{issue.votes}</strong>
+                  </a>
+                </div>
+              ))}
+              {community && community.requests.length === 0 ? (
+                <p className="community-empty">{t("noRequests")}</p>
+              ) : null}
+              {community ? <p className="community-note">{t("voteNote")}</p> : null}
+            </div>
+            {!community && !communityError ? <p className="community-empty">{t("loadingCommunity")}</p> : null}
+            {communityError ? (
+              <p className="community-empty">{t("communityUnavailable")}{" "}
+                <a href={`${GITHUB_URL}/issues`} rel="noreferrer" target="_blank">{t("viewOnGithub")}</a>
+              </p>
+            ) : null}
+          </div>
           <div className="hero-metrics">
             <div>
-              <span>Access</span>
-              <strong>Secret link only</strong>
+              <span>{t("access")}</span>
+              <strong>{t("secretLinkOnly")}</strong>
             </div>
             <div>
-              <span>Message policy</span>
+              <span>{t("messagePolicy")}</span>
               <strong>
                 {messageDuration.indefinite
-                  ? "Manual cleanup"
+                  ? t("manualCleanup")
                   : formatSelectedDuration(messageDuration.amount, messageDuration.unit, false)}
               </strong>
             </div>
             <div>
-              <span>Room policy</span>
-              <strong>{roomDuration.indefinite ? "No idle timeout" : "Idle self-destruct"}</strong>
+              <span>{t("roomPolicy")}</span>
+              <strong>{roomDuration.indefinite ? t("noIdleTimeout") : t("idleSelfDestruct")}</strong>
             </div>
           </div>
         </div>
@@ -1026,7 +1111,7 @@ function RoomPage({ roomId }: { roomId: string }) {
   const [draft, setDraft] = useState("");
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [connection, setConnection] = useState("Connecting");
+  const [connection, setConnection] = useState(t("connecting"));
   const [presence, setPresence] = useState<PresenceSnapshot>({ count: 0, connectedSessionIds: [] });
   const [now, setNow] = useState(Date.now());
   const [roomNotice, setRoomNotice] = useState<string | null>(null);
@@ -1063,6 +1148,7 @@ function RoomPage({ roomId }: { roomId: string }) {
   const roomStatusRef = useRef<RoomMetadata["status"] | null>(null);
   const chatLogRef = useRef<HTMLElement | null>(null);
   const messageRef = useRef(new Map<string, EncryptedMessageEnvelope>());
+  const replayGuardRef = useRef(new ReplayGuard());
   const measuredInviteHandoffsRef = useRef(new Set<string>());
   const shouldRequestSyncRef = useRef(false);
   // Files being served by this client (we are the sender), kept in memory so we
@@ -1206,7 +1292,7 @@ function RoomPage({ roomId }: { roomId: string }) {
     }
     for (const file of Array.from(fileList)) {
       if (file.size > MAX_FILE_BYTES) {
-        setError(`"${file.name}" is larger than the ${formatBytes(MAX_FILE_BYTES)} limit.`);
+        setError(t("fileTooLarge", { name: file.name, limit: formatBytes(MAX_FILE_BYTES) }));
         continue;
       }
       const fileId = generateMessageId();
@@ -1250,7 +1336,7 @@ function RoomPage({ roomId }: { roomId: string }) {
         expiresAfterReadSeconds
       });
       if (!delivered) {
-        setError("File shared locally, but delivery to other participants is not ready yet.");
+        setError(t("fileDeliveryPending"));
       }
     }
     if (fileInputRef.current) {
@@ -1263,13 +1349,13 @@ function RoomPage({ roomId }: { roomId: string }) {
     const requested = sendPeerData({ type: "file_request", fileId }, senderSessionId);
     if (!requested) {
       updateFileMessage(fileId, { state: "error" });
-      setError("Could not reach the sender to start the download.");
+      setError(t("fileRequestFailed"));
     }
   }
 
   useEffect(() => {
     if (!roomSecret) {
-      setError("Missing room secret in the URL fragment.");
+      setError(t("missingSecret"));
       return;
     }
 
@@ -1293,7 +1379,7 @@ function RoomPage({ roomId }: { roomId: string }) {
         setRoom(metadata);
         if (metadata.status !== "open") {
           setReady(true);
-          setConnection("Closed");
+          setConnection(t("closed"));
           setRoomNotice(roomStateMessage(metadata.status));
           return;
         }
@@ -1302,7 +1388,7 @@ function RoomPage({ roomId }: { roomId: string }) {
         socketRef.current = socket;
 
         socket.addEventListener("open", () => {
-          setConnection("Connected");
+          setConnection(t("connected"));
           joinedRef.current = false;
           socket.send(
             JSON.stringify({
@@ -1342,7 +1428,7 @@ function RoomPage({ roomId }: { roomId: string }) {
             if (attempt < 5) {
               const delay = Math.min(500 * 2 ** attempt, 8000);
               reconnectAttemptRef.current = attempt + 1;
-              setConnection(`Reconnecting in ${Math.ceil(delay / 1000)}s`);
+              setConnection(t("reconnecting", { seconds: Math.ceil(delay / 1000) }));
               reconnectTimerRef.current = window.setTimeout(() => {
                 reconnectTimerRef.current = null;
                 void bootstrap();
@@ -1350,11 +1436,11 @@ function RoomPage({ roomId }: { roomId: string }) {
               return;
             }
           }
-          setConnection(roomStatusRef.current === "open" ? "Disconnected" : "Closed");
+          setConnection(roomStatusRef.current === "open" ? t("disconnected") : t("closed"));
         });
 
         socket.addEventListener("error", () => {
-          setConnection("Error");
+          setConnection(t("connectionError"));
         });
 
         socket.addEventListener("message", async (event) => {
@@ -1453,7 +1539,7 @@ function RoomPage({ roomId }: { roomId: string }) {
               setRoomNotice(roomStateMessage(payload.status, payload.reason));
               setDestroying(false);
               setDestroyFeedback(payload.status === "destroyed" ? "success" : "idle");
-              setConnection("Closed");
+              setConnection(t("closed"));
             });
             sendPeerData({ type: "peer_destroy" });
             return;
@@ -1465,7 +1551,7 @@ function RoomPage({ roomId }: { roomId: string }) {
               setRemovedFromRoom(true);
               setRoomNotice(null);
               setError(null);
-              setConnection("Closed");
+              setConnection(t("closed"));
               joinedRef.current = false;
               socket.close();
             }
@@ -1503,8 +1589,8 @@ function RoomPage({ roomId }: { roomId: string }) {
           }
         });
       } catch (cause) {
-        const message = cause instanceof Error ? cause.message : "Failed to join room.";
-        if (message === "Room not found.") {
+        const message = cause instanceof Error ? cause.message : t("failedJoinRoom");
+        if (message === t("roomNotFoundError")) {
           setNotFound(true);
           setReady(true);
           return;
@@ -1513,26 +1599,31 @@ function RoomPage({ roomId }: { roomId: string }) {
       }
     }
 
-    async function addEnvelope(envelope: EncryptedMessageEnvelope) {
-      if (messageRef.current.has(envelope.messageId)) {
+    async function addEnvelope(envelope: EncryptedMessageEnvelope, relaySenderId?: string) {
+      if (
+        !envelope ||
+        envelope.protocolVersion !== MESSAGE_PROTOCOL_VERSION ||
+        (relaySenderId && relaySenderId !== envelope.senderSessionId)
+      ) {
+        setError(t("alteredMessage"));
         return;
       }
-
-      const expiresAt =
-        typeof envelope.expiresAfterReadSeconds === "number"
-          ? envelope.sentAt + envelope.expiresAfterReadSeconds * 1000
-          : undefined;
-      if (typeof expiresAt === "number" && expiresAt <= Date.now()) {
-        return;
-      }
-
-      messageRef.current.set(envelope.messageId, envelope);
       if (!roomKeyRef.current) {
         return;
       }
 
       try {
-        const plaintext = await decryptText(roomKeyRef.current, envelope.ciphertext, envelope.nonce);
+        let plaintext = "";
+        const accepted = await replayGuardRef.current.accept(envelope.messageId, async () => {
+          plaintext = await decryptMessage(roomKeyRef.current!, roomId, envelope);
+        });
+        if (!accepted) return;
+        const expiresAt =
+          typeof envelope.expiresAfterReadSeconds === "number"
+            ? envelope.sentAt + envelope.expiresAfterReadSeconds * 1000
+            : undefined;
+        if (typeof expiresAt === "number" && expiresAt <= Date.now()) return;
+        messageRef.current.set(envelope.messageId, envelope);
 
         startTransition(() => {
           setMessages((current) =>
@@ -1546,15 +1637,19 @@ function RoomPage({ roomId }: { roomId: string }) {
             })
           );
         });
-      } catch {
-        setError("Could not decrypt a message. Check that you opened the full capability link.");
+      } catch (cause) {
+        setError(
+          cause instanceof Error && cause.message === "Message replay limit reached."
+            ? t("replayLimit")
+            : t("authFailed")
+        );
       }
     }
 
     async function handlePeerData(peerId: string, raw: string) {
       const payload = JSON.parse(raw) as PeerDataEvent;
       if (payload.type === "chat_message") {
-        await addEnvelope(payload.envelope);
+        await addEnvelope(payload.envelope, peerId);
         return;
       }
 
@@ -1637,8 +1732,8 @@ function RoomPage({ roomId }: { roomId: string }) {
 
       if (payload.type === "peer_destroy") {
         reconnectAllowed = false;
-        setRoomNotice("A connected peer destroyed this room.");
-        setConnection("Closed");
+        setRoomNotice(t("peerDestroyed"));
+        setConnection(t("closed"));
       }
     }
 
@@ -1753,21 +1848,30 @@ function RoomPage({ roomId }: { roomId: string }) {
       return;
     }
 
-    const encrypted = await encryptText(roomKeyRef.current, trimmed);
     const sentAt = Date.now();
     const expiresAt =
       typeof room.disappearAfterReadSeconds === "number"
         ? sentAt + room.disappearAfterReadSeconds * 1000
         : undefined;
     const envelope: EncryptedMessageEnvelope = {
+      protocolVersion: MESSAGE_PROTOCOL_VERSION,
       messageId: generateMessageId(),
       senderSessionId: sessionId,
-      ciphertext: encrypted.ciphertext,
-      nonce: encrypted.nonce,
+      ciphertext: "",
+      nonce: "",
       sentAt,
       expiresAfterReadSeconds: room.disappearAfterReadSeconds ?? null
     };
+    const encrypted = await encryptMessage(roomKeyRef.current, roomId, envelope, trimmed);
+    envelope.ciphertext = encrypted.ciphertext;
+    envelope.nonce = encrypted.nonce;
 
+    try {
+      replayGuardRef.current.markLocal(envelope.messageId);
+    } catch {
+      setError(t("replayLimit"));
+      return;
+    }
     messageRef.current.set(envelope.messageId, envelope);
     setDraft("");
     setError(null);
@@ -1785,12 +1889,12 @@ function RoomPage({ roomId }: { roomId: string }) {
     });
 
     if (!joinedRef.current || socketRef.current?.readyState !== WebSocket.OPEN) {
-      setError("Message saved locally, but room transport is not ready yet.");
+      setError(t("messageDeliveryPending"));
       return;
     }
 
     if (!sendPeerData({ type: "chat_message", envelope })) {
-      setError("Message saved locally, but delivery to other participants failed.");
+      setError(t("messageDeliveryFailed"));
     }
   }
 
@@ -1818,7 +1922,7 @@ function RoomPage({ roomId }: { roomId: string }) {
       setError(null);
       return;
     }
-    setError("Clipboard access is blocked in this browser context. Copy the link manually from the address bar.");
+    setError(t("clipboardLinkFailed"));
   }
 
   function recordInviteHandoff(token: string) {
@@ -1842,18 +1946,18 @@ function RoomPage({ roomId }: { roomId: string }) {
         try {
           await navigator.share({
             title: "elm.chat invite",
-            text: "Join my disposable elm.chat room. This single-use link expires.",
+            text: t("inviteShareText"),
             url: inviteUrl
           });
           recordInviteHandoff(invite.token);
           setInviteFeedback("shared");
-          setRoomNotice("Invite handed to your selected app. The link can only be used once.");
+          setRoomNotice(t("sharedInviteNotice"));
           setError(null);
           return;
         } catch (cause) {
           if (cause instanceof DOMException && cause.name === "AbortError") {
             setInviteFeedback("idle");
-            setRoomNotice("Invite created. Choose Share or Copy below when you are ready.");
+            setRoomNotice(t("createdInviteNotice"));
             setError(null);
             return;
           }
@@ -1862,15 +1966,15 @@ function RoomPage({ roomId }: { roomId: string }) {
       if (await copyText(inviteUrl)) {
         recordInviteHandoff(invite.token);
         setInviteFeedback("copied");
-        setRoomNotice("Invite copied. Send it to one person—the link can only be used once.");
+        setRoomNotice(t("copiedInviteNotice"));
         setError(null);
         return;
       }
       setInviteFeedback("idle");
-      setRoomNotice("Invite created. Copy it below and send it to one person.");
+      setRoomNotice(t("inviteCopyBelow"));
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Failed to create invite.");
+      setError(cause instanceof Error ? cause.message : t("createInviteFailed"));
     }
   }
 
@@ -1878,11 +1982,11 @@ function RoomPage({ roomId }: { roomId: string }) {
     if (await copyText(buildInviteUrl(roomId, token, roomSecret))) {
       recordInviteHandoff(token);
       setInviteFeedback("copied");
-      setRoomNotice("Invite copied. Send it to one person—the link can only be used once.");
+      setRoomNotice(t("copiedInviteNotice"));
       setError(null);
       return;
     }
-    setError("Clipboard access is blocked in this browser context. Copy the invite URL manually.");
+    setError(t("clipboardInviteFailed"));
   }
 
   async function handleNativeShareInvite(token: string) {
@@ -1892,16 +1996,16 @@ function RoomPage({ roomId }: { roomId: string }) {
     try {
       await navigator.share({
         title: "elm.chat invite",
-        text: "Join my disposable elm.chat room. This single-use link expires.",
+        text: t("inviteShareText"),
         url: buildInviteUrl(roomId, token, roomSecret)
       });
       recordInviteHandoff(token);
       setInviteFeedback("shared");
-      setRoomNotice("Invite handed to your selected app. The link can only be used once.");
+      setRoomNotice(t("sharedInviteNotice"));
       setError(null);
     } catch (cause) {
       if (!(cause instanceof DOMException && cause.name === "AbortError")) {
-        setError("This browser could not open its share menu. Copy the invite instead.");
+        setError(t("shareMenuFailed"));
       }
     }
   }
@@ -1917,9 +2021,9 @@ function RoomPage({ roomId }: { roomId: string }) {
           invite.token === token ? { ...invite, revokedAt: Date.now() } : invite
         )
       );
-      setRoomNotice("Invite removed.");
+      setRoomNotice(t("removedInviteNotice"));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Failed to revoke invite.");
+      setError(cause instanceof Error ? cause.message : t("revokeInviteFailed"));
     }
   }
 
@@ -1949,7 +2053,7 @@ function RoomPage({ roomId }: { roomId: string }) {
       setRoom(next);
     } catch (cause) {
       setDestroying(false);
-      setError(cause instanceof Error ? cause.message : "Failed to destroy room.");
+      setError(cause instanceof Error ? cause.message : t("destroyRoomFailed"));
     }
   }
 
@@ -1959,8 +2063,8 @@ function RoomPage({ roomId }: { roomId: string }) {
   );
   const messagePolicyLabel =
     typeof room?.disappearAfterReadSeconds === "number"
-      ? `Messages vanish after ${formatStaticDuration(room.disappearAfterReadSeconds)}.`
-      : "Messages stay until someone destroys the room.";
+      ? t("messagesVanish", { duration: formatStaticDuration(room.disappearAfterReadSeconds) })
+      : t("messagesStay");
   const idleDeadline =
     typeof room?.inactivityTimeoutMs === "number"
       ? room.lastActivityAt + room.inactivityTimeoutMs
@@ -1973,8 +2077,8 @@ function RoomPage({ roomId }: { roomId: string }) {
         : idleDeadline;
   const roomPolicyLabel =
     typeof roomDeadline === "number"
-      ? `Room self-destructs in ${formatRelativeDuration(roomDeadline)}.`
-      : "Room stays open until someone destroys it.";
+      ? t("roomExpires", { duration: formatRelativeDuration(roomDeadline) })
+      : t("roomStays");
   const isCreator = Boolean(creatorToken);
 
   if (removedFromRoom) {
@@ -1989,7 +2093,7 @@ function RoomPage({ roomId }: { roomId: string }) {
     return (
       <RoomGoneScreen
         fromInvite={isInviteGuest}
-        reason="This room no longer exists. It may have already self-destructed."
+        reason={t("roomNotFound")}
       />
     );
   }
@@ -2020,7 +2124,7 @@ function RoomPage({ roomId }: { roomId: string }) {
         <div className="room-toolbar">
           <div className="room-meta" aria-live="polite">
             <span>{connection}</span>
-            <span>{presentCount} present</span>
+            <span>{t("present", { count: presentCount })}</span>
           </div>
           <div className="room-actions">
             {isCreator ? (
@@ -2030,12 +2134,12 @@ function RoomPage({ roomId }: { roomId: string }) {
                 type="button"
               >
                 {inviteFeedback === "shared"
-                  ? "Invite shared"
+                  ? t("inviteShared")
                   : inviteFeedback === "copied"
-                    ? "Invite copied—send it"
+                    ? t("inviteCopiedSend")
                     : typeof navigator.share === "function"
-                      ? "Send invite"
-                      : "Invite one person"}
+                      ? t("sendInvite")
+                      : t("inviteOne")}
               </button>
             ) : (
               <button
@@ -2043,7 +2147,7 @@ function RoomPage({ roomId }: { roomId: string }) {
                 onClick={handleCopyLink}
                 type="button"
               >
-                {copyFeedback === "success" ? "Copied" : "Copy my link"}
+                {copyFeedback === "success" ? t("copied") : t("copyMyLink")}
               </button>
             )}
             <button
@@ -2052,25 +2156,25 @@ function RoomPage({ roomId }: { roomId: string }) {
               onClick={handleDestroy}
               type="button"
             >
-              {destroying ? "Destroying..." : destroyFeedback === "success" ? "Destroyed" : "Destroy"}
+              {destroying ? t("destroying") : t("destroy")}
             </button>
           </div>
           <span className="sr-only" role="status" aria-live="polite">
             {inviteFeedback === "shared"
-              ? "Invite shared."
+              ? t("inviteSharedStatus")
               : inviteFeedback === "copied"
-                ? "Invite copied."
+                ? t("inviteCopiedStatus")
                 : copyFeedback === "success"
-                  ? "Room link copied."
+                  ? t("roomLinkCopiedStatus")
                   : ""}
           </span>
         </div>
       </header>
 
       <section className="room-strip">
-        <div className="participant-strip" aria-label="Participants">
+        <div className="participant-strip" aria-label={t("participants")}>
           {sortedPresenceIds.length === 0 ? (
-            <span className="participant-empty">Waiting for someone to join.</span>
+            <span className="participant-empty">{t("waiting")}</span>
           ) : (
             sortedPresenceIds.map((id) => (
               <span
@@ -2079,14 +2183,14 @@ function RoomPage({ roomId }: { roomId: string }) {
                 style={{ "--participant-color": colorFromSessionId(id) } as CSSProperties}
               >
                 <span className="participant-dot" />
-                {id === sessionId ? "You" : "Guest"}
+                {id === sessionId ? t("you") : t("guest")}
                 {isCreator && id !== sessionId ? (
                   <button
                     className="participant-kick"
                     onClick={() => handleKickParticipant(id)}
                     type="button"
                   >
-                    Remove
+                    {t("remove")}
                   </button>
                 ) : null}
               </span>
@@ -2099,16 +2203,16 @@ function RoomPage({ roomId }: { roomId: string }) {
       </section>
 
       {isCreator ? (
-        <section className="invite-settings" aria-label="Invite expiration">
+        <section className="invite-settings" aria-label={t("inviteExpiration")}>
           <div>
-            <span className="setting-label">New invite expires</span>
+            <span className="setting-label">{t("newInviteExpires")}</span>
             <p className="setting-note">
-              Applies only to the next single-use invite you create.
+              {t("inviteNextOnly")}
             </p>
           </div>
           <div className="setting-controls">
             <input
-              aria-label="Invite lifetime amount"
+              aria-label={t("inviteLifetimeAmount")}
               className="setting-input"
               inputMode="numeric"
               min="1"
@@ -2119,7 +2223,7 @@ function RoomPage({ roomId }: { roomId: string }) {
               value={inviteDuration.amount}
             />
             <select
-              aria-label="Invite lifetime unit"
+              aria-label={t("inviteLifetimeUnit")}
               className="setting-select"
               onChange={(event) =>
                 setInviteDuration((current) => ({
@@ -2129,9 +2233,9 @@ function RoomPage({ roomId }: { roomId: string }) {
               }
               value={inviteDuration.unit}
             >
-              <option value="minutes">Minutes</option>
-              <option value="hours">Hours</option>
-              <option value="days">Days</option>
+              <option value="minutes">{t("minutes")}</option>
+              <option value="hours">{t("hours")}</option>
+              <option value="days">{t("days")}</option>
             </select>
           </div>
         </section>
@@ -2146,9 +2250,9 @@ function RoomPage({ roomId }: { roomId: string }) {
       {error ? <p className="error-text room-error">{error}</p> : null}
       {isCreator && invites.length > 0 ? (
         <section className="invite-panel">
-          <span className="eyebrow">invites</span>
+          <span className="eyebrow">{t("invites")}</span>
           <p className="invite-guidance">
-            Send one unused invite to one person. Each link expires and can only be used once.
+            {t("inviteGuidance")}
           </p>
           {invites.slice(0, 4).map((invite) => (
             <div className="invite-row" key={invite.token} style={inviteAccentStyle(invite)}>
@@ -2162,17 +2266,17 @@ function RoomPage({ roomId }: { roomId: string }) {
                         onClick={() => handleNativeShareInvite(invite.token)}
                         type="button"
                       >
-                        Share
+                        {t("share")}
                       </button>
                     ) : null}
                     <button className="secondary-button invite-copy" onClick={() => handleCopyInvite(invite.token)} type="button">
-                      Copy invite link
+                      {t("copyInvite")}
                     </button>
                   </>
                 ) : null}
                 {!invite.revokedAt ? (
                   <button className="secondary-button invite-revoke" onClick={() => handleRevokeInvite(invite.token)} type="button">
-                    Remove
+                    {t("remove")}
                   </button>
                 ) : null}
               </div>
@@ -2184,7 +2288,7 @@ function RoomPage({ roomId }: { roomId: string }) {
       <section className="chat-stage">
         <section className="chat-log" ref={chatLogRef}>
         <div className="chat-thread">
-          {!ready ? <p className="system-line">Deriving key and joining room...</p> : null}
+          {!ready ? <p className="system-line">{t("deriving")}</p> : null}
           {messages.length === 0 && ready ? (
             <p className="system-line">{messagePolicyLabel}</p>
           ) : null}
@@ -2196,7 +2300,7 @@ function RoomPage({ roomId }: { roomId: string }) {
                 key={message.id}
                 style={bubbleStyle(message.senderSessionId, mine)}
               >
-                <span className="bubble-author">{mine ? "You" : "Guest"}</span>
+                <span className="bubble-author">{mine ? t("you") : t("guest")}</span>
                 {message.kind === "file" && message.file ? (
                   <FileCard
                     file={message.file}
@@ -2220,11 +2324,11 @@ function RoomPage({ roomId }: { roomId: string }) {
 
       <form className="composer" onSubmit={handleSend}>
         <button
-          aria-label="Attach file"
+          aria-label={t("attachFileLabel")}
           className="secondary-button composer-attach"
           disabled={room?.status !== "open"}
           onClick={() => fileInputRef.current?.click()}
-          title="Attach an encrypted file"
+          title={t("attachFile")}
           type="button"
         >
           &#128206;
@@ -2237,16 +2341,16 @@ function RoomPage({ roomId }: { roomId: string }) {
           type="file"
         />
         <textarea
-          aria-label="Write an encrypted message"
+          aria-label={t("writeMessageLabel")}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleComposerKeyDown}
-          placeholder={room?.status === "open" ? "Write a message" : roomNotice ?? "Room is closed"}
+          placeholder={room?.status === "open" ? t("writeMessage") : roomNotice ?? t("roomClosed")}
           disabled={room?.status !== "open"}
           rows={3}
         />
         <button className="primary-button" type="submit" disabled={!draft.trim() || room?.status !== "open"}>
-          Send encrypted
+          {t("sendEncrypted")}
         </button>
       </form>
     </main>

@@ -41,7 +41,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
             <li>Message and file content is encrypted and decrypted in participant browsers.</li>
             <li>The room secret is carried in the URL fragment during normal use, so it is not sent to the server in an HTTP request.</li>
             <li>The Cloudflare relay handles ciphertext and does not persist a server-side transcript.</li>
-            <li><strong>Message authentication and replay/duplicate protections are not implemented yet.</strong></li>
+            <li><strong>Text protocol v2 authenticates to the shared room key and rejects duplicates in a live page session. It does not verify a sender's identity or retain replay state after refresh.</strong></li>
           </ul>
         </section>
 
@@ -242,7 +242,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
           </p>
           <p>
             The relay can still observe ordinary metadata such as IP addresses, connection timing,
-            presence, and encrypted payload sizes. Message authentication is not implemented yet,
+            presence, and encrypted payload sizes. File-event authentication and sender identity verification are not implemented yet,
             and elm.chat has not completed an independent security audit. Do not treat it as an
             anonymous drop box, a compliance product, or a high-risk document-submission system.
           </p>
@@ -515,7 +515,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
           </p>
           <p>
             It is not appropriate for anonymous or high-risk sourcing. It has not had an independent
-            security audit, message authentication is not implemented yet, and Cloudflare can
+            security audit, file-event authentication and sender identity verification are not implemented yet, and Cloudflare can
             observe ordinary relay metadata including IP addresses, timing, sizes, and presence.
             A participant or compromised device can retain everything received.
           </p>
@@ -630,7 +630,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
           </ul>
           <p>
             elm.chat is early-stage, has not had an independent security audit, and does not yet
-            implement message authentication. It should not be presented as production-ready
+            verify sender identity or authenticate file events. It should not be presented as production-ready
             financial infrastructure or used for high-risk financial information on the strength
             of this article.
           </p>
@@ -704,7 +704,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
           <h2>Limits every story should preserve</h2>
           <ul>
             <li>elm.chat has not had an independent security audit.</li>
-            <li>Message authentication is not implemented yet.</li>
+            <li>Text messages authenticate to the shared room key, but sender identity and file events are not authenticated.</li>
             <li>Cloudflare can observe ordinary relay metadata such as IP addresses, timing, sizes, and presence.</li>
             <li>A participant, screenshot, clipboard, download, photograph, or compromised device can retain content.</li>
             <li>The project is not an anonymity network, a compliance product, or production-ready financial infrastructure.</li>
@@ -848,7 +848,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
           </p>
           <p>
             It is also early. It has not completed an independent security audit. Message
-            authentication is unfinished. Cloudflare can observe ordinary connection metadata such
+            sender identity and file-event authentication are unfinished. Cloudflare can observe ordinary connection metadata such
             as IP addresses, timing, sizes, and presence. Participant devices can retain everything
             they receive. elm.chat is not an anonymity network or a high-risk source-protection tool.
             Publishing those boundaries is part of the experiment, not an apology hidden after the
@@ -941,8 +941,8 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
         <section>
           <h2>Honesty matters more than a perfect privacy story</h2>
           <p>
-            elm.chat has not had an independent security audit. Message authentication is not yet
-            complete. Cloudflare can observe ordinary relay metadata such as IP addresses, timing,
+            elm.chat has not had an independent security audit. Text protocol v2 does not verify a
+            sender&apos;s identity or protect file-event metadata. Cloudflare can observe relay metadata such as IP addresses, timing,
             sizes, and presence. A compromised device, screenshot, clipboard manager, photograph,
             or malicious recipient can preserve what the room was designed to forget.
           </p>
@@ -1174,8 +1174,8 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.`}</code>
           <p>
             The tradeoffs are explicit. Cloudflare can observe IP addresses, connection timing,
             sizes, and presence. Participants can retain plaintext. Peer-supplied history is not a
-            trustworthy archive, and message authentication plus replay and duplicate protection
-            remain unfinished. The project has not had an independent security audit and is not an
+            trustworthy archive; text replay protection ends on refresh, and file-event
+            authentication remains unfinished. The project has not had an independent security audit and is not an
             anonymity, compliance, whistleblowing, or high-risk communications system.
           </p>
         </section>
@@ -1265,7 +1265,7 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.`}</code>
             <li>Files are split into 64 KiB chunks and encrypted chunk by chunk.</li>
             <li>The browser holds the room key and current transcript in memory.</li>
             <li>The server stores room policy, status, creator capability, and invite state.</li>
-            <li>Ephemeral identity keys exist, but message authentication is not implemented yet.</li>
+            <li>Text protocol v2 authenticates message fields to the shared room key. Ephemeral identity keys do not yet verify sender identity.</li>
           </ul>
           <p>
             The current design does not solve device compromise, screenshots, malicious recipients,
@@ -1627,8 +1627,8 @@ admitSocket();`}</code>
             <li><a href={THREAT_MODEL_URL} rel="noreferrer" target="_blank">Threat model and known limits</a></li>
           </ul>
           <p>
-            elm.chat has not had an independent security audit. Message authentication and
-            replay/duplicate protection are unfinished, the Cloudflare relay sees ordinary
+            elm.chat has not had an independent security audit. Sender identity, file-event
+            authentication, and replay protection after refresh are unfinished; the Cloudflare relay sees ordinary
             connection metadata, and endpoints can retain copies. Do not use it as an anonymity,
             high-risk, regulated-data, or production-finance system.
           </p>
@@ -1720,7 +1720,8 @@ server.serializeAttachment({
           <p>
             This deliberately gives up server-backed recovery. If every browser that held an item
             disconnects, a later participant cannot retrieve it. A malicious peer can also omit or
-            reorder sync data, and message authentication is not implemented yet.
+            reorder sync data. Text protocol v2 authenticates individual messages to the shared room key,
+            but does not authenticate which participant supplied the transcript.
           </p>
         </section>
 

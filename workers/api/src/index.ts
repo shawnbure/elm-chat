@@ -8,6 +8,7 @@ import {
   type CreateRoomResponse
 } from "@elm-chat/shared";
 import { RoomDurableObject } from "../../../durable-objects/room/src/room";
+import { getCommunityFeed } from "./community";
 
 export { RoomDurableObject };
 
@@ -386,6 +387,12 @@ function routeApi(request: Request, env: Env): Promise<Response> {
 
   if (request.method === "GET" && url.pathname === "/api/stars") {
     return handleGithubStats();
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/community") {
+    return getCommunityFeed()
+      .then((feed) => json(feed))
+      .catch(() => json({ error: "Community feed unavailable." }, 503));
   }
 
   const revokeMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)\/invites\/revoke$/);

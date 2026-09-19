@@ -415,6 +415,103 @@ select {
   text-decoration: underline;
 }
 
+.github-community {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  margin: 20px 0;
+}
+
+.community-section {
+  min-width: 0;
+}
+
+.community-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+
+.community-heading h2 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.community-heading a,
+.community-empty a {
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.community-fix,
+.community-request {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--line);
+  padding: 9px 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.community-fix,
+.community-request-title {
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.community-fix:hover .community-title,
+.community-request-title:hover .community-title {
+  text-decoration: underline;
+}
+
+.community-request-title {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 auto;
+}
+
+.community-number {
+  flex: 0 0 auto;
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.community-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.community-vote {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent-strong);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.community-vote:hover {
+  text-decoration: underline;
+}
+
+.community-note,
+.community-empty {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
 .signal-grid {
   position: absolute;
   inset: 0;

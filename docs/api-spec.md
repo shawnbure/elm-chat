@@ -132,10 +132,10 @@ Upgrades to the room WebSocket. This carries both control and **relayed encrypte
 
 ## Peer Data Protocol
 
-These events are the end-to-end encrypted payloads carried inside `peer_data`. They are **relayed through the Durable Object** (broadcast, or targeted via `toSessionId`); the server forwards ciphertext and cannot read them.
+These events are carried inside `peer_data`. They are **relayed through the Durable Object** (broadcast, or targeted via `toSessionId`). Text and file-chunk content are encrypted; event types and metadata remain visible to the relay. Text-message v2 associated data and replay rules are documented in [message protocol v2](message-protocol-v2.md).
 
 ```json
-{ "type": "chat_message", "envelope": { "messageId": "uuid", "senderSessionId": "uuid", "ciphertext": "base64url", "nonce": "base64url", "sentAt": 1744150200000, "expiresAfterReadSeconds": 420 } }
+{ "type": "chat_message", "envelope": { "protocolVersion": 2, "messageId": "uuid", "senderSessionId": "uuid", "ciphertext": "base64url", "nonce": "base64url", "sentAt": 1744150200000, "expiresAfterReadSeconds": 420 } }
 { "type": "sync_request" }
 { "type": "sync_response", "messages": [ /* array of envelopes, capped to MAX_TRANSCRIPT_SYNC_MESSAGES */ ] }
 { "type": "peer_destroy" }

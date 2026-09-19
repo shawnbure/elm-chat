@@ -71,6 +71,7 @@ On the landing screen, a visitor sees:
 - a `Create private conversation` action
 - a note that the room secret stays in the URL fragment and does not normally reach the server
 - a quick summary panel for access, message policy, and room policy
+- up to five recently closed GitHub issues and five open requests, with links to add a thumbs-up reaction on GitHub
 
 Inside a room, people see:
 
@@ -87,6 +88,8 @@ Inside a room, people see:
 - a room that is meant to disappear instead of becoming a permanent archive
 
 The interface is meant to feel immediate, readable, and disposable. It should communicate privacy without turning the user experience into a configuration maze.
+
+The interactive room shell supports English and Spanish from the browser's language preferences, with English as the fallback. The longer articles remain in English. The GitHub activity panel uses a same-origin Worker endpoint with a short cache; voting happens on GitHub and requires a GitHub account.
 
 ## Intent
 
@@ -126,7 +129,7 @@ The shipping implementation is built around:
 
 elm-chat does not use WebRTC peer-to-peer transport, and it contacts no STUN or TURN servers. Relaying encrypted payloads through the Durable Object is a deliberate choice: it keeps every participant's IP address private from other room members (naive WebRTC would leak peer IPs via ICE), needs no TURN server, and works reliably on mobile and restrictive networks. The trade-off is that the honest-but-curious server relays ciphertext and can observe connection metadata (timing, sizes, presence).
 
-The long-term direction may add an optional direct-peer transport for participants who accept the IP-exposure trade-off, plus message authentication using the ephemeral identity keys already exchanged on join.
+The long-term direction may add an optional direct-peer transport for participants who accept the IP-exposure trade-off, plus sender identity verification using the ephemeral identity keys already exchanged on join.
 
 If you are contributing, treat the phrases "footprint-less", "log-less", and "no-server" as the product standard we are aiming toward, not as a slogan. See [docs/architecture.md](docs/architecture.md) and [docs/threat-model.md](docs/threat-model.md) for the precise current model.
 
@@ -384,7 +387,7 @@ Single-use invites are a meaningful improvement, but they do not solve every pro
 
 Risks that still remain:
 
-- message authentication and replay/duplicate protections are not implemented yet
+- text protocol v2 authenticates room and message metadata with AES-GCM and rejects duplicate IDs in the current page session; it does not authenticate a specific sender, protect file-event metadata, or retain replay state after refresh (see [protocol design](docs/message-protocol-v2.md))
 - if an invite is intercepted before the intended recipient redeems it, the first redeemer can still get in
 - if a device is compromised, screenshots, clipboard history, browser history, or malware can still expose the conversation
 - if a participant forwards plaintext, screenshots, or the room secret after joining, the protocol cannot stop human leakage

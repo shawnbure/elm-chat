@@ -103,13 +103,13 @@ Optional invisible Turnstile on room creation limits automated room-creation spa
 - authenticated human identity
 - forward secrecy beyond a shared static room key
 - verified peer device trust
-- message authentication (ephemeral identity keys are exchanged but not yet used to verify messages)
+- authenticated sender identity (text protocol v2 authenticates to the shared room key, but ephemeral identity keys are not used to verify which participant sent it)
 
 ## High-Risk Use Warning
 
 This design is E2E encrypted and ephemeral, but it is not sufficient to claim strong protection for people under severe repression. A production-safe deployment for high-risk users would still need:
 
-- message authentication and replay/duplicate protections
+- independent review of text protocol v2, plus file-event authentication and replay protection across refresh
 - stronger peer/device trust model
 - traffic-analysis resistance
 - denial-of-service handling

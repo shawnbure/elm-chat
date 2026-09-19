@@ -1,4 +1,4 @@
-import { AES_GCM_NONCE_BYTES, HKDF_INFO, KEY_VERSION, ROOM_SECRET_BYTES } from "@elm-chat/shared";
+import { AES_GCM_NONCE_BYTES, HKDF_INFO, KEY_VERSION, MESSAGE_PROTOCOL_VERSION, ROOM_SECRET_BYTES, type EncryptedMessageEnvelope } from "@elm-chat/shared";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -123,6 +123,75 @@ export async function decryptBytes(
   );
 
   return new Uint8Array(plaintext);
+}
+
+type MessageContext = Pick<EncryptedMessageEnvelope,
+  "protocolVersion" | "messageId" | "senderSessionId" | "sentAt" | "expiresAfterReadSeconds">;
+
+function messageAssociatedData(roomId: string, context: MessageContext): Uint8Array {
+  if (
+    context.protocolVersion !== MESSAGE_PROTOCOL_VERSION ||
+    !roomId ||
+    typeof context.messageId !== "string" ||
+    !/^[0-9a-f-]{36}$/i.test(context.messageId) ||
+    typeof context.senderSessionId !== "string" ||
+    !/^[0-9a-f-]{36}$/i.test(context.senderSessionId) ||
+    !Number.isSafeInteger(context.sentAt) ||
+    (context.expiresAfterReadSeconds !== null &&
+      (!Number.isSafeInteger(context.expiresAfterReadSeconds) ||
+        context.expiresAfterReadSeconds < 0))
+  ) {
+    throw new Error("Unsupported or malformed message envelope.");
+  }
+  return encoder.encode(JSON.stringify([
+    "elm-chat-message",
+    MESSAGE_PROTOCOL_VERSION,
+    roomId,
+    context.messageId,
+    context.senderSessionId,
+    context.sentAt,
+    context.expiresAfterReadSeconds
+  ]));
+}
+
+export async function encryptMessage(
+  key: CryptoKey,
+  roomId: string,
+  context: MessageContext,
+  plaintext: string
+): Promise<{ ciphertext: string; nonce: string }> {
+  const nonce = randomBytes(AES_GCM_NONCE_BYTES);
+  const ciphertext = await crypto.subtle.encrypt(
+    {
+      name: "AES-GCM",
+      iv: toArrayBuffer(nonce),
+      additionalData: toArrayBuffer(messageAssociatedData(roomId, context))
+    },
+    key,
+    toArrayBuffer(encoder.encode(plaintext))
+  );
+  return { ciphertext: toBase64Url(new Uint8Array(ciphertext)), nonce: toBase64Url(nonce) };
+}
+
+export async function decryptMessage(
+  key: CryptoKey,
+  roomId: string,
+  envelope: EncryptedMessageEnvelope
+): Promise<string> {
+  const nonce = fromBase64Url(envelope.nonce);
+  if (nonce.byteLength !== AES_GCM_NONCE_BYTES) {
+    throw new Error("Malformed message nonce.");
+  }
+  const plaintext = await crypto.subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv: toArrayBuffer(nonce),
+      additionalData: toArrayBuffer(messageAssociatedData(roomId, envelope))
+    },
+    key,
+    toArrayBuffer(fromBase64Url(envelope.ciphertext))
+  );
+  return decoder.decode(plaintext);
 }
 
 export async function createIdentityKeyPair(): Promise<CryptoKeyPair> {

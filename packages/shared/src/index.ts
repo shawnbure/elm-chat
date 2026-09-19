@@ -2,6 +2,7 @@ export const ROOM_SECRET_BYTES = 32;
 export const ROOM_ID_BYTES = 16;
 export const AES_GCM_NONCE_BYTES = 12;
 export const KEY_VERSION = "v1";
+export const MESSAGE_PROTOCOL_VERSION = 2;
 export const HKDF_INFO = `elm-chat:${KEY_VERSION}:room-key`;
 export const DEFAULT_INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
 export const DEFAULT_MAX_ROOM_AGE_MS = 24 * 60 * 60 * 1000;
@@ -126,13 +127,13 @@ export interface RoomMetadata {
 }
 
 export interface EncryptedMessageEnvelope {
+  protocolVersion: typeof MESSAGE_PROTOCOL_VERSION;
   messageId: string;
   senderSessionId: string;
   ciphertext: string;
   nonce: string;
   sentAt: number;
   expiresAfterReadSeconds: number | null;
-  signature?: string;
 }
 
 export interface PeerDescriptor {
