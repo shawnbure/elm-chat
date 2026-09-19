@@ -86,10 +86,11 @@ envelope documents the refresh/state-loss limit. Decryption under a new room
 key fails. Deadline-boundary checks cover max-age and idle expiry decisions.
 These are automated checks, not a substitute for separate protocol review.
 
-Before closing issue #100, a reviewer other than the implementer should inspect
-the protocol, client event handling, transcript sync, Durable Object deadline
-checks, and endpoint assumptions, then record whether the *documented* room-key
-and live-page replay model is met. Review must not be described as an
-independent security audit of the product. File-event authentication, sender
-identity, and replay controls across refresh need their own design and
-implementation; they are not claims made by text protocol v2.
+A separate review of the protocol, client event handling, transcript sync,
+Durable Object deadline checks, and endpoint assumptions is still recommended
+before relying on the documented room-key and live-page replay model. The
+maintainer waived that review as a prerequisite for closing issue #100; the
+automated checks and maintainer testing do **not** constitute an independent
+security audit. File-event authentication, sender identity, and replay controls
+across refresh need their own design and implementation; they are not claims
+made by text protocol v2.
