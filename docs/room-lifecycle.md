@@ -47,7 +47,7 @@
 ## Expiry
 
 - message expiry is enforced locally by each client using the room policy
-- room expiry is enforced by the Durable Object using lifecycle metadata (idle timeout and/or max age), via an alarm
+- room expiry is enforced by the Durable Object using lifecycle metadata (idle timeout and/or max age), via an alarm and on-path checks before WebSocket admission or event handling
 - if the room expires or is destroyed, the Durable Object closes all sockets and broadcasts `room_state`
 
 ## Manual Destroy
