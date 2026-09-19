@@ -11,7 +11,7 @@ const pages = {
     eyebrow: "Public security status",
     schemaType: "WebPage",
     datePublished: "2026-08-03",
-    dateModified: "2026-08-03",
+    dateModified: "2026-09-19",
     intro:
       "elm.chat is an early-stage encrypted messenger, not an audited high-assurance security product. This page puts its current guarantees, known gaps, and review routes in one place.",
     body: `
@@ -22,7 +22,7 @@ const pages = {
           <li>Message and file content is encrypted and decrypted in participant browsers.</li>
           <li>The room secret is carried in the URL fragment during normal use, so it is not sent to the server in an HTTP request.</li>
           <li>The Cloudflare relay handles ciphertext and does not persist a server-side transcript.</li>
-          <li><strong>Message authentication and replay/duplicate protections are not implemented yet.</strong></li>
+          <li><strong>Text protocol v2 authenticates to the shared room key and rejects duplicates in a live page session. It does not verify a sender's identity or retain replay state after refresh.</strong></li>
         </ul>
       </section>
       <section>
@@ -135,7 +135,7 @@ const pages = {
       <section>
         <h2>What room destruction does—and does not—remove</h2>
         <p>Destroying the room ends its server-side lifecycle and prevents elm.chat from becoming a durable transcript or file repository. It does not erase a file the recipient saved, copied, photographed, backed up, or forwarded, and it cannot clean clipboard history, browser downloads, notification previews, or a compromised endpoint.</p>
-        <p>The relay can still observe ordinary metadata such as IP addresses, connection timing, presence, and encrypted payload sizes. Message authentication is not implemented yet, and elm.chat has not completed an independent security audit. Do not treat it as an anonymous drop box, a compliance product, or a high-risk document-submission system.</p>
+        <p>The relay can still observe ordinary metadata such as IP addresses, connection timing, presence, and encrypted payload sizes. File-event authentication and sender identity verification are not implemented yet, and elm.chat has not completed an independent security audit. Do not treat it as an anonymous drop box, a compliance product, or a high-risk document-submission system.</p>
       </section>
       <section>
         <h2>A safer one-time handoff checklist</h2>
@@ -293,7 +293,7 @@ const pages = {
         <h2>Where a disposable room fits—and where it does not</h2>
         <p>A disposable room can reduce retention for a low-risk conversation between people who already know whom they intend to reach: scheduling, a non-critical clarification, or a temporary exchange whose main concern is avoiding another permanent inbox thread.</p>
         <p>elm.chat is an experiment in that narrow category. It requires no account, encrypts message and file content in the browser, relays ciphertext without persisting a server-side transcript, uses single-use invites, and lets the creator destroy the room.</p>
-        <p>It is not appropriate for anonymous or high-risk sourcing. It has not had an independent security audit, message authentication is not implemented yet, and Cloudflare can observe ordinary relay metadata including IP addresses, timing, sizes, and presence. A participant or compromised device can retain everything received.</p>
+        <p>It is not appropriate for anonymous or high-risk sourcing. It has not had an independent security audit, file-event authentication and sender identity verification are not implemented yet, and Cloudflare can observe ordinary relay metadata including IP addresses, timing, sizes, and presence. A participant or compromised device can retain everything received.</p>
       </section>
       <section>
         <h2>A safer newsroom sequence</h2>
@@ -375,7 +375,7 @@ const pages = {
           <li>Independent security review, abuse testing, incident response, and vendor-risk evaluation.</li>
           <li>Plain-language disclosure of deletion scope, metadata, participant copies, and failure states.</li>
         </ul>
-        <p>elm.chat is early-stage, has not had an independent security audit, and does not yet implement message authentication. It should not be presented as production-ready financial infrastructure or used for high-risk financial information on the strength of this article.</p>
+        <p>elm.chat is early-stage, has not had an independent security audit, and does not yet verify sender identity or authenticate file events. It should not be presented as production-ready financial infrastructure or used for high-risk financial information on the strength of this article.</p>
       </section>
       <section>
         <h2>The useful design question is smaller</h2>
@@ -418,7 +418,7 @@ const pages = {
         <h2>Limits every story should preserve</h2>
         <ul>
           <li>elm.chat has not had an independent security audit.</li>
-          <li>Message authentication is not implemented yet.</li>
+          <li>Text messages authenticate to the shared room key, but sender identity and file events are not authenticated.</li>
           <li>Cloudflare can observe ordinary relay metadata such as IP addresses, timing, sizes, and presence.</li>
           <li>A participant, screenshot, clipboard, download, photograph, or compromised device can retain content.</li>
           <li>The project is not an anonymity network, a compliance product, or production-ready financial infrastructure.</li>
@@ -504,7 +504,7 @@ const pages = {
         <h2>Why I built elm.chat in public</h2>
         <p>I am an AI professional and technologist with decades of operating and software experience across payments, recovery operations, telephony, CRM, integrations, cloud systems, and production AI. I lead Workrr AI and Workrr One. Much of that work depends on good records and accountable automation. elm.chat explores the complementary idea: sometimes responsible software should create less evidence in the first place.</p>
         <p>elm.chat creates an account-free room, encrypts messages and files in participants' browsers, relays ciphertext without persisting a server-side transcript, uses single-use invitations, and lets the creator destroy the room. The project is AGPL-3.0 so people can inspect, challenge, fork, and run it themselves.</p>
-        <p>It is also early. It has not completed an independent security audit. Message authentication is unfinished. Cloudflare can observe ordinary connection metadata such as IP addresses, timing, sizes, and presence. Participant devices can retain everything they receive. elm.chat is not an anonymity network or a high-risk source-protection tool. Publishing those boundaries is part of the experiment, not an apology hidden after the slogan.</p>
+        <p>It is also early. It has not completed an independent security audit. Sender identity and file-event authentication are unfinished. Cloudflare can observe ordinary connection metadata such as IP addresses, timing, sizes, and presence. Participant devices can retain everything they receive. elm.chat is not an anonymity network or a high-risk source-protection tool. Publishing those boundaries is part of the experiment, not an apology hidden after the slogan.</p>
       </section>
       <section>
         <h2>A healthier internet would offer more than one kind of memory</h2>
@@ -543,7 +543,7 @@ const pages = {
       </section>
       <section>
         <h2>Honesty matters more than a perfect privacy story</h2>
-        <p>elm.chat has not had an independent security audit. Message authentication is not yet complete. Cloudflare can observe ordinary relay metadata such as IP addresses, timing, sizes, and presence. A compromised device, screenshot, clipboard manager, photograph, or malicious recipient can preserve what the room was designed to forget.</p>
+        <p>elm.chat has not had an independent security audit. Text protocol v2 does not verify a sender's identity or protect file-event metadata. Cloudflare can observe relay metadata such as IP addresses, timing, sizes, and presence. A compromised device, screenshot, clipboard manager, photograph, or malicious recipient can preserve what the room was designed to forget.</p>
         <p>Those are not footnotes to hide after adoption. They define where the tool fits. I do not want people in high-risk situations to confuse an experimental open-source product with an audited anonymity system. I want engineers and privacy practitioners to inspect it, improve it, and help make its claims narrower and stronger.</p>
       </section>
       <section>
@@ -660,7 +660,7 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.</code></pre>
       <section>
         <h2>elm.chat as an inspectable, imperfect case study</h2>
         <p>elm.chat applies a narrow version of this model. A Durable Object stores room policy, status, creator capability, and invite state. Connected browsers hold the current conversation history. The relay forwards encrypted messages and file chunks without persisting a server-side transcript. Destroying the room changes its control-plane state so later joins and writes are rejected.</p>
-        <p>The tradeoffs are explicit. Cloudflare can observe IP addresses, connection timing, sizes, and presence. Participants can retain plaintext. Peer-supplied history is not a trustworthy archive, and message authentication plus replay and duplicate protection remain unfinished. The project has not had an independent security audit and is not an anonymity, compliance, whistleblowing, or high-risk communications system.</p>
+        <p>The tradeoffs are explicit. Cloudflare can observe IP addresses, connection timing, sizes, and presence. Participants can retain plaintext. Peer-supplied history is not a trustworthy archive; text replay protection ends on refresh, and file-event authentication remains unfinished. The project has not had an independent security audit and is not an anonymity, compliance, whistleblowing, or high-risk communications system.</p>
       </section>
       <section>
         <h2>The design review question</h2>
@@ -726,7 +726,7 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.</code></pre>
           <li>Files are split into 64 KiB chunks and encrypted chunk by chunk.</li>
           <li>The browser holds the room key and current transcript in memory.</li>
           <li>The server stores room policy, status, creator capability, and invite state.</li>
-          <li>Ephemeral identity keys exist, but message authentication is not implemented yet.</li>
+          <li>Text protocol v2 authenticates message fields to the shared room key. Ephemeral identity keys do not yet verify sender identity.</li>
         </ul>
         <p>The current design does not solve device compromise, screenshots, malicious recipients, traffic analysis, denial of service, or strong anonymous routing. It has not had an independent security audit.</p>
       </section>
@@ -911,7 +911,7 @@ admitSocket();</code></pre>
           <li><a href="https://github.com/shawnbure/elm-chat/blob/main/durable-objects/room/src/room.ts">Invite state machine and join transition</a></li>
           <li><a href="https://github.com/shawnbure/elm-chat/blob/main/docs/threat-model.md">Threat model and known limits</a></li>
         </ul>
-        <p>elm.chat has not had an independent security audit. Message authentication and replay/duplicate protection are unfinished, the Cloudflare relay sees ordinary connection metadata, and endpoints can retain copies. Do not use it as an anonymity, high-risk, regulated-data, or production-finance system.</p>
+        <p>elm.chat has not had an independent security audit. Sender identity, file-event authentication, and replay protection after refresh are unfinished; the Cloudflare relay sees ordinary connection metadata, and endpoints can retain copies. Do not use it as an anonymity, high-risk, regulated-data, or production-finance system.</p>
       </section>`
   },
   "durable-objects-websocket-hibernation": {
@@ -968,7 +968,7 @@ server.serializeAttachment({
       <section>
         <h2>Let clients supply encrypted history</h2>
         <p>A joining browser sends a <code>sync_request</code> through the relay. Connected peers answer with at most the latest 200 encrypted message envelopes. The Durable Object routes that payload but never commits it to storage.</p>
-        <p>This deliberately gives up server-backed recovery. If every browser that held an item disconnects, a later participant cannot retrieve it. A malicious peer can also omit or reorder sync data, and message authentication is not implemented yet.</p>
+        <p>This deliberately gives up server-backed recovery. If every browser that held an item disconnects, a later participant cannot retrieve it. A malicious peer can also omit or reorder sync data. Text protocol v2 authenticates individual messages to the shared room key, but does not authenticate which participant supplied the transcript.</p>
       </section>
       <section>
         <h2>What hibernation does—and does not—buy</h2>
