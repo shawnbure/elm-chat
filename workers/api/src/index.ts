@@ -244,9 +244,14 @@ async function handleCreateInvite(request: Request, roomId: string, env: Env): P
 }
 
 async function handleListInvites(request: Request, roomId: string, env: Env): Promise<Response> {
-  const creatorToken = new URL(request.url).searchParams.get("creatorToken") ?? "";
+  const authorization = request.headers.get("authorization");
+  if (!authorization?.match(/^Bearer [A-Za-z0-9_-]+$/i)) {
+    return json({ error: "Unauthorized." }, 403);
+  }
   const stub = env.ROOM_OBJECT.getByName(roomId);
-  return stub.fetch(`https://room/internal/invites?creatorToken=${encodeURIComponent(creatorToken)}`);
+  return stub.fetch("https://room/internal/invites", {
+    headers: { authorization }
+  });
 }
 
 async function handleRevokeInvite(request: Request, roomId: string, env: Env): Promise<Response> {

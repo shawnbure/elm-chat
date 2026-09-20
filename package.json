@@ -9,6 +9,7 @@
     "durable-objects/*"
   ],
   "scripts": {
+    "test": "vitest run",
     "build": "npm run check:wrangler-configs && npm run check:growth-privacy && npm run check:message-protocol && npm run check:community-feed && npm run build --workspace @elm-chat/web && npm run check:security-copy && npm run build --workspace @elm-chat/api",
     "check:wrangler-configs": "node scripts/check-wrangler-configs.mjs",
     "check:growth-privacy": "node scripts/check-growth-privacy.mjs",
@@ -24,7 +25,9 @@
     "deploy:production": "npm run check:wrangler-configs && npm run check:growth-privacy && npm run check:message-protocol && npm run check:community-feed && npm run build --workspace @elm-chat/web && npm run check:security-copy && npm run deploy --workspace @elm-chat/api"
   },
   "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.1.13",
     "concurrently": "^9.1.2",
+    "vitest": "^4.1.11",
     "wrangler": "^4.10.0"
   }
 }

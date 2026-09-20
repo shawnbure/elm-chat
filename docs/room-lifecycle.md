@@ -12,6 +12,7 @@
 - each tab generates a random session ID (kept in `sessionStorage`) and an ephemeral ECDSA identity keypair
 - the client derives the room key locally with HKDF
 - the client opens the room WebSocket and sends `join` with its session ID, identity public key, and either the creator token or a one-time invite token
+- the socket has 15 seconds to join; before admission it counts toward room capacity but cannot refresh the room's inactivity deadline
 - the creator joins with the creator token; everyone else must present a valid, unconsumed, unrevoked invite
 - before admitting a guest, the Durable Object marks the invite as claimed by that session; after the session attachment and room metadata are durable, it marks the invite admitted/consumed
 - the session that consumed an invite may reconnect (e.g. reload) with the same invite; a different session cannot reuse it

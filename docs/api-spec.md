@@ -76,7 +76,7 @@ Creator-only. Marks the room destroyed and disconnects everyone.
 One-time invites let non-creators join. All three routes are creator-only.
 
 - `POST /api/rooms/:roomId/invites` — body `{ "creatorToken": "...", "ttlMs": 600000 }`, returns the created invite (`201`).
-- `GET  /api/rooms/:roomId/invites?creatorToken=...` — lists invites.
+- `GET  /api/rooms/:roomId/invites` — lists invites; requires `Authorization: Bearer <creatorToken>`.
 - `POST /api/rooms/:roomId/invites/revoke` — body `{ "creatorToken": "...", "token": "invite-token" }`; revokes and disconnects the consuming participant if connected.
 
 Invite shape:
@@ -102,6 +102,7 @@ An invite link is `/(c)/:roomId?invite=<token>#<room_secret>`.
 ## `GET /api/rooms/:roomId/ws`
 
 Upgrades to the room WebSocket. This carries both control and **relayed encrypted content** (see Peer Data Protocol).
+The socket must send a valid `join` within 15 seconds. Until then it counts toward room capacity but cannot extend room activity or send other room events.
 
 ### Client → server events
 

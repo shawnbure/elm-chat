@@ -417,7 +417,9 @@ async function createInvite(roomId: string, creatorToken: string, ttlMs = 10 * 6
 }
 
 async function listInvites(roomId: string, creatorToken: string): Promise<RoomInvite[]> {
-  const response = await fetch(`/api/rooms/${roomId}/invites?creatorToken=${encodeURIComponent(creatorToken)}`);
+  const response = await fetch(`/api/rooms/${roomId}/invites`, {
+    headers: { authorization: `Bearer ${creatorToken}` }
+  });
   if (!response.ok) {
     throw new Error(t("failedLoadInvites"));
   }

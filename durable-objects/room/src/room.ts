@@ -57,6 +57,7 @@ export interface Env {
 const ROOM_META_KEY = "room:meta";
 const INVITES_KEY = "room:invites";
 const DEFAULT_INVITE_TTL_MS = 10 * 60 * 1000;
+const JOIN_TIMEOUT_MS = 15 * 1000;
 
 type InviteAdmission =
   | { ok: true; invite?: RoomInvite; newlyClaimed: boolean }
@@ -124,7 +125,7 @@ export class RoomDurableObject extends DurableObject<Env> {
     }
 
     if (request.method === "GET" && url.pathname === "/internal/invites") {
-      const creatorToken = url.searchParams.get("creatorToken") ?? "";
+      const creatorToken = request.headers.get("authorization")?.match(/^Bearer ([A-Za-z0-9_-]+)$/i)?.[1] ?? "";
       return this.listInvites(creatorToken);
     }
 
@@ -142,7 +143,7 @@ export class RoomDurableObject extends DurableObject<Env> {
         return jsonResponse({ error: "Room is unavailable." }, 410);
       }
 
-      if (this.connectedSessionIds().length >= MAX_CONNECTIONS_PER_ROOM) {
+      if (this.openWebSockets().length >= MAX_CONNECTIONS_PER_ROOM) {
         return jsonResponse({ error: "Room is full." }, 409);
       }
 
@@ -153,9 +154,9 @@ export class RoomDurableObject extends DurableObject<Env> {
         sessionId: "",
         creator: false,
         identityKey: "",
-        connectedAt: 0
+        connectedAt: Date.now()
       } satisfies AttachmentRecord);
-      await this.markRoomActivity();
+      await this.scheduleNextAlarm();
       return wsResponse(client);
     }
 
@@ -164,7 +165,15 @@ export class RoomDurableObject extends DurableObject<Env> {
 
   async alarm(): Promise<void> {
     await this.storageReady;
-    if (!(await this.expireIfDue())) await this.scheduleNextAlarm();
+    if (await this.expireIfDue()) return;
+    const now = Date.now();
+    for (const socket of this.openWebSockets()) {
+      const attachment = socket.deserializeAttachment() as AttachmentRecord | null;
+      if (attachment?.sessionId === "" && attachment.connectedAt + JOIN_TIMEOUT_MS <= now) {
+        socket.close(4408, "join timeout");
+      }
+    }
+    await this.scheduleNextAlarm();
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
@@ -180,6 +189,17 @@ export class RoomDurableObject extends DurableObject<Env> {
       parsed = JSON.parse(message) as ClientEvent;
     } catch {
       ws.send(JSON.stringify(errorEvent("invalid_json", "Message must be valid JSON.")));
+      return;
+    }
+    if (!parsed || typeof parsed !== "object" || typeof parsed.type !== "string") {
+      ws.send(JSON.stringify(errorEvent("invalid_event", "Message must be a room event.")));
+      return;
+    }
+
+    const attachment = ws.deserializeAttachment() as AttachmentRecord | null;
+    if (parsed.type !== "join" && !attachment?.sessionId) {
+      ws.send(JSON.stringify(errorEvent("join_required", "Join before sending room events.")));
+      ws.close(4403, "join required");
       return;
     }
 
@@ -206,6 +226,7 @@ export class RoomDurableObject extends DurableObject<Env> {
     await this.storageReady;
     const attachment = ws.deserializeAttachment() as AttachmentRecord | null;
     if (!attachment?.sessionId) {
+      await this.scheduleNextAlarm();
       return;
     }
 
@@ -264,10 +285,16 @@ export class RoomDurableObject extends DurableObject<Env> {
       return;
     }
 
-    const connectedIds = new Set(this.connectedSessionIds());
-    if (connectedIds.size >= MAX_CONNECTIONS_PER_ROOM && !connectedIds.has(payload.sessionId)) {
-      ws.send(JSON.stringify(errorEvent("room_full", "Room is at capacity.")));
-      ws.close(4409, "room full");
+    if (
+      !existing ||
+      existing.connectedAt + JOIN_TIMEOUT_MS <= Date.now() ||
+      typeof payload.sessionId !== "string" ||
+      !payload.sessionId ||
+      typeof payload.identityKey !== "string" ||
+      !payload.identityKey
+    ) {
+      ws.send(JSON.stringify(errorEvent("invalid_join", "Join was invalid or timed out.")));
+      ws.close(4408, "invalid join");
       return;
     }
 
@@ -546,7 +573,11 @@ export class RoomDurableObject extends DurableObject<Env> {
       this.roomMeta.expiresAt,
       typeof this.roomMeta.inactivityTimeoutMs === "number"
         ? this.roomMeta.lastActivityAt + this.roomMeta.inactivityTimeoutMs
-        : undefined
+        : undefined,
+      ...this.openWebSockets()
+        .map((socket) => socket.deserializeAttachment() as AttachmentRecord | null)
+        .filter((attachment): attachment is AttachmentRecord => attachment?.sessionId === "")
+        .map((attachment) => attachment.connectedAt + JOIN_TIMEOUT_MS)
     ].filter((value): value is number => typeof value === "number");
 
     if (candidates.length === 0) {
@@ -647,10 +678,7 @@ export class RoomDurableObject extends DurableObject<Env> {
   private connectedSessions(): AttachmentRecord[] {
     const seen = new Set<string>();
     const sessions: AttachmentRecord[] = [];
-    for (const socket of this.ctx.getWebSockets()) {
-      if (socket.readyState !== WebSocket.OPEN) {
-        continue;
-      }
+    for (const socket of this.openWebSockets()) {
       const attachment = socket.deserializeAttachment() as AttachmentRecord | null;
       if (attachment?.sessionId && !seen.has(attachment.sessionId)) {
         seen.add(attachment.sessionId);
@@ -662,6 +690,10 @@ export class RoomDurableObject extends DurableObject<Env> {
 
   private connectedSessionIds(): string[] {
     return this.connectedSessions().map((session) => session.sessionId);
+  }
+
+  private openWebSockets(): WebSocket[] {
+    return this.ctx.getWebSockets().filter((socket) => socket.readyState === WebSocket.OPEN);
   }
 
   private isConnected(sessionId: string): boolean {

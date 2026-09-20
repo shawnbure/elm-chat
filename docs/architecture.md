@@ -72,7 +72,7 @@ Each connected participant keeps the current encrypted transcript in memory and 
 
 - The set of connected participants is derived from **live WebSocket attachments**, not an in-memory map. This survives Durable Object hibernation, so targeted relays (file chunks, per-peer sync) keep working after the object sleeps and wakes.
 - Broadcasts (chat, presence, peer join/leave) go to all other participants; targeted relays go to one `sessionId`.
-- Room capacity is capped at `MAX_CONNECTIONS_PER_ROOM`.
+- Room capacity is capped at `MAX_CONNECTIONS_PER_ROOM` open sockets, including those awaiting `join`; an unjoined socket has 15 seconds to join and does not count as room activity.
 - Transcript collation on join verifies each v2 text envelope and de-duplicates by `messageId` within the current page session.
 
 ## Access Control
