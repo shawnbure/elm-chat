@@ -93,7 +93,6 @@ type CommunityIssue = {
   title: string;
   url: string;
   date: string;
-  votes: number;
 };
 
 type CommunityFeed = {
@@ -1049,27 +1048,14 @@ function LandingPage() {
                 </a>
               </div>
               {community?.requests.map((issue) => (
-                <div className="community-request" key={issue.number}>
-                  <a className="community-request-title" href={issue.url} rel="noreferrer" target="_blank">
-                    <span className="community-number">#{issue.number}</span>
-                    <span className="community-title">{issue.title}</span>
-                  </a>
-                  <a
-                    aria-label={t("voteFor", { title: issue.title, count: issue.votes })}
-                    className="community-vote"
-                    href={issue.url}
-                    rel="noreferrer"
-                    target="_blank"
-                    title={t("voteOnGithub")}
-                  >
-                    {t("vote")} <strong>{issue.votes}</strong>
-                  </a>
-                </div>
+                <a className="community-request" href={issue.url} key={issue.number} rel="noreferrer" target="_blank">
+                  <span className="community-number">#{issue.number}</span>
+                  <span className="community-title">{issue.title}</span>
+                </a>
               ))}
               {community && community.requests.length === 0 ? (
                 <p className="community-empty">{t("noRequests")}</p>
               ) : null}
-              {community ? <p className="community-note">{t("voteNote")}</p> : null}
             </div>
             {!community && !communityError ? <p className="community-empty">{t("loadingCommunity")}</p> : null}
             {communityError ? (

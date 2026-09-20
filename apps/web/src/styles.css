@@ -462,21 +462,15 @@ select {
 }
 
 .community-fix,
-.community-request-title {
+.community-request {
   min-width: 0;
   color: var(--ink);
   text-decoration: none;
 }
 
 .community-fix:hover .community-title,
-.community-request-title:hover .community-title {
+.community-request:hover .community-title {
   text-decoration: underline;
-}
-
-.community-request-title {
-  display: flex;
-  gap: 8px;
-  flex: 1 1 auto;
 }
 
 .community-number {
@@ -490,21 +484,6 @@ select {
   overflow-wrap: anywhere;
 }
 
-.community-vote {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--accent-strong);
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.community-vote:hover {
-  text-decoration: underline;
-}
-
-.community-note,
 .community-empty {
   margin: 8px 0 0;
   color: var(--muted);

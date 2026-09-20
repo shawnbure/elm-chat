@@ -17,7 +17,6 @@ const issue = (number, date, extra = {}) => ({
   created_at: date,
   closed_at: date,
   state_reason: "completed",
-  reactions: { "+1": number },
   ...extra
 });
 const days = [1, 2, 3, 4, 5, 6].map((day) => `2026-09-0${day}T00:00:00Z`);
@@ -27,7 +26,6 @@ const feed = shapeCommunityFeed(
 );
 assert.deepEqual(feed.requests.map((item) => item.number), [6, 5, 4, 3, 2]);
 assert.deepEqual(feed.fixes.map((item) => item.number), [6, 5, 4, 3, 2]);
-assert.equal(feed.requests[0].votes, 6);
 assert.equal(feed.requests[0].url, "https://github.com/shawnbure/elm-chat/issues/6");
 assert.deepEqual(shapeCommunityFeed([], []).requests, []);
 console.log("Community feed checks passed.");

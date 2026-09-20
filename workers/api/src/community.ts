@@ -8,7 +8,6 @@ type GithubIssue = {
   closed_at?: string | null;
   created_at?: string;
   state_reason?: string | null;
-  reactions?: { "+1"?: number };
 };
 
 export type CommunityIssue = {
@@ -16,7 +15,6 @@ export type CommunityIssue = {
   title: string;
   url: string;
   date: string;
-  votes: number;
 };
 
 export type CommunityFeed = {
@@ -39,8 +37,7 @@ function mapIssue(issue: GithubIssue, date: string | null | undefined): Communit
     number: issue.number!,
     title: issue.title.slice(0, 180),
     url: `https://github.com/${REPO}/issues/${issue.number}`,
-    date,
-    votes: Math.max(0, Math.floor(issue.reactions?.["+1"] ?? 0))
+    date
   };
 }
 
