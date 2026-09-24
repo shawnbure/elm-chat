@@ -1,13 +1,25 @@
 import {
   createIdentityKeyPair,
+  createAuthenticatedPeerEvent,
+  createAgreementKeyPair,
   decryptBytes,
   deriveRoomKey,
   encryptBytes,
   encryptMessage,
   exportIdentityPublicKey,
+  exportIdentityPrivateKey,
+  exportAgreementPrivateKey,
+  exportAgreementPublicKey,
   generateMessageId,
   generateRoomSecret,
-  generateSessionId
+  generateSessionId,
+  importIdentityPrivateKey,
+  importIdentityPublicKey,
+  importAgreementPrivateKey,
+  sha256Base64Url,
+  verifyAuthenticatedPeerEvent,
+  unwrapRoomSecret,
+  wrapRoomSecret
 } from "@elm-chat/crypto";
 import {
   FILE_CHUNK_BYTES,
@@ -19,8 +31,10 @@ import {
   type CreateRoomRequest,
   type CreateRoomResponse,
   type EncryptedMessageEnvelope,
+  type AuthenticatedPeerEvent,
   type PeerDataEvent,
   type PeerFileChunk,
+  type PeerDescriptor,
   type PresenceSnapshot,
   type RoomInvite,
   type RoomMetadata,
@@ -32,6 +46,7 @@ import { MarketingPage, type MarketingSlug } from "./MarketingPage";
 import { t } from "./localization";
 import { InvalidMessageEnvelopeError, receiveTextMessage } from "./message-receive";
 import { ReplayGuard } from "./replay";
+import { reconnectDelayMs } from "./reconnect";
 
 type View = "landing" | "marketing" | "room";
 
@@ -70,8 +85,12 @@ type IncomingFile = {
   size: number;
   totalChunks: number;
   received: number;
+  receivedBytes: number;
   chunks: (Uint8Array | undefined)[];
   senderSessionId: string;
+  sha256: string;
+  keyEpoch: number;
+  timeoutId?: number;
 };
 
 type ActionFeedback = "idle" | "success";
@@ -190,6 +209,59 @@ function sessionKey(roomId: string): string {
   return `elm-chat:session:${roomId}`;
 }
 
+function identityKeyPairKey(roomId: string, sessionId: string): string {
+  return `elm-chat:identity:${roomId}:${sessionId}`;
+}
+
+function replayStateKey(roomId: string, sessionId: string, kind: "message" | "event"): string {
+  return `elm-chat:replay:${kind}:${roomId}:${sessionId}`;
+}
+
+async function loadIdentityKeyPair(roomId: string, sessionId: string): Promise<{
+  privateKey: CryptoKey;
+  publicKey: string;
+  agreementPrivateKey: CryptoKey;
+  agreementPublicKey: string;
+}> {
+  const storageKey = identityKeyPairKey(roomId, sessionId);
+  const stored = safeStorageGet("session", storageKey);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored) as {
+        privateKey: JsonWebKey;
+        publicKey: string;
+        agreementPrivateKey: JsonWebKey;
+        agreementPublicKey: string;
+      };
+      return {
+        privateKey: await importIdentityPrivateKey(parsed.privateKey),
+        publicKey: parsed.publicKey,
+        agreementPrivateKey: await importAgreementPrivateKey(parsed.agreementPrivateKey),
+        agreementPublicKey: parsed.agreementPublicKey
+      };
+    } catch {
+      // Replace corrupt or legacy identity state with a fresh tab-scoped key.
+    }
+  }
+  const [pair, agreementPair] = await Promise.all([
+    createIdentityKeyPair(),
+    createAgreementKeyPair()
+  ]);
+  const result = {
+    privateKey: pair.privateKey,
+    publicKey: await exportIdentityPublicKey(pair.publicKey),
+    agreementPrivateKey: agreementPair.privateKey,
+    agreementPublicKey: await exportAgreementPublicKey(agreementPair.publicKey)
+  };
+  safeStorageSet("session", storageKey, JSON.stringify({
+    privateKey: await exportIdentityPrivateKey(pair.privateKey),
+    publicKey: result.publicKey,
+    agreementPrivateKey: await exportAgreementPrivateKey(agreementPair.privateKey),
+    agreementPublicKey: result.agreementPublicKey
+  }));
+  return result;
+}
+
 function safeStorageGet(storage: "local" | "session", key: string): string | null {
   try {
     const target = storage === "local" ? window.localStorage : window.sessionStorage;
@@ -205,6 +277,15 @@ function safeStorageSet(storage: "local" | "session", key: string, value: string
     target.setItem(key, value);
   } catch {
     // Private browsing and restrictive browser contexts can block storage access.
+  }
+}
+
+function safeStorageRemove(storage: "local" | "session", key: string): void {
+  try {
+    const target = storage === "local" ? window.localStorage : window.sessionStorage;
+    target.removeItem(key);
+  } catch {
+    // Storage cleanup is best effort in restrictive browser contexts.
   }
 }
 
@@ -840,6 +921,13 @@ function LandingPage() {
               </div>
             </aside>
           ) : null}
+          <p className="hero-brand">
+            <span className="hero-brand-name">elm chat</span>
+            <span className="hero-brand-meaning">
+              <span className="hero-brand-separator" aria-hidden="true">·</span>
+              {t("nameMeaning")}
+            </span>
+          </p>
           <div className="hero-links" aria-label={t("learnAbout")}>
             <a className="hero-link" href={whyUseUrl} rel="noreferrer" target="_blank">
               {t("whyUse")}
@@ -854,7 +942,6 @@ function LandingPage() {
               {t("securityStatus")}
             </a>
           </div>
-          <p className="eyebrow">elm chat</p>
           <h1>{t("heroTitle")}</h1>
           <p className="lede">
             {t("heroCopy")}
@@ -1100,6 +1187,7 @@ function RoomPage({ roomId }: { roomId: string }) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connection, setConnection] = useState(t("connecting"));
+  const [keyReady, setKeyReady] = useState(false);
   const [presence, setPresence] = useState<PresenceSnapshot>({ count: 0, connectedSessionIds: [] });
   const [now, setNow] = useState(Date.now());
   const [roomNotice, setRoomNotice] = useState<string | null>(null);
@@ -1128,33 +1216,126 @@ function RoomPage({ roomId }: { roomId: string }) {
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef(0);
   const roomKeyRef = useRef<CryptoKey | null>(null);
+  const roomKeysRef = useRef(new Map<number, CryptoKey>());
+  const keyEpochRef = useRef(1);
+  const keyReadyRef = useRef(false);
+  const membershipVersionRef = useRef(0);
   const identityKeyRef = useRef<string>("");
+  const identityPrivateKeyRef = useRef<CryptoKey | null>(null);
+  const agreementPrivateKeyRef = useRef<CryptoKey | null>(null);
+  const agreementPublicKeyRef = useRef<string>("");
+  const peerIdentityKeysRef = useRef(new Map<string, string>());
+  const peersRef = useRef(new Map<string, PeerDescriptor>());
   const joinedRef = useRef(false);
   // Mirror of the latest room status so the socket close handler (captured once
   // by the connection effect) can distinguish a live-room drop from an
   // already-closed room without reading a stale `room` value.
   const roomStatusRef = useRef<RoomMetadata["status"] | null>(null);
   const chatLogRef = useRef<HTMLElement | null>(null);
-  const messageRef = useRef(new Map<string, EncryptedMessageEnvelope>());
-  const replayGuardRef = useRef(new ReplayGuard());
+  const messageRef = useRef(new Map<string, AuthenticatedPeerEvent>());
+  const replayGuardRef = useRef<ReplayGuard | null>(null);
+  const eventReplayGuardRef = useRef<ReplayGuard | null>(null);
+  if (!replayGuardRef.current) {
+    replayGuardRef.current = new ReplayGuard(
+      10000,
+      window.sessionStorage,
+      replayStateKey(roomId, sessionId, "message")
+    );
+  }
+  if (!eventReplayGuardRef.current) {
+    eventReplayGuardRef.current = new ReplayGuard(
+      10000,
+      window.sessionStorage,
+      replayStateKey(roomId, sessionId, "event")
+    );
+  }
   const measuredInviteHandoffsRef = useRef(new Set<string>());
   const shouldRequestSyncRef = useRef(false);
   // Files being served by this client (we are the sender), kept in memory so we
   // can stream chunks on demand when a peer requests them.
   const outgoingFilesRef = useRef(new Map<string, File>());
+  const outgoingFileHashesRef = useRef(new Map<string, string>());
+  const outgoingFileEpochsRef = useRef(new Map<string, number>());
   // Files being received by this client, accumulating decrypted chunks.
   const incomingFilesRef = useRef(new Map<string, IncomingFile>());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   // Object URLs created for received files, revoked on expiry/unmount.
   const objectUrlsRef = useRef(new Set<string>());
 
-  function sendPeerData(payload: PeerDataEvent, toSessionId?: string) {
+  async function sendPeerData(payload: PeerDataEvent, toSessionId?: string) {
     const socket = socketRef.current;
-    if (socket?.readyState === WebSocket.OPEN && joinedRef.current) {
-      socket.send(JSON.stringify({ type: "peer_data", toSessionId, data: payload }));
-      return true;
-    }
-    return false;
+    const privateKey = identityPrivateKeyRef.current;
+    if (socket?.readyState !== WebSocket.OPEN || !joinedRef.current || !privateKey) return null;
+    const data = await createAuthenticatedPeerEvent(
+      privateKey,
+      roomId,
+      sessionId,
+      toSessionId ?? null,
+      payload
+    );
+    socket.send(JSON.stringify({ type: "peer_data", toSessionId, data }));
+    eventReplayGuardRef.current?.markLocal(data.eventId);
+    return data;
+  }
+
+  function currentKeyLeader(): PeerDescriptor | undefined {
+    return [...peersRef.current.values()].sort((left, right) =>
+      Number(right.creator) - Number(left.creator) ||
+      left.connectedAt - right.connectedAt ||
+      left.sessionId.localeCompare(right.sessionId)
+    )[0];
+  }
+
+  async function rotateRoomKey(keyEpoch: number) {
+    const leader = currentKeyLeader();
+    const agreementPrivateKey = agreementPrivateKeyRef.current;
+    if (!leader || leader.sessionId !== sessionId || !agreementPrivateKey) return;
+    const roomSecretForEpoch = generateRoomSecret();
+    const nextKey = await deriveRoomKey(roomSecretForEpoch);
+    roomKeysRef.current.set(keyEpoch, nextKey);
+    roomKeyRef.current = nextKey;
+    keyEpochRef.current = keyEpoch;
+    keyReadyRef.current = true;
+    setKeyReady(true);
+    setConnection(t("connected"));
+    await Promise.all([...peersRef.current.values()]
+      .filter((peer) => peer.sessionId !== sessionId)
+      .map(async (peer) => {
+        const wrapped = await wrapRoomSecret(
+          agreementPrivateKey,
+          peer.agreementKey,
+          roomId,
+          keyEpoch,
+          sessionId,
+          peer.sessionId,
+          roomSecretForEpoch
+        );
+        await sendPeerData({
+          type: "key_rotation",
+          keyEpoch,
+          senderAgreementKey: agreementPublicKeyRef.current,
+          ...wrapped
+        }, peer.sessionId);
+      }));
+  }
+
+  function beginMembershipChange(keyEpoch: number) {
+    if (keyEpoch <= membershipVersionRef.current) return;
+    membershipVersionRef.current = keyEpoch;
+    keyReadyRef.current = false;
+    setKeyReady(false);
+    setConnection(t("securing"));
+    void rotateRoomKey(keyEpoch);
+  }
+
+  function clearRoomSecurityState() {
+    replayGuardRef.current?.clear();
+    eventReplayGuardRef.current?.clear();
+    roomKeysRef.current.clear();
+    keyReadyRef.current = false;
+    setKeyReady(false);
+    safeStorageRemove("session", identityKeyPairKey(roomId, sessionId));
+    safeStorageRemove("session", sessionKey(roomId));
   }
 
   async function refreshInvites() {
@@ -1181,6 +1362,15 @@ function RoomPage({ roomId }: { roomId: string }) {
     });
   }
 
+  function armFileTimeout(fileId: string, entry: IncomingFile) {
+    if (entry.timeoutId) window.clearTimeout(entry.timeoutId);
+    entry.timeoutId = window.setTimeout(() => {
+      incomingFilesRef.current.delete(fileId);
+      updateFileMessage(fileId, { state: "error" });
+      void sendPeerData({ type: "file_cancel", fileId, reason: "timeout" }, entry.senderSessionId);
+    }, 30_000);
+  }
+
   async function waitForSocketDrain() {
     const socket = socketRef.current;
     if (!socket) {
@@ -1195,7 +1385,8 @@ function RoomPage({ roomId }: { roomId: string }) {
   // Sender side: stream an outgoing file to the requesting peer as encrypted chunks.
   async function serveFile(fileId: string, requesterSessionId: string) {
     const file = outgoingFilesRef.current.get(fileId);
-    const key = roomKeyRef.current;
+    const keyEpoch = outgoingFileEpochsRef.current.get(fileId);
+    const key = typeof keyEpoch === "number" ? roomKeysRef.current.get(keyEpoch) : undefined;
     if (!file || !key) {
       return;
     }
@@ -1206,20 +1397,21 @@ function RoomPage({ roomId }: { roomId: string }) {
       const slice = buffer.subarray(start, Math.min(start + FILE_CHUNK_BYTES, buffer.byteLength));
       const { ciphertext, nonce } = await encryptBytes(key, slice);
       await waitForSocketDrain();
-      const delivered = sendPeerData(
-        { type: "file_chunk", fileId, chunkIndex: index, totalChunks, ciphertext, nonce },
+      const delivered = await sendPeerData(
+        { type: "file_chunk", fileId, chunkIndex: index, totalChunks, ciphertext, nonce, keyEpoch: keyEpoch! },
         requesterSessionId
       );
       if (!delivered) {
         return;
       }
     }
-    sendPeerData({ type: "file_complete", fileId }, requesterSessionId);
+    const sha256 = outgoingFileHashesRef.current.get(fileId);
+    if (sha256) await sendPeerData({ type: "file_complete", fileId, sha256 }, requesterSessionId);
   }
 
   // Receiver side: decrypt and store an incoming chunk, updating transfer progress.
   async function receiveChunk(payload: PeerFileChunk) {
-    const key = roomKeyRef.current;
+    const key = roomKeysRef.current.get(payload.keyEpoch);
     if (!key) {
       return;
     }
@@ -1231,20 +1423,30 @@ function RoomPage({ roomId }: { roomId: string }) {
         size: 0,
         totalChunks: payload.totalChunks,
         received: 0,
+        receivedBytes: 0,
         chunks: [],
-        senderSessionId: ""
+        senderSessionId: "",
+        sha256: "",
+        keyEpoch: payload.keyEpoch
       };
       incomingFilesRef.current.set(payload.fileId, entry);
     }
+    if (entry.keyEpoch !== payload.keyEpoch) return;
     if (entry.chunks.length !== payload.totalChunks) {
       entry.chunks = new Array<Uint8Array | undefined>(payload.totalChunks);
       entry.received = 0;
+      entry.receivedBytes = 0;
       entry.totalChunks = payload.totalChunks;
     }
     if (!entry.chunks[payload.chunkIndex]) {
       try {
-        entry.chunks[payload.chunkIndex] = await decryptBytes(key, payload.ciphertext, payload.nonce);
+        const chunk = await decryptBytes(key, payload.ciphertext, payload.nonce);
+        if (entry.receivedBytes + chunk.byteLength > entry.size || chunk.byteLength > FILE_CHUNK_BYTES) {
+          throw new Error("File chunk exceeds declared bounds.");
+        }
+        entry.chunks[payload.chunkIndex] = chunk;
         entry.received += 1;
+        entry.receivedBytes += chunk.byteLength;
       } catch {
         updateFileMessage(payload.fileId, { state: "error" });
         return;
@@ -1254,19 +1456,34 @@ function RoomPage({ roomId }: { roomId: string }) {
       state: "transferring",
       progress: entry.totalChunks ? entry.received / entry.totalChunks : 0
     });
+    armFileTimeout(payload.fileId, entry);
   }
 
   // Receiver side: reassemble a completed file into a downloadable blob URL.
-  function finalizeIncoming(fileId: string) {
+  async function finalizeIncoming(fileId: string, announcedSha256: string) {
     const entry = incomingFilesRef.current.get(fileId);
     if (!entry) {
       return;
     }
+    if (entry.timeoutId) window.clearTimeout(entry.timeoutId);
     if (entry.totalChunks === 0 || entry.received < entry.totalChunks) {
       updateFileMessage(fileId, { state: "error" });
       return;
     }
     const parts = entry.chunks.filter((chunk): chunk is Uint8Array => Boolean(chunk));
+    const bytes = new Uint8Array(parts.reduce((sum, part) => sum + part.byteLength, 0));
+    let offset = 0;
+    for (const part of parts) {
+      bytes.set(part, offset);
+      offset += part.byteLength;
+    }
+    const digest = await sha256Base64Url(bytes);
+    if (bytes.byteLength !== entry.size || digest !== entry.sha256 || digest !== announcedSha256) {
+      incomingFilesRef.current.delete(fileId);
+      updateFileMessage(fileId, { state: "error" });
+      await sendPeerData({ type: "file_cancel", fileId, reason: "integrity" }, entry.senderSessionId);
+      return;
+    }
     const blob = new Blob(parts as BlobPart[], { type: entry.mimeType });
     const url = URL.createObjectURL(blob);
     objectUrlsRef.current.add(url);
@@ -1275,7 +1492,7 @@ function RoomPage({ roomId }: { roomId: string }) {
   }
 
   async function handleAttachFiles(fileList: FileList | null) {
-    if (!fileList || !room || room.status !== "open") {
+    if (!fileList || !room || room.status !== "open" || !keyReadyRef.current) {
       return;
     }
     for (const file of Array.from(fileList)) {
@@ -1291,7 +1508,11 @@ function RoomPage({ roomId }: { roomId: string }) {
         typeof expiresAfterReadSeconds === "number"
           ? sentAt + expiresAfterReadSeconds * 1000
           : undefined;
+      const fileBytes = new Uint8Array(await file.arrayBuffer());
+      const sha256 = await sha256Base64Url(fileBytes);
       outgoingFilesRef.current.set(fileId, file);
+      outgoingFileHashesRef.current.set(fileId, sha256);
+      outgoingFileEpochsRef.current.set(fileId, keyEpochRef.current);
       setError(null);
       startTransition(() => {
         setMessages((current) =>
@@ -1313,7 +1534,7 @@ function RoomPage({ roomId }: { roomId: string }) {
           })
         );
       });
-      const delivered = sendPeerData({
+      const delivered = await sendPeerData({
         type: "file_offer",
         fileId,
         senderSessionId: sessionId,
@@ -1321,7 +1542,9 @@ function RoomPage({ roomId }: { roomId: string }) {
         mimeType,
         size: file.size,
         sentAt,
-        expiresAfterReadSeconds
+        expiresAfterReadSeconds,
+        sha256,
+        keyEpoch: keyEpochRef.current
       });
       if (!delivered) {
         setError(t("fileDeliveryPending"));
@@ -1332,9 +1555,9 @@ function RoomPage({ roomId }: { roomId: string }) {
     }
   }
 
-  function handleRequestFile(fileId: string, senderSessionId: string) {
+  async function handleRequestFile(fileId: string, senderSessionId: string) {
     updateFileMessage(fileId, { state: "transferring", progress: 0 });
-    const requested = sendPeerData({ type: "file_request", fileId }, senderSessionId);
+    const requested = await sendPeerData({ type: "file_request", fileId }, senderSessionId);
     if (!requested) {
       updateFileMessage(fileId, { state: "error" });
       setError(t("fileRequestFailed"));
@@ -1353,16 +1576,21 @@ function RoomPage({ roomId }: { roomId: string }) {
 
     async function bootstrap() {
       try {
-        const [metadata, key, identityKeys] = await Promise.all([
+        const [metadata, key, identity] = await Promise.all([
           loadRoom(roomId),
           deriveRoomKey(roomSecret),
-          createIdentityKeyPair()
+          loadIdentityKeyPair(roomId, sessionId)
         ]);
         if (!active) {
           return;
         }
         roomKeyRef.current = key;
-        identityKeyRef.current = await exportIdentityPublicKey(identityKeys.publicKey);
+        roomKeysRef.current.set(0, key);
+        identityPrivateKeyRef.current = identity.privateKey;
+        identityKeyRef.current = identity.publicKey;
+        agreementPrivateKeyRef.current = identity.agreementPrivateKey;
+        agreementPublicKeyRef.current = identity.agreementPublicKey;
+        peerIdentityKeysRef.current.set(sessionId, identity.publicKey);
         roomStatusRef.current = metadata.status;
         setRoom(metadata);
         if (metadata.status !== "open") {
@@ -1383,6 +1611,7 @@ function RoomPage({ roomId }: { roomId: string }) {
               type: "join",
               sessionId,
               identityKey: identityKeyRef.current,
+              agreementKey: agreementPublicKeyRef.current,
               creatorToken: creatorToken || undefined,
               inviteToken: inviteToken || undefined
             })
@@ -1413,8 +1642,8 @@ function RoomPage({ roomId }: { roomId: string }) {
           }
           if (active && reconnectAllowed && roomStatusRef.current === "open") {
             const attempt = reconnectAttemptRef.current;
-            if (attempt < 5) {
-              const delay = Math.min(500 * 2 ** attempt, 8000);
+            const delay = reconnectDelayMs(attempt);
+            if (delay !== null) {
               reconnectAttemptRef.current = attempt + 1;
               setConnection(t("reconnecting", { seconds: Math.ceil(delay / 1000) }));
               reconnectTimerRef.current = window.setTimeout(() => {
@@ -1445,9 +1674,16 @@ function RoomPage({ roomId }: { roomId: string }) {
             if (creatorToken) {
               void refreshInvites();
             }
+            peersRef.current.clear();
+            peersRef.current.set(sessionId, payload.self);
+            for (const peer of payload.peers) {
+              peersRef.current.set(peer.sessionId, peer);
+              peerIdentityKeysRef.current.set(peer.sessionId, peer.identityKey);
+            }
+            beginMembershipChange(payload.room.membershipVersion);
             shouldRequestSyncRef.current = payload.peers.length > 0;
-            if (payload.peers.length > 0) {
-              socket.send(JSON.stringify({ type: "peer_data", data: { type: "sync_request" } }));
+            if (payload.peers.length > 0 && keyReadyRef.current) {
+              await sendPeerData({ type: "sync_request" });
             }
             return;
           }
@@ -1461,6 +1697,9 @@ function RoomPage({ roomId }: { roomId: string }) {
           }
 
           if (payload.type === "peer_joined") {
+            peerIdentityKeysRef.current.set(payload.peer.sessionId, payload.peer.identityKey);
+            peersRef.current.set(payload.peer.sessionId, payload.peer);
+            beginMembershipChange(payload.membershipVersion);
             startTransition(() =>
               setPresence((current) => ({
                 count: current.connectedSessionIds.includes(payload.peer.sessionId)
@@ -1475,23 +1714,21 @@ function RoomPage({ roomId }: { roomId: string }) {
               void refreshInvites();
             }
             if (messageRef.current.size > 0) {
-              socket.send(
-                JSON.stringify({
-                  type: "peer_data",
-                  toSessionId: payload.peer.sessionId,
-                  data: {
-                    type: "sync_response",
-                    messages: [...messageRef.current.values()]
-                      .sort((left, right) => left.sentAt - right.sentAt)
-                      .slice(-MAX_TRANSCRIPT_SYNC_MESSAGES)
-                  }
-                })
-              );
+              await sendPeerData({
+                type: "sync_response",
+                messages: [...messageRef.current.values()]
+                  .sort((left, right) => left.sentAt - right.sentAt)
+                  .slice(-MAX_TRANSCRIPT_SYNC_MESSAGES),
+                completeness: "peer-partial",
+                truncated: messageRef.current.size > MAX_TRANSCRIPT_SYNC_MESSAGES
+              }, payload.peer.sessionId);
             }
             return;
           }
 
           if (payload.type === "peer_left") {
+            peersRef.current.delete(payload.sessionId);
+            beginMembershipChange(payload.membershipVersion);
             startTransition(() =>
               setPresence((current) => {
                 const nextIds = current.connectedSessionIds.filter((id) => id !== payload.sessionId);
@@ -1504,11 +1741,18 @@ function RoomPage({ roomId }: { roomId: string }) {
             if (creatorToken) {
               void refreshInvites();
             }
+            for (const [fileId, transfer] of incomingFilesRef.current) {
+              if (transfer.senderSessionId === payload.sessionId) {
+                if (transfer.timeoutId) window.clearTimeout(transfer.timeoutId);
+                incomingFilesRef.current.delete(fileId);
+                updateFileMessage(fileId, { state: "error" });
+              }
+            }
             return;
           }
 
           if (payload.type === "peer_data") {
-            await handlePeerData(payload.fromSessionId, JSON.stringify(payload.data));
+            await handlePeerData(payload.fromSessionId, payload.data);
             return;
           }
 
@@ -1529,7 +1773,8 @@ function RoomPage({ roomId }: { roomId: string }) {
               setDestroyFeedback(payload.status === "destroyed" ? "success" : "idle");
               setConnection(t("closed"));
             });
-            sendPeerData({ type: "peer_destroy" });
+            clearRoomSecurityState();
+            await sendPeerData({ type: "peer_destroy" });
             return;
           }
 
@@ -1541,6 +1786,7 @@ function RoomPage({ roomId }: { roomId: string }) {
               setError(null);
               setConnection(t("closed"));
               joinedRef.current = false;
+              clearRoomSecurityState();
               socket.close();
             }
             if (creatorToken) {
@@ -1587,18 +1833,43 @@ function RoomPage({ roomId }: { roomId: string }) {
       }
     }
 
-    async function addEnvelope(envelope: EncryptedMessageEnvelope, relaySenderId?: string) {
-      if (!roomKeyRef.current) {
-        return;
+    async function verifyPeerEvent(
+      event: AuthenticatedPeerEvent,
+      relaySenderId?: string
+    ): Promise<boolean> {
+      if (
+        event.roomId !== roomId ||
+        (relaySenderId && event.senderSessionId !== relaySenderId) ||
+        (event.targetSessionId !== null && event.targetSessionId !== sessionId) ||
+        event.sentAt > Date.now() + 5 * 60 * 1000
+      ) return false;
+      const encodedKey = peerIdentityKeysRef.current.get(event.senderSessionId);
+      if (!encodedKey) return false;
+      try {
+        return await eventReplayGuardRef.current!.accept(event.eventId, null, async () => {
+          const key = await importIdentityPublicKey(encodedKey);
+          if (!(await verifyAuthenticatedPeerEvent(key, event))) {
+            throw new Error("Peer signature verification failed.");
+          }
+        });
+      } catch {
+        return false;
       }
+    }
+
+    async function addEnvelope(event: AuthenticatedPeerEvent) {
+      if (event.payload.type !== "chat_message") return;
+      const envelope = event.payload.envelope;
+      const messageKey = roomKeysRef.current.get(envelope.keyEpoch);
+      if (!messageKey) return;
 
       try {
         const received = await receiveTextMessage(
-          roomKeyRef.current, roomId, envelope, replayGuardRef.current, relaySenderId
+          messageKey, roomId, envelope, replayGuardRef.current!, event.senderSessionId
         );
         if (!received) return;
         const { plaintext, expiresAt } = received;
-        messageRef.current.set(envelope.messageId, envelope);
+        messageRef.current.set(envelope.messageId, event);
 
         startTransition(() => {
           setMessages((current) =>
@@ -1623,10 +1894,49 @@ function RoomPage({ roomId }: { roomId: string }) {
       }
     }
 
-    async function handlePeerData(peerId: string, raw: string) {
-      const payload = JSON.parse(raw) as PeerDataEvent;
+    async function handlePeerData(peerId: string, event: AuthenticatedPeerEvent) {
+      if (!(await verifyPeerEvent(event, peerId))) {
+        setError(t("authFailed"));
+        return;
+      }
+      const payload = event.payload;
+      if (payload.type === "key_rotation") {
+        const leader = currentKeyLeader();
+        const agreementPrivateKey = agreementPrivateKeyRef.current;
+        if (
+          !leader ||
+          event.senderSessionId !== leader.sessionId ||
+          payload.senderAgreementKey !== leader.agreementKey ||
+          payload.keyEpoch !== membershipVersionRef.current ||
+          payload.keyEpoch <= keyEpochRef.current ||
+          !agreementPrivateKey
+        ) return;
+        try {
+          const nextSecret = await unwrapRoomSecret(
+            agreementPrivateKey,
+            payload.senderAgreementKey,
+            roomId,
+            payload.keyEpoch,
+            event.senderSessionId,
+            sessionId,
+            payload.ciphertext,
+            payload.nonce
+          );
+          const nextKey = await deriveRoomKey(nextSecret);
+          roomKeysRef.current.set(payload.keyEpoch, nextKey);
+          roomKeyRef.current = nextKey;
+          keyEpochRef.current = payload.keyEpoch;
+          keyReadyRef.current = true;
+          setKeyReady(true);
+          setConnection(t("connected"));
+          if (shouldRequestSyncRef.current) await sendPeerData({ type: "sync_request" });
+        } catch {
+          setError(t("authFailed"));
+        }
+        return;
+      }
       if (payload.type === "chat_message") {
-        await addEnvelope(payload.envelope, peerId);
+        await addEnvelope(event);
         return;
       }
 
@@ -1634,25 +1944,44 @@ function RoomPage({ roomId }: { roomId: string }) {
         const transcript = [...messageRef.current.values()]
           .sort((left, right) => left.sentAt - right.sentAt)
           .slice(-MAX_TRANSCRIPT_SYNC_MESSAGES);
-        socketRef.current?.send(
-          JSON.stringify({
-            type: "peer_data",
-            toSessionId: peerId,
-            data: { type: "sync_response", messages: transcript }
-          })
-        );
+        await sendPeerData({
+          type: "sync_response",
+          messages: transcript,
+          completeness: "peer-partial",
+          truncated: messageRef.current.size > MAX_TRANSCRIPT_SYNC_MESSAGES
+        }, peerId);
         return;
       }
 
       if (payload.type === "sync_response") {
+        if (
+          payload.completeness !== "peer-partial" ||
+          payload.messages.length > MAX_TRANSCRIPT_SYNC_MESSAGES
+        ) return;
         shouldRequestSyncRef.current = false;
-        for (const envelope of payload.messages) {
-          await addEnvelope(envelope);
+        setRoomNotice(
+          payload.messages.length === 0
+            ? t("syncEmpty")
+            : payload.truncated
+              ? t("syncTruncated")
+              : t("syncPartial")
+        );
+        for (const syncedEvent of payload.messages.slice(-MAX_TRANSCRIPT_SYNC_MESSAGES)) {
+          if (await verifyPeerEvent(syncedEvent)) await addEnvelope(syncedEvent);
         }
         return;
       }
 
       if (payload.type === "file_offer") {
+        if (
+          payload.senderSessionId !== event.senderSessionId ||
+          payload.size < 0 ||
+          payload.size > MAX_FILE_BYTES ||
+          !/^[A-Za-z0-9_-]{43}$/.test(payload.sha256)
+        ) {
+          setError(t("authFailed"));
+          return;
+        }
         const expiresAt =
           typeof payload.expiresAfterReadSeconds === "number"
             ? payload.sentAt + payload.expiresAfterReadSeconds * 1000
@@ -1666,9 +1995,13 @@ function RoomPage({ roomId }: { roomId: string }) {
           size: payload.size,
           totalChunks: 0,
           received: 0,
+          receivedBytes: 0,
           chunks: [],
-          senderSessionId: payload.senderSessionId
+          senderSessionId: payload.senderSessionId,
+          sha256: payload.sha256,
+          keyEpoch: payload.keyEpoch
         });
+        armFileTimeout(payload.fileId, incomingFilesRef.current.get(payload.fileId)!);
         startTransition(() => {
           setMessages((current) =>
             upsertMessage(current, {
@@ -1698,12 +2031,37 @@ function RoomPage({ roomId }: { roomId: string }) {
       }
 
       if (payload.type === "file_chunk") {
+        const incoming = incomingFilesRef.current.get(payload.fileId);
+        if (
+          !incoming ||
+          incoming.senderSessionId !== event.senderSessionId ||
+          !Number.isSafeInteger(payload.chunkIndex) ||
+          !Number.isSafeInteger(payload.totalChunks) ||
+          payload.chunkIndex < 0 ||
+          payload.totalChunks < 1 ||
+          payload.chunkIndex >= payload.totalChunks ||
+          payload.totalChunks > Math.ceil(MAX_FILE_BYTES / FILE_CHUNK_BYTES) ||
+          payload.totalChunks !== Math.max(1, Math.ceil(incoming.size / FILE_CHUNK_BYTES)) ||
+          payload.keyEpoch !== incoming.keyEpoch
+        ) {
+          return;
+        }
         await receiveChunk(payload);
         return;
       }
 
       if (payload.type === "file_complete") {
-        finalizeIncoming(payload.fileId);
+        const incoming = incomingFilesRef.current.get(payload.fileId);
+        if (!incoming || incoming.senderSessionId !== event.senderSessionId) return;
+        await finalizeIncoming(payload.fileId, payload.sha256);
+        return;
+      }
+
+      if (payload.type === "file_cancel") {
+        const incoming = incomingFilesRef.current.get(payload.fileId);
+        if (incoming?.timeoutId) window.clearTimeout(incoming.timeoutId);
+        incomingFilesRef.current.delete(payload.fileId);
+        updateFileMessage(payload.fileId, { state: "error" });
         return;
       }
 
@@ -1711,6 +2069,7 @@ function RoomPage({ roomId }: { roomId: string }) {
         reconnectAllowed = false;
         setRoomNotice(t("peerDestroyed"));
         setConnection(t("closed"));
+        clearRoomSecurityState();
       }
     }
 
@@ -1725,6 +2084,9 @@ function RoomPage({ roomId }: { roomId: string }) {
         reconnectTimerRef.current = null;
       }
       socketRef.current?.close();
+      for (const transfer of incomingFilesRef.current.values()) {
+        if (transfer.timeoutId) window.clearTimeout(transfer.timeoutId);
+      }
     };
   }, [creatorToken, inviteToken, roomId, roomSecret, sessionId]);
 
@@ -1783,6 +2145,7 @@ function RoomPage({ roomId }: { roomId: string }) {
               objectUrlsRef.current.delete(message.file.url);
             }
             outgoingFilesRef.current.delete(message.id);
+            outgoingFileHashesRef.current.delete(message.id);
             incomingFilesRef.current.delete(message.id);
           }
           return keep;
@@ -1790,9 +2153,10 @@ function RoomPage({ roomId }: { roomId: string }) {
       );
     });
     for (const [messageId, envelope] of messageRef.current.entries()) {
+      const message = envelope.payload.type === "chat_message" ? envelope.payload.envelope : null;
       const expiresAt =
-        typeof envelope.expiresAfterReadSeconds === "number"
-          ? envelope.sentAt + envelope.expiresAfterReadSeconds * 1000
+        typeof message?.expiresAfterReadSeconds === "number"
+          ? message.sentAt + message.expiresAfterReadSeconds * 1000
           : undefined;
       if (typeof expiresAt === "number" && expiresAt <= now) {
         messageRef.current.delete(messageId);
@@ -1824,6 +2188,10 @@ function RoomPage({ roomId }: { roomId: string }) {
     if (!trimmed || !roomKeyRef.current || !room || room.status !== "open") {
       return;
     }
+    if (!keyReadyRef.current) {
+      setError(t("securing"));
+      return;
+    }
 
     const sentAt = Date.now();
     const expiresAt =
@@ -1837,19 +2205,19 @@ function RoomPage({ roomId }: { roomId: string }) {
       ciphertext: "",
       nonce: "",
       sentAt,
-      expiresAfterReadSeconds: room.disappearAfterReadSeconds ?? null
+      expiresAfterReadSeconds: room.disappearAfterReadSeconds ?? null,
+      keyEpoch: keyEpochRef.current
     };
     const encrypted = await encryptMessage(roomKeyRef.current, roomId, envelope, trimmed);
     envelope.ciphertext = encrypted.ciphertext;
     envelope.nonce = encrypted.nonce;
 
     try {
-      replayGuardRef.current.markLocal(envelope.messageId);
+      replayGuardRef.current!.markLocal(envelope.messageId, expiresAt ?? null);
     } catch {
       setError(t("replayLimit"));
       return;
     }
-    messageRef.current.set(envelope.messageId, envelope);
     setDraft("");
     setError(null);
     startTransition(() => {
@@ -1870,8 +2238,11 @@ function RoomPage({ roomId }: { roomId: string }) {
       return;
     }
 
-    if (!sendPeerData({ type: "chat_message", envelope })) {
+    const sentEvent = await sendPeerData({ type: "chat_message", envelope });
+    if (!sentEvent) {
       setError(t("messageDeliveryFailed"));
+    } else {
+      messageRef.current.set(envelope.messageId, sentEvent);
     }
   }
 
@@ -2025,7 +2396,7 @@ function RoomPage({ roomId }: { roomId: string }) {
       setDestroying(true);
       setDestroyFeedback("idle");
       const next = await destroyRoom(roomId, creatorToken);
-      sendPeerData({ type: "peer_destroy" });
+      await sendPeerData({ type: "peer_destroy" });
       setRoomNotice(null);
       setRoom(next);
     } catch (cause) {
@@ -2224,7 +2595,7 @@ function RoomPage({ roomId }: { roomId: string }) {
           {roomNotice}
         </p>
       ) : null}
-      {error ? <p className="error-text room-error">{error}</p> : null}
+      {error ? <p className="error-text room-error" role="alert">{error}</p> : null}
       {isCreator && invites.length > 0 ? (
         <section className="invite-panel">
           <span className="eyebrow">{t("invites")}</span>
@@ -2263,7 +2634,7 @@ function RoomPage({ roomId }: { roomId: string }) {
       ) : null}
 
       <section className="chat-stage">
-        <section className="chat-log" ref={chatLogRef}>
+        <section aria-label={t("conversationLog")} aria-live="polite" aria-relevant="additions" className="chat-log" ref={chatLogRef} role="log">
         <div className="chat-thread">
           {!ready ? <p className="system-line">{t("deriving")}</p> : null}
           {messages.length === 0 && ready ? (
@@ -2303,7 +2674,7 @@ function RoomPage({ roomId }: { roomId: string }) {
         <button
           aria-label={t("attachFileLabel")}
           className="secondary-button composer-attach"
-          disabled={room?.status !== "open"}
+          disabled={room?.status !== "open" || !keyReady}
           onClick={() => fileInputRef.current?.click()}
           title={t("attachFile")}
           type="button"
@@ -2322,11 +2693,11 @@ function RoomPage({ roomId }: { roomId: string }) {
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleComposerKeyDown}
-          placeholder={room?.status === "open" ? t("writeMessage") : roomNotice ?? t("roomClosed")}
-          disabled={room?.status !== "open"}
+          disabled={room?.status !== "open" || !keyReady}
+          placeholder={room?.status === "open" ? (keyReady ? t("writeMessage") : t("securing")) : roomNotice ?? t("roomClosed")}
           rows={3}
         />
-        <button className="primary-button" type="submit" disabled={!draft.trim() || room?.status !== "open"}>
+        <button className="primary-button" type="submit" disabled={!draft.trim() || room?.status !== "open" || !keyReady}>
           {t("sendEncrypted")}
         </button>
       </form>

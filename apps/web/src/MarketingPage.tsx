@@ -41,7 +41,7 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
             <li>Message and file content is encrypted and decrypted in participant browsers.</li>
             <li>The room secret is carried in the URL fragment during normal use, so it is not sent to the server in an HTTP request.</li>
             <li>The Cloudflare relay handles ciphertext and does not persist a server-side transcript.</li>
-            <li><strong>Text protocol v2 authenticates to the shared room key and rejects duplicates in a live page session. It does not verify a sender's identity or retain replay state after refresh.</strong></li>
+            <li><strong>Protocol v3 signs peer events with admitted ephemeral session keys, rotates room keys on membership changes, and retains bounded replay IDs across refresh in the same tab.</strong></li>
           </ul>
         </section>
 
@@ -671,6 +671,10 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
             elm.chat is an open-source, account-free messenger for short-lived encrypted rooms with
             single-use invites and no persisted server-side transcript.
           </p>
+          <p>
+            ELM stands for Ephemeral Logless Messaging. “Logless” refers to the message transcript:
+            the relay does not retain one, though it can observe connection metadata.
+          </p>
         </section>
 
         <section>
@@ -941,8 +945,8 @@ const pages: Record<MarketingSlug, MarketingPageContent> = {
         <section>
           <h2>Honesty matters more than a perfect privacy story</h2>
           <p>
-            elm.chat has not had an independent security audit. Text protocol v2 does not verify a
-            sender&apos;s identity or protect file-event metadata. Cloudflare can observe relay metadata such as IP addresses, timing,
+            elm.chat has not had an independent security audit. Protocol v3 authenticates an
+            admitted browser session, not a person&apos;s real-world identity, and peer transcript sync cannot prove completeness. Cloudflare can observe relay metadata such as IP addresses, timing,
             sizes, and presence. A compromised device, screenshot, clipboard manager, photograph,
             or malicious recipient can preserve what the room was designed to forget.
           </p>
@@ -1265,7 +1269,7 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.`}</code>
             <li>Files are split into 64 KiB chunks and encrypted chunk by chunk.</li>
             <li>The browser holds the room key and current transcript in memory.</li>
             <li>The server stores room policy, status, creator capability, and invite state.</li>
-            <li>Text protocol v2 authenticates message fields to the shared room key. Ephemeral identity keys do not yet verify sender identity.</li>
+            <li>Protocol v3 signs peer events with admitted ephemeral session keys. Those keys do not establish real-world identity.</li>
           </ul>
           <p>
             The current design does not solve device compromise, screenshots, malicious recipients,
@@ -1720,8 +1724,8 @@ server.serializeAttachment({
           <p>
             This deliberately gives up server-backed recovery. If every browser that held an item
             disconnects, a later participant cannot retrieve it. A malicious peer can also omit or
-            reorder sync data. Text protocol v2 authenticates individual messages to the shared room key,
-            but does not authenticate which participant supplied the transcript.
+            reorder sync data. Protocol v3 authenticates each synced event to an admitted ephemeral
+            session, but peer-supplied sync still cannot prove completeness.
           </p>
         </section>
 

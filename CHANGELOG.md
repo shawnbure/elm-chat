@@ -2,6 +2,42 @@
 
 All notable changes to elm.chat are documented here.
 
+## Unreleased
+
+### Added
+
+- English and Spanish localization for the interactive landing, invite, room,
+  connection, file-transfer, and destruction states, selected from browser
+  language preferences with English fallback.
+- Message protocol v3 with signed peer events, tab-scoped replay persistence,
+  membership key epochs, authenticated file controls, whole-file integrity,
+  cancellation, timeout, and bounded recovery behavior.
+- A recovery and accessibility test matrix plus automated reconnect, replay,
+  identity-binding, unsigned-event, and key-wrap regression coverage.
+- A same-origin, cached GitHub activity panel for recent fixes and open requests.
+- A privacy guard for hosted aggregate growth events and a redacted self-host
+  smoke-report generator covering deployment and the two-browser lifecycle.
+- Updated landing-page and room screenshots captured from the current build.
+
+### Changed
+
+- Tightened invite admission, creator-capability checks, room deadline
+  enforcement, closed-room behavior, and regression coverage.
+- Added bounded WebSocket reconnect feedback and clearer invite, participant,
+  file-transfer, and room-destruction states.
+- Removed website voting controls; project activity links now lead to the
+  corresponding GitHub issue for discussion and reactions.
+- Expanded public security copy to distinguish first-party aggregate counters
+  on hosted elm.chat from the analytics-free public self-host configuration.
+
+### Security status
+
+elm.chat still has not completed an independent security audit. Protocol v3
+authenticates admitted browser sessions, not real-world people; peer transcript
+sync cannot prove completeness; key rotation cannot erase content already held
+by an endpoint. The relay can observe ordinary connection metadata, and
+participants or compromised endpoints can retain plaintext and files.
+
 ## [0.1.2] - 2026-08-05
 
 This maintenance release makes the public Cloudflare self-host path work from

@@ -22,7 +22,7 @@ const pages = {
           <li>Message and file content is encrypted and decrypted in participant browsers.</li>
           <li>The room secret is carried in the URL fragment during normal use, so it is not sent to the server in an HTTP request.</li>
           <li>The Cloudflare relay handles ciphertext and does not persist a server-side transcript.</li>
-          <li><strong>Text protocol v2 authenticates to the shared room key and rejects duplicates in a live page session. It does not verify a sender's identity or retain replay state after refresh.</strong></li>
+          <li><strong>Protocol v3 signs peer events with admitted ephemeral session keys, rotates room keys on membership changes, and retains bounded replay IDs across refresh in the same tab.</strong></li>
         </ul>
       </section>
       <section>
@@ -104,7 +104,7 @@ const pages = {
       "A practical guide to transferring a file through a short-lived encrypted room, including live delivery, file-size limits, metadata, and endpoint copies.",
     eyebrow: "Temporary encrypted file transfer",
     datePublished: "2026-08-03",
-    dateModified: "2026-08-03",
+    dateModified: "2026-09-19",
     keywords: [
       "send a file securely",
       "temporary encrypted file transfer",
@@ -397,6 +397,7 @@ const pages = {
       <section>
         <h2>One-sentence description</h2>
         <p>elm.chat is an open-source, account-free messenger for short-lived encrypted rooms with single-use invites and no persisted server-side transcript.</p>
+        <p>ELM stands for Ephemeral Logless Messaging. “Logless” refers to the message transcript: the relay does not retain one, though it can observe connection metadata.</p>
       </section>
       <section>
         <h2>The idea behind the project</h2>
@@ -543,7 +544,7 @@ const pages = {
       </section>
       <section>
         <h2>Honesty matters more than a perfect privacy story</h2>
-        <p>elm.chat has not had an independent security audit. Text protocol v2 does not verify a sender's identity or protect file-event metadata. Cloudflare can observe relay metadata such as IP addresses, timing, sizes, and presence. A compromised device, screenshot, clipboard manager, photograph, or malicious recipient can preserve what the room was designed to forget.</p>
+        <p>elm.chat has not had an independent security audit. Protocol v3 authenticates an admitted browser session, not a person's real-world identity, and peer transcript sync cannot prove completeness. Cloudflare can observe relay metadata such as IP addresses, timing, sizes, and presence. A compromised device, screenshot, clipboard manager, photograph, or malicious recipient can preserve what the room was designed to forget.</p>
         <p>Those are not footnotes to hide after adoption. They define where the tool fits. I do not want people in high-risk situations to confuse an experimental open-source product with an audited anonymity system. I want engineers and privacy practitioners to inspect it, improve it, and help make its claims narrower and stronger.</p>
       </section>
       <section>
@@ -726,7 +727,7 @@ Invariant: no transition leaves DESTROYED or RECLAIMED.</code></pre>
           <li>Files are split into 64 KiB chunks and encrypted chunk by chunk.</li>
           <li>The browser holds the room key and current transcript in memory.</li>
           <li>The server stores room policy, status, creator capability, and invite state.</li>
-          <li>Text protocol v2 authenticates message fields to the shared room key. Ephemeral identity keys do not yet verify sender identity.</li>
+          <li>Protocol v3 signs peer events with admitted ephemeral session keys. Those keys do not establish real-world identity.</li>
         </ul>
         <p>The current design does not solve device compromise, screenshots, malicious recipients, traffic analysis, denial of service, or strong anonymous routing. It has not had an independent security audit.</p>
       </section>
@@ -968,7 +969,7 @@ server.serializeAttachment({
       <section>
         <h2>Let clients supply encrypted history</h2>
         <p>A joining browser sends a <code>sync_request</code> through the relay. Connected peers answer with at most the latest 200 encrypted message envelopes. The Durable Object routes that payload but never commits it to storage.</p>
-        <p>This deliberately gives up server-backed recovery. If every browser that held an item disconnects, a later participant cannot retrieve it. A malicious peer can also omit or reorder sync data. Text protocol v2 authenticates individual messages to the shared room key, but does not authenticate which participant supplied the transcript.</p>
+        <p>This deliberately gives up server-backed recovery. If every browser that held an item disconnects, a later participant cannot retrieve it. A malicious peer can also omit or reorder sync data. Protocol v3 authenticates each synced event to an admitted ephemeral session, but peer-supplied sync still cannot prove completeness.</p>
       </section>
       <section>
         <h2>What hibernation does—and does not—buy</h2>

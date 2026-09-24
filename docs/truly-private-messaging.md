@@ -1,16 +1,16 @@
-# Why People Need A Truly Private Messaging App
+# Why Temporary Conversations Need Clear Privacy Boundaries
 
 Most people do not start by asking for cryptography.
 
 They start with a much simpler need:
 
-They need to say something sensitive without creating a permanent record.
+They need to complete a short exchange without creating another permanent server-side transcript.
 
-That might be a private family matter. It might be legal exposure. It might be a workplace issue, a political conversation, a whistleblower exchange, a source protecting a source, or a message between people who know that the wrong screenshot, database dump, subpoena, breach, or compromised admin could change their lives.
+That might be a temporary troubleshooting session, a low-risk credential handoff, a file exchange, or event coordination between people who already know one another. The durable outcome can be recorded where it belongs without preserving every transient message.
 
-That is the real reason a private messaging app matters.
+That is the practical case for a disposable room.
 
-![elm.chat landing page](images/landing-page.jpg)
+![Current elm.chat landing page](images/landing-page-2026-09.png)
 
 ## The Problem Is Bigger Than Message Encryption
 
@@ -28,13 +28,13 @@ People are also exposed by:
 
 In the real world, bad actors do not always need the plain text of a conversation to cause harm. They may only need access to a server, a partner account, a leaked backup, a hostile insider, a compelled platform, or a timeline of who connected to whom.
 
-For people under pressure, that can be enough.
+For any system, those boundaries should be stated plainly instead of hidden behind a broad “private” claim.
 
 ## Why Someone Would Choose elm.chat
 
 `elm.chat` is built around a simple idea:
 
-Some conversations should leave almost nothing behind.
+Some conversations should not create a server-side message archive.
 
 Not every message needs an account.
 Not every room needs a permanent home.
@@ -56,23 +56,11 @@ The point is not novelty. The point is reducing what can be collected, retained,
 
 This kind of tool is useful for ordinary privacy-minded people.
 
-It is also useful for people in more serious conditions:
+It is intended for ordinary, low-risk conversations between people who already know and trust one another. It is not an anonymity system, a whistleblower drop box, a regulated-data channel, or a tool for people facing a high-risk adversary. The project is early-stage and has not completed an independent security audit.
 
-- people living under censorship or repression
-- activists and organizers
-- journalists and sources
-- people documenting abuse
-- workers reporting wrongdoing
-- communities under political or social pressure
-- anyone who does not want a platform to own the permanent memory of a conversation
+The useful question is narrower: “Which copies does this system create, who can read them, and when should they stop existing?”
 
-In those situations, privacy is not branding. It is risk management.
-
-The question becomes:
-
-"If this device is inspected, if this service is pressured, if this server is breached, if this account is compromised, how much is left behind?"
-
-That is the question `elm.chat` is trying to answer better.
+That is the boundary `elm.chat` is trying to make inspectable.
 
 ## Disposable By Design
 
@@ -91,7 +79,6 @@ That matters for:
 - malicious attackers
 - abusive insiders
 - commercial data extraction
-- coercive legal or political pressure
 - broad compromise of central systems
 
 The less valuable the retained record is, the less damage a later breach can do.
@@ -133,7 +120,7 @@ The room secret stays in the URL fragment instead of being sent to the server in
 
 It is not magic. It is just a better trust boundary.
 
-Now that the access model is moving toward single-use invites, the trust boundary is a little tighter:
+The current access model uses single-use invites, which narrows the admission window:
 
 - the creator controls who receives an invite
 - the invite can be consumed once
@@ -156,7 +143,7 @@ That is why `elm.chat` has to be:
 - low-friction
 - clear about what disappears and when
 
-Privacy software only works if people will actually use it when they need it.
+Privacy controls only help when people can understand and use them correctly.
 
 ## What Risks Still Remain
 
@@ -166,6 +153,7 @@ Even with disappearing messages, self-destructing rooms, and single-use invites,
 - a compromised device can still expose plaintext, screenshots, and copied messages
 - a participant can always leak what they can see
 - timing and transport metadata can still reveal activity patterns
+- protocol v3 signs text, sync, file, and key-rotation events with admitted ephemeral session keys and retains bounded replay IDs across refresh; those keys still do not prove real-world identity or transcript completeness
 - any private system can be weakened by unsafe behavior at the edges
 
 That is why best practices still matter.
@@ -191,14 +179,12 @@ That is what makes this worth building.
 
 ## Why Contribute
 
-If you care about privacy, civil liberty, open systems, or safer communication infrastructure, this project needs you.
+If you care about privacy engineering, open systems, or lower-retention communication infrastructure, this project needs you.
 
 It needs engineers, designers, reviewers, security researchers, cryptographers, and critics who are willing to make the product stronger.
 
-It also needs people who understand the social reality behind the technical work: people use private tools because the stakes are real.
+It also needs people willing to test the gaps as carefully as the features: sender identity, file-event authentication, replay behavior after refresh, metadata exposure, endpoint copies, and deletion failure modes.
 
-If you want to help people communicate with less fear, less retention, and less exposure, contribute to `elm.chat`.
+If you want to help people communicate with less unnecessary retention and more explicit boundaries, contribute to `elm.chat`.
 
-![elm.chat room with multiple participants](images/chat-room-a.jpg)
-![elm.chat room example](images/chat-room-b.jpg)
-![elm.chat conversation view](images/chat-room-c.jpg)
+![Current elm.chat room with invite and expiry controls](images/chat-room-2026-09.png)

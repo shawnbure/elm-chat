@@ -123,8 +123,8 @@ The socket must send a valid `join` within 15 seconds. Until then it counts towa
   "peers": [{ "sessionId": "uuid-2", "creator": false, "connectedAt": 1744150200000, "identityKey": "base64url" }],
   "presence": { "count": 2, "connectedSessionIds": ["uuid", "uuid-2"] } }
 { "type": "presence", "presence": { "count": 2, "connectedSessionIds": ["uuid-1", "uuid-2"] } }
-{ "type": "peer_joined", "peer": { "sessionId": "uuid-3", "creator": false, "connectedAt": 1744150300000, "identityKey": "base64url" } }
-{ "type": "peer_left", "sessionId": "uuid-2" }
+{ "type": "peer_joined", "peer": { "sessionId": "uuid-3", "creator": false, "connectedAt": 1744150300000, "identityKey": "base64url", "agreementKey": "base64url" }, "membershipVersion": 3 }
+{ "type": "peer_left", "sessionId": "uuid-2", "membershipVersion": 4 }
 { "type": "peer_data", "fromSessionId": "uuid-2", "data": { /* see Peer Data Protocol */ } }
 { "type": "participant_kicked", "sessionId": "uuid", "reason": "kicked" }
 { "type": "room_state", "status": "destroyed", "expiresAt": null, "reason": "destroyed" }
@@ -133,18 +133,20 @@ The socket must send a valid `join` within 15 seconds. Until then it counts towa
 
 ## Peer Data Protocol
 
-These events are carried inside `peer_data`. They are **relayed through the Durable Object** (broadcast, or targeted via `toSessionId`). Text and file-chunk content are encrypted; event types and metadata remain visible to the relay. Text-message v2 associated data and replay rules are documented in [message protocol v2](message-protocol-v2.md).
+These payloads are carried inside a signed `AuthenticatedPeerEvent` and relayed through the Durable Object. Content is encrypted; event types, targets, timing, and sizes remain visible to the relay. Protocol and replay rules are documented in [message protocol v3](message-protocol-v2.md).
 
 ```json
-{ "type": "chat_message", "envelope": { "protocolVersion": 2, "messageId": "uuid", "senderSessionId": "uuid", "ciphertext": "base64url", "nonce": "base64url", "sentAt": 1744150200000, "expiresAfterReadSeconds": 420 } }
+{ "type": "chat_message", "envelope": { "protocolVersion": 3, "messageId": "uuid", "senderSessionId": "uuid", "ciphertext": "base64url", "nonce": "base64url", "sentAt": 1744150200000, "expiresAfterReadSeconds": 420, "keyEpoch": 2 } }
 { "type": "sync_request" }
-{ "type": "sync_response", "messages": [ /* array of envelopes, capped to MAX_TRANSCRIPT_SYNC_MESSAGES */ ] }
+{ "type": "sync_response", "messages": [ /* signed events, capped to MAX_TRANSCRIPT_SYNC_MESSAGES */ ], "completeness": "peer-partial", "truncated": false }
 { "type": "peer_destroy" }
 
-{ "type": "file_offer", "fileId": "uuid", "senderSessionId": "uuid", "name": "example.pdf", "mimeType": "application/pdf", "size": 12345, "sentAt": 1744150200000, "expiresAfterReadSeconds": 420 }
+{ "type": "file_offer", "fileId": "uuid", "senderSessionId": "uuid", "name": "example.pdf", "mimeType": "application/pdf", "size": 12345, "sentAt": 1744150200000, "expiresAfterReadSeconds": 420, "sha256": "base64url", "keyEpoch": 2 }
 { "type": "file_request", "fileId": "uuid" }
-{ "type": "file_chunk", "fileId": "uuid", "chunkIndex": 0, "totalChunks": 4, "ciphertext": "base64url", "nonce": "base64url" }
-{ "type": "file_complete", "fileId": "uuid" }
+{ "type": "file_chunk", "fileId": "uuid", "chunkIndex": 0, "totalChunks": 4, "ciphertext": "base64url", "nonce": "base64url", "keyEpoch": 2 }
+{ "type": "file_complete", "fileId": "uuid", "sha256": "base64url" }
+{ "type": "file_cancel", "fileId": "uuid", "reason": "timeout" }
+{ "type": "key_rotation", "keyEpoch": 3, "senderAgreementKey": "base64url", "ciphertext": "base64url", "nonce": "base64url" }
 ```
 
 **File flow:** the sender broadcasts a `file_offer`; a recipient sends a targeted `file_request`; the sender streams encrypted `file_chunk`s (targeted) followed by `file_complete`; the recipient decrypts, reassembles, and offers a download. File contents are never stored server-side and vanish on the room's message policy.

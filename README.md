@@ -11,9 +11,26 @@
 
 > **Instant chat. Account-free, encrypted, fast and disposable.** End-to-end encrypted rooms that self-destruct, with no persisted server-side transcript. This early-stage release has not had an independent security audit.
 
-![elm.chat two-user demo — create a room, share a single-use invite, exchange end-to-end encrypted messages, then destroy the room](docs/images/elm-chat-demo.gif)
+**ELM stands for Ephemeral Logless Messaging.** “Logless” describes the absence of a persisted server-side message transcript; the relay can still observe connection metadata, and participants can keep their own copies.
 
-*A real two-person session: create a room, hand off a single-use invite, exchange encrypted messages, and destroy the room for both participants.*
+![Current elm.chat landing page with room policies and live GitHub project activity](docs/images/landing-page-2026-09.png)
+
+*The current landing page keeps room creation, public project activity, source, and security limits visible in one place.*
+
+## What ships today
+
+| Area | Current behavior |
+| --- | --- |
+| Accounts and identity | No account or contact list. Each browser session gets a temporary color identity instead of a username. |
+| Room access | Creator-issued, expiring, single-use invites; invite revocation; creator removal of connected participants. The room secret stays in the URL fragment. |
+| Text | AES-GCM encrypted in the browser. Protocol v3 binds the room, key epoch, sender session, message ID, timestamp, and expiry. Every peer event is signed by the admitted session's ephemeral ECDSA key. |
+| Files | Browser-encrypted, signed, request-driven 64 KiB chunks through the relay, up to 25 MiB. Declared size, chunk bounds, timeout, cancellation, and whole-file SHA-256 are checked before download. |
+| Lifecycle | Per-message expiry, idle and maximum room deadlines, creator-controlled destruction, and server-enforced teardown for connected clients. |
+| Reliability | Automatic WebSocket reconnect with bounded backoff, replay IDs retained in bounded tab storage, explicit connection/key state, invite-admission checks, and closed-room handling. |
+| Language | The interactive room experience follows browser language preferences for English and Spanish, with English fallback. |
+| Project visibility | A same-origin, cached GitHub activity feed shows recent fixes and open requests without loading GitHub scripts in the visitor's browser. |
+| Self-hosting | One Worker plus one Durable Object per room, one-click or Wrangler deployment, configuration drift checks, and a redacted smoke-report generator. |
+| Tracking boundary | No third-party trackers. Hosted elm.chat can record allowlisted aggregate funnel counters; the public self-host template omits that binding. |
 
 ## Choose your path
 
@@ -22,7 +39,7 @@
 | Try the product | [Create a disposable room](https://elm.chat/?source=github-readme), invite exactly one person, and exchange a low-risk test message. |
 | Run my own instance | [Deploy to Cloudflare](https://elm.chat/deploy/cloudflare?source=github-readme) or follow the [manual deployment guide](#deploy-to-cloudflare). |
 | Review the claims | Read the [security status](https://elm.chat/security-and-limitations), [threat model](docs/threat-model.md), and [architecture](docs/architecture.md). |
-| Help build it | Pick one of the scoped [good first issues](https://github.com/shawnbure/elm-chat/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22) or read [CONTRIBUTING.md](CONTRIBUTING.md). |
+| Help build it | Review the current [help-wanted issues](https://github.com/shawnbure/elm-chat/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22help+wanted%22), the [contributor starting points](docs/GOOD-FIRST-ISSUES.md), or [CONTRIBUTING.md](CONTRIBUTING.md). |
 
 If elm.chat is worth revisiting, use GitHub's **Star** button above. Stars are the public signal that helps other open-source users find the project.
 
@@ -41,7 +58,7 @@ The invite expires and can only be used once. Start with non-critical informatio
 
 This repository is for builders, reviewers, security researchers, and contributors who want to help push the project toward a genuinely minimal-footprint private communication model.
 
-New here? Start with the public [try, review, or contribute guide](https://github.com/shawnbure/elm-chat/discussions/42), ask a question in [Discussions](https://github.com/shawnbure/elm-chat/discussions), or choose a scoped [good first issue](https://github.com/shawnbure/elm-chat/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22).
+New here? Start with the public [try, review, or contribute guide](https://github.com/shawnbure/elm-chat/discussions/42), ask a question in [Discussions](https://github.com/shawnbure/elm-chat/discussions), or review the current [help-wanted work](https://github.com/shawnbure/elm-chat/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22help+wanted%22).
 
 Try [elm.chat](https://elm.chat/?source=github-readme), review its [public security status and limitations](https://elm.chat/security-and-limitations), open the [press and media kit](https://elm.chat/press), read why [the internet needs places that are allowed to forget](https://elm.chat/the-internet-needs-places-that-forget) or [why I built a messenger designed to disappear](https://elm.chat/why-i-built-elm-chat), learn what [self-destructing chat should actually mean](https://elm.chat/self-destructing-chat), follow the practical guides to [sending a password without leaving it in chat history](https://elm.chat/send-a-password-securely) and [sending a file without creating another attachment archive](https://elm.chat/send-a-file-securely), compare a [one-time secret with a disposable chat](https://elm.chat/one-time-secret-chat), create a [temporary private chat without signup](https://elm.chat/temporary-private-chat), choose a [communication channel for a journalist and source](https://elm.chat/journalist-source-communication), examine why [deletion is a distributed-systems contract](https://elm.chat/deletion-distributed-systems-contract), explore the [Cloudflare Durable Objects architecture](https://elm.chat/building-ephemeral-chat-cloudflare), see how [WebSocket hibernation works without a chat database](https://elm.chat/durable-objects-websocket-hibernation), or build [single-use invite links as explicit capabilities](https://elm.chat/single-use-invite-links).
 
@@ -55,9 +72,7 @@ elm.chat is Cloudflare-native, so you can fork and self-host a full private inst
 
 Tried the self-host path? [Share a successful deployment or the exact blocker](https://github.com/shawnbure/elm-chat/discussions/97). Self-hosted instances send no analytics back to elm.chat, so this opt-in report is the only reliable way to improve the path for the next operator.
 
-Prefer to do it by hand? See [Deploy to Cloudflare](#deploy-to-cloudflare) below and the [deployment verification checklist](docs/deploy-to-cloudflare-verification.md). Want to contribute instead of just run it? Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [good first issues](docs/GOOD-FIRST-ISSUES.md).
-
-![elm.chat landing page](docs/images/landing-page.jpg)
+Prefer to do it by hand? See [Deploy to Cloudflare](#deploy-to-cloudflare) below and the [deployment verification checklist](docs/deploy-to-cloudflare-verification.md). Want to contribute instead of just run it? Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [contributor starting points](docs/GOOD-FIRST-ISSUES.md).
 
 ## What People See
 
@@ -71,7 +86,7 @@ On the landing screen, a visitor sees:
 - a `Create private conversation` action
 - a note that the room secret stays in the URL fragment and does not normally reach the server
 - a quick summary panel for access, message policy, and room policy
-- up to five recently closed GitHub issues and five open requests, with links to add a thumbs-up reaction on GitHub
+- up to five recently closed GitHub issues and five open requests, each linking to its public GitHub thread
 
 Inside a room, people see:
 
@@ -86,6 +101,8 @@ Inside a room, people see:
 - a single composer for fast message entry
 - encrypted file sharing that streams over the encrypted relay and vanishes on the same policy as messages
 - a room that is meant to disappear instead of becoming a permanent archive
+
+![Current elm.chat room with expiry policy, single-use invite controls, encrypted messages, and creator actions](docs/images/chat-room-2026-09.png)
 
 The interface is meant to feel immediate, readable, and disposable. It should communicate privacy without turning the user experience into a configuration maze.
 
@@ -119,9 +136,13 @@ The shipping implementation is built around:
 - a Cloudflare Worker serving the app and API, plus one Durable Object per room
 - room secrets kept in the URL fragment so they do not reach the server in normal requests
 - end-to-end encrypted message payloads (AES-GCM under a room key derived in the browser)
+- text protocol v3 associated data binding for the room ID, key epoch, sender session ID, message ID, timestamp, and expiry
+- signed, versioned peer events bound to the admitted ephemeral ECDSA identity and optional target session
+- fresh room-key epochs distributed only to remaining participants with ephemeral ECDH when membership changes
 - **encrypted content relayed — never stored — through the room's Durable Object over a single WebSocket**, so the server only ever sees ciphertext
 - end-to-end encrypted, chunked file sharing over that same relay
 - creator-issued single-use invite links, invite revocation, and participant removal
+- automatic WebSocket reconnect with bounded backoff and explicit reconnect status
 - optional invisible Cloudflare Turnstile on room creation (inert until keys are configured)
 - a disposable room lifecycle (idle + max-age self-destruct, manual destroy) instead of permanent storage
 
@@ -129,7 +150,7 @@ The shipping implementation is built around:
 
 elm-chat does not use WebRTC peer-to-peer transport, and it contacts no STUN or TURN servers. Relaying encrypted payloads through the Durable Object is a deliberate choice: it keeps every participant's IP address private from other room members (naive WebRTC would leak peer IPs via ICE), needs no TURN server, and works reliably on mobile and restrictive networks. The trade-off is that the honest-but-curious server relays ciphertext and can observe connection metadata (timing, sizes, presence).
 
-The long-term direction may add an optional direct-peer transport for participants who accept the IP-exposure trade-off, plus sender identity verification using the ephemeral identity keys already exchanged on join.
+The long-term direction may add an optional direct-peer transport for participants who accept the IP-exposure trade-off. Ephemeral sender verification is implemented, but it does not establish a person's real-world identity.
 
 If you are contributing, treat the phrases "footprint-less", "log-less", and "no-server" as the product standard we are aiming toward, not as a slogan. See [docs/architecture.md](docs/architecture.md) and [docs/threat-model.md](docs/threat-model.md) for the precise current model.
 
@@ -352,9 +373,9 @@ In practical terms, a room should act more like a volatile coordination envelope
 
 ## Access Model
 
-Room access is no longer meant to rely on a broad reusable room link.
+Room access does not rely on a broad reusable guest link.
 
-The current direction is:
+The current implementation is:
 
 - the creator opens the room
 - the creator issues a one-time invite
@@ -377,24 +398,38 @@ Contributors should think in terms of:
 - transcript authority
 - peer authentication
 - safe room destruction
-- low-friction mobile use under pressure
+- low-friction use on mobile and unreliable networks
 
 If a feature improves convenience but expands retention, logging, observability, or recoverable history, it should be challenged hard.
 
-## What Still Matters After Single-Use Invites
+## Security Work That Still Matters
 
-Single-use invites are a meaningful improvement, but they do not solve every problem.
+Single-use invites and protocol v3 close specific gaps. They do not make the system independently audited or suitable for high-risk use.
 
-Risks that still remain:
+What is implemented now:
 
-- text protocol v2 authenticates room and message metadata with AES-GCM and rejects duplicate IDs in the current page session; it does not authenticate a specific sender, protect file-event metadata, or retain replay state after refresh (see [protocol design](docs/message-protocol-v2.md))
+- at-most-once guest admission with expiring, revocable invites
+- protocol v3 authentication of room, key epoch, and message metadata with AES-GCM
+- signed peer events for text, transcript sync, file controls, chunks, completion, cancellation, and key rotation
+- duplicate message and peer-event rejection across live delivery, transcript sync, reconnect, and refresh in bounded tab storage
+- fresh room keys on membership changes, wrapped separately for remaining participants without giving the relay a key
+- bounded file chunks, backpressure, transfer timeout/cancellation, declared-size checks, and whole-file SHA-256 verification
+- on-path room-deadline checks before WebSocket admission and event handling
+- creator-authorized invite management, participant removal, and room destruction
+
+Gaps that remain:
+
+- ephemeral keys authenticate a browser session, not a person's real-world identity; participants still need another channel when human identity matters
+- peer-supplied transcript sync remains incomplete by design and cannot prove that no message was omitted
+- key rotation protects later epochs from a removed participant but cannot erase old keys, plaintext, screenshots, or files already held by an endpoint
+- tab-scoped identity and replay state disappear when the tab session ends; there is intentionally no account-backed recovery or server archive
 - if an invite is intercepted before the intended recipient redeems it, the first redeemer can still get in
 - if a device is compromised, screenshots, clipboard history, browser history, or malware can still expose the conversation
 - if a participant forwards plaintext, screenshots, or the room secret after joining, the protocol cannot stop human leakage
 - metadata still exists at the transport and endpoint level even when message content is encrypted
 - if the creator leaves a room open too long, exposure time grows even if invites are single-use
 
-Best practices after this change:
+Current operating guidance:
 
 - issue invites only when the recipient is ready to use them
 - keep invite lifetime short
@@ -404,24 +439,13 @@ Best practices after this change:
 - destroy the room as soon as the conversation is done
 - treat every endpoint as a possible weak point
 
-## What We Need Help With
+## Next Security Work
 
-There is a lot of room for serious contribution.
+Issues [#106](https://github.com/shawnbure/elm-chat/issues/106), [#107](https://github.com/shawnbure/elm-chat/issues/107), [#108](https://github.com/shawnbure/elm-chat/issues/108), [#109](https://github.com/shawnbure/elm-chat/issues/109), and [#110](https://github.com/shawnbure/elm-chat/issues/110) produced the signed-event protocol, refresh-safe bounded replay state, membership key epochs, hardened file transfer, and the [recovery and accessibility test matrix](docs/RECOVERY-ACCESSIBILITY-TEST-MATRIX.md).
 
-Priority contribution areas:
+The next security work is independent protocol review, real-device execution of the recovery matrix, stronger human/device verification, traffic-analysis reduction, abuse resistance, and continued threat-model maintenance.
 
-- cryptographic review
-- protocol design
-- transcript sync and deduplication
-- mobile-first UX
-- accessibility under stress
-- file-transfer hardening (large files, resumability, backpressure)
-- WebSocket auto-reconnect and resync
-- traffic and metadata minimization
-- operational hardening
-- documentation and threat modeling
-
-If you want to contribute, open issues, propose design changes, audit assumptions, and submit patches. High standards are welcome.
+[Independent review remains open in #56](https://github.com/shawnbure/elm-chat/issues/56). Cross-cutting work also includes traffic and metadata minimization, operational hardening, documentation, and threat-model maintenance.
 
 ## Invitation
 
@@ -454,7 +478,3 @@ Privacy protects people; it is not a shield for abuse. See [docs/abuse-policy.md
 ## Disclaimer
 
 Do not market or rely on this project as a completed high-assurance safety tool until its protocol, implementation, and operational guarantees have been independently reviewed and tested under realistic threat conditions.
-
-![elm.chat room interface](docs/images/chat-room-a.jpg)
-![elm.chat room interface alternate](docs/images/chat-room-b.jpg)
-![elm.chat room conversation view](docs/images/chat-room-c.jpg)

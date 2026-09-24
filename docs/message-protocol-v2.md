@@ -1,96 +1,98 @@
-# Text Message Protocol v2
+# Message and Peer Event Protocol v3
 
-This document describes the text-message wire format added for issue #100. It is
+This document describes the protocol introduced by issues #106–#109. The
+filename is retained so existing documentation links continue to work. This is
 an implementation design, not an independent security review.
 
-## Threat Model and Scope
+## Threat model and scope
 
-The relay sees room metadata, session IDs, ciphertext, timing, and sizes. It does
-not receive the URL-fragment room secret in normal operation. AES-GCM
-authenticates each text message to a holder of the room key and detects changes
-to protected fields. It does not prove which human or device sent a message:
-every participant who has the shared room secret can construct a valid envelope.
-The relay may still suppress, delay, or reorder messages. File offers, file
-requests, file metadata, and file transfer controls are outside v2's text-message
-authentication boundary.
+The relay sees room IDs, session IDs, event types, targets, ciphertext sizes,
+timing, presence, and membership changes. It does not normally receive the URL
+fragment secret, epoch secrets, plaintext, or files. The relay can suppress,
+delay, reorder, or selectively deliver events.
 
-## Envelope and Associated Data
+Each tab session has an ephemeral ECDSA P-256 signing key and ECDH P-256 key
+agreement key. The Durable Object binds both public keys to the admitted
+session. This authenticates an event to that browser session. It does not prove
+a person's legal or real-world identity, make a participant trustworthy, or
+prevent an endpoint from retaining content.
 
-`protocolVersion` is exactly `2`. The random `messageId` and
-`senderSessionId` are UUID-shaped strings, `sentAt` is a safe integer Unix
-millisecond timestamp, and `expiresAfterReadSeconds` is null or a nonnegative
-safe integer. The sender encrypts UTF-8 text with AES-GCM-256 and a fresh random
-96-bit nonce. The 128-bit GCM tag is included in base64url `ciphertext`.
+## Signed peer envelope
 
-Associated data is the UTF-8 encoding of this JSON array, in this exact order:
+Every chat, sync, file, teardown, and key-rotation payload is carried in a
+versioned `AuthenticatedPeerEvent` containing:
+
+- protocol version, room ID, random event ID, sender session ID
+- optional target session ID and send timestamp
+- the complete typed payload
+- an ECDSA SHA-256 signature
+
+The signature input is deterministic canonical JSON with the domain separator
+`elm-chat-peer-event`. The receiver requires the room, relay sender for direct
+events, target, admitted public key, version, and signature to agree. The relay
+also rejects structural sender, room, and target mismatches before forwarding.
+There is no silent downgrade path.
+
+## Text envelope and key epochs
+
+`protocolVersion` is exactly `3`. Text uses AES-GCM-256 with a fresh 96-bit
+nonce. Associated data is the UTF-8 form of this exact array order:
 
 ```json
-["elm-chat-message",2,"<roomId>","<messageId>","<senderSessionId>",1730000000000,420]
+["elm-chat-message",3,"<roomId>","<messageId>","<senderSessionId>",1730000000000,420,2]
 ```
 
-The recipient reconstructs it from the envelope and its own room URL, then
-authenticates before displaying or expiring the text. A direct live relay also
-requires the relay's `fromSessionId` to equal the envelope's sender ID. A
-peer-supplied transcript can contain messages from other senders, so sync
-authenticates each envelope individually without that live-sender check.
-The constant `elm-chat-message` is the authenticated message-type domain
-separator. There is no sender sequence number: a random message ID plus a
-per-page accepted-ID ledger is the replay scheme. Reusing an ID, even with
-different authenticated ciphertext, is rejected in that ledger. This permits
-arbitrary out-of-order delivery but cannot detect missing messages.
+The final number is `keyEpoch`. Changes to the room, ID, sender, time, expiry,
+epoch, nonce, or ciphertext fail authentication. The signed peer envelope adds
+sender-session authentication around the shared epoch-key authentication.
 
-This is a wire-format break from older clients. v2 receivers reject envelopes
-without `protocolVersion: 2`; older clients cannot decrypt v2 text. Room key
-derivation remains `KEY_VERSION = v1`. There is no silent downgrade path.
-Participants should reload to the same client version if messages fail.
+A deterministic connected leader creates a fresh random 256-bit secret whenever
+the Durable Object reports a membership-version change. It wraps that secret
+separately for every remaining participant using ephemeral P-256 ECDH, HKDF
+SHA-256, and AES-GCM with room, epoch, sender, and recipient context. The server
+relays wrapped secrets but cannot derive them. Sending is disabled until the
+current epoch is installed. Old epoch keys remain only in endpoint memory so
+already received history can still be read; rotation cannot erase content or
+keys already copied by a removed endpoint.
 
-## Replay and Ordering
+## Replay and transcript sync
 
-A browser tab tracks accepted message IDs for its current room component,
-including expired messages and locally sent messages. The ledger survives
-WebSocket reconnects and rejects duplicates from live relays or transcript sync.
-Up to 10,000 IDs are kept; after that, new text fails closed for that page
-session. Concurrent copies of an ID share a pending slot. A failed
-authentication releases the slot so a valid later copy can still be accepted.
-Out-of-order messages are allowed; the UI sorts by `sentAt` for display.
+Verified message IDs and signed event IDs are stored in a bounded,
+versioned `sessionStorage` ledger. It contains IDs and expiry times only: no
+plaintext, ciphertext, room secret, capability token, signature key, or file
+content. The ledger survives refresh and WebSocket reconnect in the same tab,
+rejects concurrent duplicates, prunes expired IDs, fails closed at 10,000 live
+entries, tolerates corrupt or unavailable storage, and is cleared when the room
+ends or the participant is removed.
 
-Refresh or tab close loses the ledger and in-memory transcript. Peer-supplied
-sync after refresh may deliver an old, still unexpired message again. The relay
-does not hold a durable replay ledger or transcript, and peer-supplied history
-is neither complete nor authoritative. A recipient's clock controls expiry;
-clock skew can change when a valid message is hidden. Room destruction ends
-relay admission, but does not erase endpoint copies.
+Transcript sync is peer supplied, capped, signed, and individually verified.
+It remains incomplete by design: peers can omit or reorder history, and elm.chat
+does not claim server-backed recovery or proof of completeness.
 
-The Durable Object checks max-age and idle deadlines on WebSocket admission
-and before handling each WebSocket event, in addition to its alarm. This closes
-the gap where an overdue room could relay another event before its alarm ran.
-It does not authenticate a peer's device or revoke plaintext already received.
+## File transfer
 
-There is one shared room key for the room's lifetime. No key rotation or
-forward secrecy is provided. A new room and secret create a new key scope;
-the room ID in associated data prevents ciphertext reuse across rooms.
+File offers, requests, chunks, completion, cancellation, and their metadata are
+inside signed peer envelopes. The receiver enforces the 25 MiB declaration,
+64 KiB chunk ceiling, expected chunk count, sender, epoch, chunk indices, and
+memory bound. The sender observes WebSocket backpressure. An interrupted
+transfer times out after 30 seconds. A download is created only after every
+chunk decrypts and the reconstructed byte count and SHA-256 digest match the
+signed offer and completion event.
 
-## Test Vector and Adversarial Checks
+## Automated adversarial checks
 
-`npm run check:message-protocol` constructs a deterministic independent
-AES-GCM vector using a zero 256-bit key, zero 96-bit nonce, the associated-data
-array above, and plaintext `vector`. The expected base64url ciphertext with
-the GCM tag is `uMIjSSISvl9PtXjhyDcP6DaCSjcCZA`. The test pins that value and
-verifies that the client accepts it. The same check rejects changed ciphertext,
-each protected metadata field, a different room ID, and protocol v1. It also
-exercises the browser receive path: direct-relay sender mismatch, transcript
-sender tampering, duplicate delivery after reconnect, ID reuse, expiry,
-concurrent duplicates, out-of-order IDs, retry after failed authentication,
-and the replay-ledger cap. A new ledger accepting the same authenticated
-envelope documents the refresh/state-loss limit. Decryption under a new room
-key fails. Deadline-boundary checks cover max-age and idle expiry decisions.
-These are automated checks, not a substitute for separate protocol review.
+`npm run check:message-protocol` pins the v3 AES-GCM vector, verifies signed
+events and pairwise epoch wrapping, and rejects changed ciphertext, metadata,
+room, epoch, payload, signature context, and rotation context. It also covers
+duplicates, concurrency, out-of-order delivery, failed verification retry,
+expiry garbage collection, persistent replay state, corrupt storage, and key
+mismatch.
 
-A separate review of the protocol, client event handling, transcript sync,
-Durable Object deadline checks, and endpoint assumptions is still recommended
-before relying on the documented room-key and live-page replay model. The
-maintainer waived that review as a prerequisite for closing issue #100; the
-automated checks and maintainer testing do **not** constitute an independent
-security audit. File-event authentication, sender identity, and replay controls
-across refresh need their own design and implementation; they are not claims
-made by text protocol v2.
+`npm test` covers room admission, session-to-key binding, unsigned relay
+rejection, bounded reconnect state, and replay behavior. The
+[recovery and accessibility matrix](RECOVERY-ACCESSIBILITY-TEST-MATRIX.md)
+lists the real browser and assistive-technology checks still required for a
+release record.
+
+These checks are not an independent security audit. Independent review remains
+open in GitHub issue #56.

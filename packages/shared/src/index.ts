@@ -2,7 +2,8 @@ export const ROOM_SECRET_BYTES = 32;
 export const ROOM_ID_BYTES = 16;
 export const AES_GCM_NONCE_BYTES = 12;
 export const KEY_VERSION = "v1";
-export const MESSAGE_PROTOCOL_VERSION = 2;
+export const MESSAGE_PROTOCOL_VERSION = 3;
+export const PEER_EVENT_PROTOCOL_VERSION = 1;
 export const HKDF_INFO = `elm-chat:${KEY_VERSION}:room-key`;
 export const DEFAULT_INACTIVITY_TIMEOUT_MS = 10 * 60 * 1000;
 export const DEFAULT_MAX_ROOM_AGE_MS = 24 * 60 * 60 * 1000;
@@ -123,6 +124,7 @@ export interface RoomMetadata {
   participantCount: number;
   creatorJoined: boolean;
   lastActivityAt: number;
+  membershipVersion: number;
   destroyedAt?: number;
 }
 
@@ -134,6 +136,7 @@ export interface EncryptedMessageEnvelope {
   nonce: string;
   sentAt: number;
   expiresAfterReadSeconds: number | null;
+  keyEpoch: number;
 }
 
 export interface PeerDescriptor {
@@ -141,6 +144,7 @@ export interface PeerDescriptor {
   creator: boolean;
   connectedAt: number;
   identityKey: string;
+  agreementKey: string;
 }
 
 export interface PresenceSnapshot {
@@ -152,14 +156,26 @@ export interface JoinPayload {
   type: "join";
   sessionId: string;
   identityKey: string;
+  agreementKey: string;
   creatorToken?: string;
   inviteToken?: string;
+}
+
+export interface AuthenticatedPeerEvent {
+  protocolVersion: typeof PEER_EVENT_PROTOCOL_VERSION;
+  roomId: string;
+  eventId: string;
+  senderSessionId: string;
+  targetSessionId: string | null;
+  sentAt: number;
+  payload: PeerDataEvent;
+  signature: string;
 }
 
 export interface PeerDataRelayPayload {
   type: "peer_data";
   toSessionId?: string;
-  data: PeerDataEvent;
+  data: AuthenticatedPeerEvent;
 }
 
 export interface DestroyPayload {
@@ -189,6 +205,7 @@ export interface JoinedEvent {
   room: RoomMetadata;
   sessionId: string;
   creator: boolean;
+  self: PeerDescriptor;
   peers: PeerDescriptor[];
   presence: PresenceSnapshot;
 }
@@ -201,17 +218,19 @@ export interface PresenceEvent {
 export interface PeerJoinedEvent {
   type: "peer_joined";
   peer: PeerDescriptor;
+  membershipVersion: number;
 }
 
 export interface PeerLeftEvent {
   type: "peer_left";
   sessionId: string;
+  membershipVersion: number;
 }
 
 export interface PeerDataRelayEvent {
   type: "peer_data";
   fromSessionId: string;
-  data: PeerDataEvent;
+  data: AuthenticatedPeerEvent;
 }
 
 export interface RoomStateEvent {
@@ -261,7 +280,9 @@ export interface TranscriptSyncRequest {
 
 export interface TranscriptSyncResponse {
   type: "sync_response";
-  messages: EncryptedMessageEnvelope[];
+  messages: AuthenticatedPeerEvent[];
+  completeness: "peer-partial";
+  truncated: boolean;
 }
 
 export interface PeerChatMessage {
@@ -282,6 +303,8 @@ export interface PeerFileAnnouncement {
   size: number;
   sentAt: number;
   expiresAfterReadSeconds: number | null;
+  sha256: string;
+  keyEpoch: number;
 }
 
 export interface PeerFileRequest {
@@ -296,11 +319,27 @@ export interface PeerFileChunk {
   totalChunks: number;
   ciphertext: string;
   nonce: string;
+  keyEpoch: number;
 }
 
 export interface PeerFileComplete {
   type: "file_complete";
   fileId: string;
+  sha256: string;
+}
+
+export interface PeerFileCancel {
+  type: "file_cancel";
+  fileId: string;
+  reason: "cancelled" | "disconnected" | "integrity" | "timeout";
+}
+
+export interface PeerKeyRotation {
+  type: "key_rotation";
+  keyEpoch: number;
+  senderAgreementKey: string;
+  ciphertext: string;
+  nonce: string;
 }
 
 export type PeerDataEvent =
@@ -311,7 +350,9 @@ export type PeerDataEvent =
   | PeerFileAnnouncement
   | PeerFileRequest
   | PeerFileChunk
-  | PeerFileComplete;
+  | PeerFileComplete
+  | PeerFileCancel
+  | PeerKeyRotation;
 
 export function assertNever(value: never): never {
   throw new Error(`Unhandled value: ${String(value)}`);

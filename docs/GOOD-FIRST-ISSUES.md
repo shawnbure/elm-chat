@@ -1,21 +1,40 @@
-# Good First Issues
+# Contributor Starting Points
 
-Scoped starting points for new contributors. Copy any of these into a GitHub Issue (Issues → New) and add the `good first issue` label. Each is intentionally small and reviewable. Ordered roughly easiest → harder.
+The earlier starter list is largely complete: elm.chat now has the invite-recipient
+“make your own room” path, robots and social metadata, Spanish room-shell
+localization, a self-host smoke report, and message protocol v3.
 
----
+Current public help-wanted work:
 
-### 1. Add a "Create your own room" callout on the invite/room-gone screens
-**Type:** UX / growth · **Difficulty:** easy
-When a guest lands on an expired or used invite, or a room self-destructs, show a calm one-line prompt linking to `/` ("This secure room was made with elm.chat — create your own, free, no signup"). No tracking. This is the project's main organic-growth surface.
+- [Independent security review wanted: protocol, browser client, and room lifecycle](https://github.com/shawnbure/elm-chat/issues/56)
+- Review the completed [signed-event, replay, key-rotation, transfer, and recovery roadmap](../README.md#security-work-that-still-matters) from issues #106–#110 and report a narrowly reproduced defect.
 
-### 2. Add a `robots.txt` and basic Open Graph / meta tags
-**Type:** SEO / polish · **Difficulty:** easy
-The landing page should have a title, description, OG image, and Twitter card so shared links render nicely. Keep it content-free about any room.
+The independent review can be taken in one bounded slice:
 
-### 3. Metadata-minimization audit of the Worker
-**Type:** security · **Difficulty:** hard
-Enumerate everything the Worker/Durable Object can observe per room (IPs, timing, sizes) and propose reductions. Write it up as a doc + issues.
+1. **Text protocol:** review associated-data fields, ordering, duplicate handling,
+   reconnect behavior, and downgrade assumptions in
+   [`message-protocol-v2.md`](message-protocol-v2.md).
+2. **File protocol:** review request authorization, chunk encryption, metadata
+   exposure, size limits, interruption behavior, and recipient-side assembly.
+3. **Room lifecycle:** test invitation admission, participant removal, idle and
+   maximum deadlines, manual destruction, and stale-client behavior.
+4. **Browser boundary:** document where secrets and plaintext can remain after
+   refresh, tab close, download, clipboard use, or browser recovery.
 
-### 4. Independent review of the crypto package
-**Type:** security · **Difficulty:** hard
-Review `packages/crypto` key exchange and message encryption against the stated threat model. File findings via SECURITY.md, not public issues.
+Please comment on the issue with the slice you plan to review before starting,
+so work is not duplicated. Use [private vulnerability reporting](../SECURITY.md)
+for exploitable or sensitive findings.
+
+## Proposing a smaller first contribution
+
+If the review request is too broad, open an issue before writing code and define:
+
+- the exact behavior or failure case;
+- the files and protocol boundary involved;
+- how the change will be tested;
+- which privacy or security claim it affects; and
+- what remains explicitly out of scope.
+
+Small documentation, regression-test, accessibility, and localization fixes are
+welcome when they preserve the published security limits. See
+[`CONTRIBUTING.md`](../CONTRIBUTING.md) for the development and review workflow.

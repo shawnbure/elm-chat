@@ -35,6 +35,7 @@ type AttachmentRecord = {
   sessionId: string;
   creator: boolean;
   identityKey: string;
+  agreementKey: string;
   connectedAt: number;
 };
 
@@ -97,6 +98,9 @@ export class RoomDurableObject extends DurableObject<Env> {
     super(ctx, env);
     this.storageReady = this.ctx.blockConcurrencyWhile(async () => {
       this.roomMeta = (await this.ctx.storage.get<RoomStorage>(ROOM_META_KEY)) ?? null;
+      if (this.roomMeta && !Number.isSafeInteger(this.roomMeta.membershipVersion)) {
+        this.roomMeta.membershipVersion = 0;
+      }
       this.invites = new Map((await this.ctx.storage.get<[string, RoomInvite][]>(INVITES_KEY)) ?? []);
     });
   }
@@ -154,6 +158,7 @@ export class RoomDurableObject extends DurableObject<Env> {
         sessionId: "",
         creator: false,
         identityKey: "",
+        agreementKey: "",
         connectedAt: Date.now()
       } satisfies AttachmentRecord);
       await this.scheduleNextAlarm();
@@ -230,10 +235,15 @@ export class RoomDurableObject extends DurableObject<Env> {
       return;
     }
 
+    if (this.roomMeta?.status === "open") {
+      this.roomMeta.membershipVersion += 1;
+      await this.ctx.storage.put(ROOM_META_KEY, this.roomMeta);
+    }
     await this.markRoomActivity();
     this.broadcast({
       type: "peer_left",
-      sessionId: attachment.sessionId
+      sessionId: attachment.sessionId,
+      membershipVersion: this.roomMeta?.membershipVersion ?? 0
     } satisfies PeerLeftEvent);
     await this.broadcastPresence();
   }
@@ -255,6 +265,7 @@ export class RoomDurableObject extends DurableObject<Env> {
       participantCount: 0,
       creatorJoined: false,
       lastActivityAt: bootstrap.createdAt,
+      membershipVersion: 0,
       creatorToken: bootstrap.creatorToken
     };
 
@@ -291,10 +302,27 @@ export class RoomDurableObject extends DurableObject<Env> {
       typeof payload.sessionId !== "string" ||
       !payload.sessionId ||
       typeof payload.identityKey !== "string" ||
-      !payload.identityKey
+      !/^[A-Za-z0-9_-]{87}$/.test(payload.identityKey) ||
+      typeof payload.agreementKey !== "string" ||
+      !/^[A-Za-z0-9_-]{87}$/.test(payload.agreementKey)
     ) {
       ws.send(JSON.stringify(errorEvent("invalid_join", "Join was invalid or timed out.")));
       ws.close(4408, "invalid join");
+      return;
+    }
+
+    const existingSession = this.connectedSessions().find(
+      (session) => session.sessionId === payload.sessionId
+    );
+    if (existingSession) {
+      ws.send(JSON.stringify(errorEvent(
+        existingSession.identityKey === payload.identityKey && existingSession.agreementKey === payload.agreementKey
+          ? "session_connected" : "identity_mismatch",
+        existingSession.identityKey === payload.identityKey && existingSession.agreementKey === payload.agreementKey
+          ? "This session is already connected."
+          : "The session is already bound to another identity key."
+      )));
+      ws.close(4409, "duplicate session");
       return;
     }
 
@@ -310,7 +338,8 @@ export class RoomDurableObject extends DurableObject<Env> {
       sessionId: payload.sessionId,
       creator,
       connectedAt: Date.now(),
-      identityKey: payload.identityKey
+      identityKey: payload.identityKey,
+      agreementKey: payload.agreementKey
     };
     ws.serializeAttachment(session satisfies AttachmentRecord);
 
@@ -318,6 +347,7 @@ export class RoomDurableObject extends DurableObject<Env> {
       this.roomMeta.creatorJoined = true;
     }
     this.roomMeta.participantCount = this.connectedSessionIds().length;
+    this.roomMeta.membershipVersion += 1;
     this.roomMeta.lastActivityAt = Date.now();
     await this.ctx.storage.put(ROOM_META_KEY, this.roomMeta);
 
@@ -348,6 +378,7 @@ export class RoomDurableObject extends DurableObject<Env> {
         room: this.publicMetadata(this.roomMeta),
         sessionId: payload.sessionId,
         creator,
+        self: this.describePeer(session),
         peers,
         presence: this.presenceSnapshot()
       } satisfies ServerEvent)
@@ -355,7 +386,8 @@ export class RoomDurableObject extends DurableObject<Env> {
 
     this.broadcastToOtherParticipants(payload.sessionId, {
       type: "peer_joined",
-      peer: this.describePeer(session)
+      peer: this.describePeer(session),
+      membershipVersion: this.roomMeta.membershipVersion
     } satisfies PeerJoinedEvent);
 
     await this.broadcastPresence();
@@ -421,6 +453,22 @@ export class RoomDurableObject extends DurableObject<Env> {
     const attachment = ws.deserializeAttachment() as AttachmentRecord | null;
     if (!attachment?.sessionId) {
       ws.send(JSON.stringify(errorEvent("join_required", "Join before relaying peer data.")));
+      return;
+    }
+
+    const data = payload.data;
+    if (
+      !data ||
+      data.protocolVersion !== 1 ||
+      data.roomId !== this.roomMeta.roomId ||
+      data.senderSessionId !== attachment.sessionId ||
+      data.targetSessionId !== (payload.toSessionId ?? null) ||
+      typeof data.eventId !== "string" ||
+      typeof data.signature !== "string" ||
+      !data.payload ||
+      typeof data.payload.type !== "string"
+    ) {
+      ws.send(JSON.stringify(errorEvent("invalid_peer_event", "Peer event authentication metadata is invalid.")));
       return;
     }
 
@@ -618,12 +666,18 @@ export class RoomDurableObject extends DurableObject<Env> {
     for (const socket of this.ctx.getWebSockets()) {
       const attachment = socket.deserializeAttachment() as AttachmentRecord | null;
       if (attachment?.sessionId === targetSessionId) {
+        socket.serializeAttachment({ ...attachment, sessionId: "" } satisfies AttachmentRecord);
         socket.close(4403, closeReason);
       }
     }
+    if (this.roomMeta?.status === "open") {
+      this.roomMeta.membershipVersion += 1;
+      await this.ctx.storage.put(ROOM_META_KEY, this.roomMeta);
+    }
     this.broadcast({
       type: "peer_left",
-      sessionId: targetSessionId
+      sessionId: targetSessionId,
+      membershipVersion: this.roomMeta?.membershipVersion ?? 0
     } satisfies PeerLeftEvent);
     await this.broadcastPresence();
     await this.markRoomActivity();
@@ -632,6 +686,8 @@ export class RoomDurableObject extends DurableObject<Env> {
   private broadcast(event: ServerEvent): void {
     const payload = JSON.stringify(event);
     for (const socket of this.ctx.getWebSockets()) {
+      const attachment = socket.deserializeAttachment() as AttachmentRecord | null;
+      if (!attachment?.sessionId) continue;
       this.sendIfOpen(socket, payload);
     }
   }
@@ -705,7 +761,8 @@ export class RoomDurableObject extends DurableObject<Env> {
       sessionId: peer.sessionId,
       creator: peer.creator,
       connectedAt: peer.connectedAt,
-      identityKey: peer.identityKey
+      identityKey: peer.identityKey,
+      agreementKey: peer.agreementKey
     };
   }
 
@@ -721,6 +778,7 @@ export class RoomDurableObject extends DurableObject<Env> {
       participantCount: this.connectedSessionIds().length,
       creatorJoined: meta.creatorJoined,
       lastActivityAt: meta.lastActivityAt,
+      membershipVersion: meta.membershipVersion,
       destroyedAt: meta.destroyedAt
     };
   }
