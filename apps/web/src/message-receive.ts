@@ -20,16 +20,15 @@ export async function receiveTextMessage(
     throw new InvalidMessageEnvelopeError("Unsupported version or relay sender mismatch.");
   }
 
-  let plaintext = "";
-  const accepted = await guard.accept(envelope.messageId, async () => {
-    plaintext = await decryptMessage(key, roomId, envelope);
-  });
-  if (!accepted) return null;
-
   const expiresAt =
     typeof envelope.expiresAfterReadSeconds === "number"
       ? envelope.sentAt + envelope.expiresAfterReadSeconds * 1000
       : undefined;
+  let plaintext = "";
+  const accepted = await guard.accept(envelope.messageId, expiresAt ?? null, async () => {
+    plaintext = await decryptMessage(key, roomId, envelope);
+  });
+  if (!accepted) return null;
   if (typeof expiresAt === "number" && expiresAt <= now) return null;
 
   return { plaintext, expiresAt };

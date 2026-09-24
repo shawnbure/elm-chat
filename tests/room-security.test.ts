@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 import worker from "../workers/api/src/index";
 import type { CreateRoomResponse, RoomMetadata } from "@elm-chat/shared";
 
+const TEST_IDENTITY_KEY = `B${"A".repeat(86)}`;
+const OTHER_IDENTITY_KEY = `B${"C".repeat(86)}`;
+
 async function createRoom(): Promise<CreateRoomResponse> {
   const response = await worker.fetch(
     new Request("https://elm.chat/api/rooms", {
@@ -31,6 +34,21 @@ async function openUnjoined(roomId: string): Promise<WebSocket | Response> {
   const socket = response.webSocket!;
   socket.accept();
   return socket;
+}
+
+function nextSocketEvent<T extends { type: string }>(
+  socket: WebSocket,
+  type: string
+): Promise<T> {
+  return new Promise((resolve) => {
+    const listener = (event: MessageEvent) => {
+      const payload = JSON.parse(String(event.data)) as T;
+      if (payload.type !== type) return;
+      socket.removeEventListener("message", listener);
+      resolve(payload);
+    };
+    socket.addEventListener("message", listener);
+  });
 }
 
 describe("room admission and creator capability", () => {
@@ -109,7 +127,8 @@ describe("room admission and creator capability", () => {
       socket.send(JSON.stringify({
         type: "join",
         sessionId: crypto.randomUUID(),
-        identityKey: "test-public-key",
+        identityKey: TEST_IDENTITY_KEY,
+        agreementKey: TEST_IDENTITY_KEY,
         creatorToken: room.creatorToken
       }));
       expect(await joined).toMatchObject({ type: "joined", creator: true });
@@ -131,7 +150,8 @@ describe("room admission and creator capability", () => {
       socket.send(JSON.stringify({
         type: "join",
         sessionId: "",
-        identityKey: "test-public-key",
+        identityKey: TEST_IDENTITY_KEY,
+        agreementKey: TEST_IDENTITY_KEY,
         creatorToken: room.creatorToken
       }));
       expect(await error).toMatchObject({ type: "error", code: "invalid_join" });
@@ -153,5 +173,58 @@ describe("room admission and creator capability", () => {
     expect(authorized.status).toBe(200);
     expect(authorized.headers.get("cache-control")).toBe("no-store");
     expect(await authorized.json()).toEqual([]);
+  });
+
+  it("binds a connected session to its signing and agreement keys", async () => {
+    const room = await createRoom();
+    const first = await openUnjoined(room.roomId);
+    const second = await openUnjoined(room.roomId);
+    expect(first).toBeInstanceOf(WebSocket);
+    expect(second).toBeInstanceOf(WebSocket);
+    if (!(first instanceof WebSocket) || !(second instanceof WebSocket)) return;
+    const sessionId = crypto.randomUUID();
+    try {
+      const joined = new Promise<{ type: string; room: RoomMetadata }>((resolve) => {
+        first.addEventListener("message", (event) => resolve(JSON.parse(String(event.data))), { once: true });
+      });
+      first.send(JSON.stringify({
+        type: "join", sessionId, identityKey: TEST_IDENTITY_KEY,
+        agreementKey: TEST_IDENTITY_KEY, creatorToken: room.creatorToken
+      }));
+      expect((await joined).room.membershipVersion).toBe(1);
+
+      const rejected = nextSocketEvent<{ type: string; code: string }>(second, "error");
+      second.send(JSON.stringify({
+        type: "join", sessionId, identityKey: OTHER_IDENTITY_KEY,
+        agreementKey: OTHER_IDENTITY_KEY, creatorToken: room.creatorToken
+      }));
+      expect(await rejected).toMatchObject({ type: "error", code: "identity_mismatch" });
+    } finally {
+      first.close();
+      second.close();
+    }
+  });
+
+  it("rejects unsigned and sender-mismatched peer events", async () => {
+    const room = await createRoom();
+    const socket = await openUnjoined(room.roomId);
+    expect(socket).toBeInstanceOf(WebSocket);
+    if (!(socket instanceof WebSocket)) return;
+    const sessionId = crypto.randomUUID();
+    try {
+      const joined = new Promise((resolve) => {
+        socket.addEventListener("message", resolve, { once: true });
+      });
+      socket.send(JSON.stringify({
+        type: "join", sessionId, identityKey: TEST_IDENTITY_KEY,
+        agreementKey: TEST_IDENTITY_KEY, creatorToken: room.creatorToken
+      }));
+      await joined;
+      const error = nextSocketEvent<{ type: string; code: string }>(socket, "error");
+      socket.send(JSON.stringify({ type: "peer_data", data: { type: "sync_request" } }));
+      expect(await error).toMatchObject({ type: "error", code: "invalid_peer_event" });
+    } finally {
+      socket.close();
+    }
   });
 });

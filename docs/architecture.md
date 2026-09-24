@@ -64,16 +64,16 @@ Each connected participant keeps the current encrypted transcript in memory and 
 ## Encryption
 
 - **Room key:** HKDF-SHA-256 over the fragment secret → AES-GCM-256.
-- **Text messages:** AES-GCM per message with a random 96-bit nonce. Protocol v2 authenticates room ID, sender session ID, message ID, timestamp, and expiry as associated data. The receiving page rejects duplicate IDs while it remains open. See [message protocol v2](message-protocol-v2.md).
-- **Files:** chunked at `FILE_CHUNK_BYTES` (64 KiB). Each chunk is AES-GCM-encrypted with its own nonce, streamed over the relay to the requesting peer, then reassembled and decrypted by the recipient. Max size `MAX_FILE_BYTES` (25 MiB).
-- **Identity keys:** each client generates an ephemeral ECDSA P-256 keypair and shares the public key on join. These keys are not yet used to verify sender identity; any holder of the room secret can create a valid text envelope.
+- **Text messages:** AES-GCM per message with a random 96-bit nonce. Protocol v3 authenticates room ID, sender session ID, message ID, timestamp, expiry, and key epoch. Signed peer envelopes bind events to the admitted ephemeral sender key. See [message protocol v3](message-protocol-v2.md).
+- **Files:** signed 64 KiB encrypted chunks with bounded indices, timeout/cancellation, declared-size enforcement, and whole-file SHA-256 verification before download. Max size `MAX_FILE_BYTES` (25 MiB).
+- **Identity and agreement keys:** each tab session keeps ephemeral ECDSA P-256 signing and ECDH P-256 agreement keys in tab-scoped storage. Membership changes produce a fresh room-key epoch wrapped separately to each remaining participant.
 
 ## Membership & Relay Rules
 
 - The set of connected participants is derived from **live WebSocket attachments**, not an in-memory map. This survives Durable Object hibernation, so targeted relays (file chunks, per-peer sync) keep working after the object sleeps and wakes.
 - Broadcasts (chat, presence, peer join/leave) go to all other participants; targeted relays go to one `sessionId`.
 - Room capacity is capped at `MAX_CONNECTIONS_PER_ROOM` open sockets, including those awaiting `join`; an unjoined socket has 15 seconds to join and does not count as room activity.
-- Transcript collation on join verifies each v2 text envelope and de-duplicates by `messageId` within the current page session.
+- Transcript collation verifies each signed v3 event and de-duplicates message and event IDs across reconnect and refresh in bounded tab storage. Peer sync is still not proof of completeness.
 
 ## Access Control
 
