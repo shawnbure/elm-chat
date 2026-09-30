@@ -54,6 +54,7 @@ import { canShareInvite } from "./manual-invite";
 import { useConversationScroll } from "./use-conversation-scroll";
 import { useConversationFind } from "./use-conversation-find";
 import { useParticipantLabels } from "./use-participant-labels";
+import { useConversationConcealment } from "./use-conversation-concealment";
 
 type View = "landing" | "marketing" | "room";
 
@@ -1256,6 +1257,7 @@ function RoomPage({ roomId }: { roomId: string }) {
     handleConversationScroll();
   });
   const [roomNotice, setRoomNotice] = useState<string | null>(null);
+  const concealment = useConversationConcealment(() => conversationFind.close());
   const [notFound, setNotFound] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState<ActionFeedback>("idle");
   const [destroyFeedback, setDestroyFeedback] = useState<ActionFeedback>("idle");
@@ -1305,7 +1307,7 @@ function RoomPage({ roomId }: { roomId: string }) {
   // already-closed room without reading a stale `room` value.
   const roomStatusRef = useRef<RoomMetadata["status"] | null>(null);
   const { chatLogRef, awayFromLatest, newMessageCount, jumpToLatest, handleConversationScroll } =
-    useConversationScroll(messages, ready, conversationFind.open);
+    useConversationScroll(messages, ready, conversationFind.open || concealment.hidden);
   const messageRef = useRef(new Map<string, AuthenticatedPeerEvent>());
   const replayGuardRef = useRef<ReplayGuard | null>(null);
   const eventReplayGuardRef = useRef<ReplayGuard | null>(null);
@@ -2598,7 +2600,10 @@ function RoomPage({ roomId }: { roomId: string }) {
 
   useEffect(() => {
     if (removedFromRoom || notFound || (room && room.status !== "open") ||
-      ["invalid", "claimed", "used"].includes(inviteAccess)) conversationFind.close();
+      ["invalid", "claimed", "used"].includes(inviteAccess)) {
+      conversationFind.close();
+      concealment.reset();
+    }
   }, [removedFromRoom, notFound, room?.status, inviteAccess]);
 
   if (removedFromRoom) {
@@ -2629,14 +2634,16 @@ function RoomPage({ roomId }: { roomId: string }) {
     );
   }
 
-  if (isInviteGuest && (inviteAccess !== "granted" || !room || !ready)) {
+  if (!concealment.hidden && isInviteGuest && (inviteAccess !== "granted" || !room || !ready)) {
     return <InviteCheckingScreen connection={connection} error={connectionError ?? error}
       focusRef={setRetryFocusTarget}
       onRetry={canRetryConnection ? () => retryConnectionRef.current?.() : undefined} />;
   }
 
   return (
-    <main className="room-shell">
+    <>
+    {concealment.screen}
+    <main className="room-shell room-content" hidden={concealment.hidden} style={concealment.hidden ? { display: "none" } : undefined}>
       <header className="room-header">
         <div className="room-title">
           <p className="eyebrow">elm chat</p>
@@ -2688,6 +2695,7 @@ function RoomPage({ roomId }: { roomId: string }) {
             >
               {destroying ? t("destroying") : t("destroy")}
             </button>
+            {concealment.control}
           </div>
           <span className="sr-only" role="status" aria-live="polite">
             {inviteFeedback === "shared"
@@ -2910,5 +2918,6 @@ function RoomPage({ roomId }: { roomId: string }) {
         </button>
       </form>
     </main>
+    </>
   );
 }
