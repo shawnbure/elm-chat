@@ -698,6 +698,17 @@ select {
   text-decoration: underline;
 }
 
+.participant-summary {
+  min-width: 0;
+  flex: 1;
+}
+
+.participant-label-note {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .participant-strip {
   display: flex;
   gap: 10px;
