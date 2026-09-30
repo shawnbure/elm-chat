@@ -53,6 +53,7 @@ import { ManualInviteLink } from "./ManualInviteLink";
 import { canShareInvite } from "./manual-invite";
 import { useConversationScroll } from "./use-conversation-scroll";
 import { useConversationFind } from "./use-conversation-find";
+import { useParticipantLabels } from "./use-participant-labels";
 import { useConversationConcealment } from "./use-conversation-concealment";
 
 type View = "landing" | "marketing" | "room";
@@ -1277,6 +1278,15 @@ function RoomPage({ roomId }: { roomId: string }) {
     safeStorageSet("session", sessionKey(roomId), next);
     return next;
   });
+  const participantLabels = useParticipantLabels(
+    roomId, sessionId, presence.connectedSessionIds, messages,
+    room?.status === "open" && !removedFromRoom && !notFound && inviteAccess === "granted"
+  );
+  function participantLabel(id: string): string {
+    if (id === sessionId) return t("you");
+    const number = participantLabels.labels.get(id);
+    return number === undefined ? t("guest") : t("guestLabel", { number });
+  }
   const creatorToken = storedCreatorToken;
   const socketRef = useRef<WebSocket | null>(null);
   const roomKeyRef = useRef<CryptoKey | null>(null);
@@ -1418,6 +1428,7 @@ function RoomPage({ roomId }: { roomId: string }) {
 
   function clearRoomSecurityState() {
     conversationFind.close();
+    participantLabels.clear();
     for (const [fileId, transfer] of incomingFilesRef.current) removeIncomingFile(fileId, transfer);
     replayGuardRef.current?.clear();
     eventReplayGuardRef.current?.clear();
@@ -2699,30 +2710,34 @@ function RoomPage({ roomId }: { roomId: string }) {
       </header>
 
       <section className="room-strip">
-        <div className="participant-strip" aria-label={t("participants")}>
-          {sortedPresenceIds.length === 0 ? (
-            <span className="participant-empty">{t("waiting")}</span>
-          ) : (
-            sortedPresenceIds.map((id) => (
-              <span
-                className={`participant-chip ${id === sessionId ? "participant-chip-self" : ""}`}
-                key={id}
-                style={{ "--participant-color": colorFromSessionId(id) } as CSSProperties}
-              >
-                <span className="participant-dot" />
-                {id === sessionId ? t("you") : t("guest")}
-                {isCreator && id !== sessionId ? (
-                  <button
-                    className="participant-kick"
-                    onClick={() => handleKickParticipant(id)}
-                    type="button"
-                  >
-                    {t("remove")}
-                  </button>
-                ) : null}
-              </span>
-            ))
-          )}
+        <div className="participant-summary">
+          <div className="participant-strip" role="group" aria-label={t("participants")} aria-describedby="participant-label-note">
+            {sortedPresenceIds.length === 0 ? (
+              <span className="participant-empty">{t("waiting")}</span>
+            ) : (
+              sortedPresenceIds.map((id) => (
+                <span
+                  className={`participant-chip ${id === sessionId ? "participant-chip-self" : ""}`}
+                  key={id}
+                  style={{ "--participant-color": colorFromSessionId(id) } as CSSProperties}
+                >
+                  <span className="participant-dot" />
+                  {participantLabel(id)}
+                  {isCreator && id !== sessionId ? (
+                    <button
+                      aria-label={t("removeGuest", { label: participantLabel(id) })}
+                      className="participant-kick"
+                      onClick={() => handleKickParticipant(id)}
+                      type="button"
+                    >
+                      {t("remove")}
+                    </button>
+                  ) : null}
+                </span>
+              ))
+            )}
+          </div>
+          <p className="participant-label-note" id="participant-label-note">{t("participantLabelsLocal")}</p>
         </div>
         <div className="banner-stats">
           <span>{room?.status ?? "loading"}</span>
@@ -2834,7 +2849,7 @@ function RoomPage({ roomId }: { roomId: string }) {
                 key={message.id}
                 style={bubbleStyle(message.senderSessionId, mine)}
               >
-                <span className="bubble-author">{mine ? t("you") : t("guest")}</span>
+                <span className="bubble-author">{participantLabel(message.senderSessionId)}</span>
                 {message.kind === "file" && message.file ? (
                   <FileCard
                     file={message.file}
